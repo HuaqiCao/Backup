@@ -1,117 +1,139 @@
-function simulate_spring_responses()
-    % 选择一个加速度输入 CSV 文件（振源）
-    [file, path] = uigetfile('*.csv', '选择一个加速度CSV文件');
-    if isequal(file, 0)
-        disp('取消选择');
-        return;
-    end
-    input_file = fullfile(path, file);
-    opts = detectImportOptions(input_file, 'NumHeaderLines', 4);
-    data = readmatrix(input_file, opts);
+% === 1. 文件选择 ===
+[fileName, filePath] = uigetfile('*.csv', '选择加速度 CSV 文件');
+if isequal(fileName, 0)
+    error('❌ 用户取消了文件选择。');
+end
+fullFileName = fullfile(filePath, fileName);
 
-    time = data(:,1);        % 时间（秒）
-    accel_input = data(:,2); % 加速度（g）
-    accel_input = accel_input - mean(accel_input); % 去直流偏置
+% === 2. 读取数据（跳过前4行） ===
+opts = detectImportOptions(fullFileName, 'NumHeaderLines', 4);
+data = readmatrix(fullFileName, opts);
+time = data(:,1);
+a_base = data(:,2);
+a_base = a_base - mean(a_base);  % 去偏置
 
-    dt = mean(diff(time));
-    fs = 1 / dt;
-    t = time;
+dt = mean(diff(time));
+fs = 1 / dt;
 
-    % 获取用户输入的 4 组 (k, c) 参数
-    prompt = {'k1 (N/m):', 'c1 (Ns/m):', ...
-              'k2 (N/m):', 'c2 (Ns/m):', ...
-              'k3 (N/m):', 'c3 (Ns/m):', ...
-              'k4 (N/m):', 'c4 (Ns/m):'};
-    dlgtitle = '输入四组弹簧参数';
-    dims = [1 35];
-    definput = {'82.50','0.0992','55','0.0441','66.27','0.0441','99.40','0.0992'};
-    answer = inputdlg(prompt, dlgtitle, dims, definput);
-    if isempty(answer)
-        disp('取消输入');
-        return;
-    end
+% === 3. PSD 计算参数 ===
+nfft = 2^nextpow2(length(a_base)/8);
+window = hamming(nfft);
+overlap = round(0.5 * nfft);
+[pxx, f] = pwelch(a_base, window, overlap, nfft, fs);
+w = 2 * pi * f;
 
-    m = 1.025;
-    sys = cell(1,4);
-    responses = zeros(length(t), 4);
-    for i = 1:4
-        k = str2double(answer{2*i-1});
-        c = str2double(answer{2*i});
-        num = [0 c k];
-        den = [m c k];
-        sys{i} = tf(num, den);
-        % 使用 lsim 模拟系统响应，输入为加速度（g），乘以 9.80665 得到 m/s²
-        responses(:,i) = lsim(sys{i}, accel_input * 9.80665, t);
-        % 写入输出 CSV（单位为 m/s²，列格式和输入一致）
-        out_data = [t responses(:,i) / 9.80665];  % 转回 g
-        out_filename = fullfile(path, sprintf('Output%d.csv', i));
-        writematrix(out_data, out_filename);
-    end
+% === 4. 系统参数 ===
+m = 12.80;  % 铜锅质量 kg
+zeta = 0.05;  % 阻尼比（必须设置）
 
-    % === PSD 分析参数 ===
-    ref_resistance = 1;  % 参考电阻，单位欧姆
-    nfft = 2^nextpow2(length(t)/8);
-    window = hamming(nfft);
-    overlap = round(0.5 * nfft);
+% 优化频段（可调），单位 Hz
+f_band = [0, 10];
+f_idx = f >= f_band(1) & f <= f_band(2);
+f_opt = f(f_idx);
+pxx_opt = pxx(f_idx);
+w_opt = 2 * pi * f_opt;
 
-    % 图像句柄
-    figure_linear = figure('Name', 'PSD: g^2/Hz');
-    figure_dBm = figure('Name', 'PSD: dBm/Hz');
+% === 5. 搜索参数空间（带静态位移约束） ===
+x_max = 0.3;                     % 最大静态压缩 (单位: m)
+g = 9.81;                        % 重力加速度
+k_min = m * g / x_max;          % 最小刚度限制
+k_max = 1e4;                     % 最大刚度限制
+k_list = logspace(log10(k_min), log10(k_max), 100);
 
-    % === 首先绘制输入加速度的 PSD ===
-    [pxx_input, f] = pwelch(accel_input, window, overlap, nfft, fs);
-    % g^2/Hz
-    figure(figure_linear);
-    loglog(f, pxx_input, '--', 'Color', [0.4 0.4 0.4], 'LineWidth', 1.5); hold on;
-    % dBm/Hz
-    pxx_input_watt = pxx_input / ref_resistance;
-    pxx_input_dBm = 10 * log10(pxx_input_watt / 1e-3);
-    figure(figure_dBm);
-    semilogx(f, pxx_input_dBm, '--', 'Color', [0.4 0.4 0.4], 'LineWidth', 1.5); hold on;
+min_ratio = inf;
+best_k = NaN;
+best_c = NaN;
 
-    % === 绘制输出加速度 PSD ===
-    for i = 1:4
-        accel = responses(:,i) / 9.80665; % 单位：g
-        [pxx, f] = pwelch(accel, window, overlap, nfft, fs);
-        % 图1: g^2/Hz
-        figure(figure_linear);
-        loglog(f, pxx, 'LineWidth', 1.2); hold on;
-        % 图2: dBm/Hz
-        pxx_watt = pxx / ref_resistance;
-        pxx_dBm = 10 * log10(pxx_watt / 1e-3);
-        figure(figure_dBm);
-        semilogx(f, pxx_dBm, 'LineWidth', 1.2); hold on;
-    end
+% === 6. 主循环：优化刚度 k，自动计算阻尼 c ===
+for ki = 1:length(k_list)
+    k = k_list(ki);
+    c = 2 * zeta * sqrt(k * m);
 
-    % 图像美化（线性图）
-    figure(figure_linear);
-    xlabel('频率 (Hz)');
-    ylabel('PSD (g^2/Hz)');
-    title('加速度功率谱密度 (线性坐标)');
-    grid on;
-    legend({'输入加速度（MXC）', '弹簧1', '弹簧2', '弹簧3', '弹簧4'}, 'Interpreter', 'none');
+    wn = sqrt(k / m);
+    r = w_opt / wn;
+    H = 1 ./ sqrt((1 - r.^2).^2 + (2 * zeta * r).^2);
 
-    % 图像美化（dBm图）
-    figure(figure_dBm);
-    xlabel('频率 (Hz)');
-    ylabel('PSD (dBm/Hz)');
-    title('等效功率谱密度 (dBm/Hz)');
-    grid on;
-    legend({'输入加速度（MXC）', '弹簧1', '弹簧2', '弹簧3', '弹簧4'}, 'Interpreter', 'none');
-        % === PSD积分能量（频带能量分析） ===
-    fprintf('\n--- PSD频带能量分析 [0 ~ 100 Hz] ---\n');
-    idx_band = (f >= 0) & (f <= 100);
-    energy_input = trapz(f(idx_band), pxx_input(idx_band));
-    fprintf('输入能量：%.4e g^2\n', energy_input);
+    pxx_out = (H.^2) .* pxx_opt;
+    energy_in = trapz(f_opt, pxx_opt);
+    energy_out = trapz(f_opt, pxx_out);
+    ratio = energy_out / energy_in;
 
-    for i = 1:4
-        accel = responses(:,i) / 9.80665; % g
-        [pxx, ~] = pwelch(accel, window, overlap, nfft, fs);
-        energy_out = trapz(f(idx_band), pxx(idx_band));
-        ratio = energy_out / energy_input;
-
-        fprintf('弹簧 %d:\n', i);
-        fprintf('   输出能量：%.4e g^2\n', energy_out);
-        fprintf('   归一化能量比：%.4f\n', ratio);
+    if ratio < min_ratio
+        min_ratio = ratio;
+        best_k = k;
+        best_c = c;
     end
 end
+
+% === 7. 最佳传递函数与 PSD 输出 ===
+wn = sqrt(best_k / m);
+r = w / wn;
+H_best = 1 ./ sqrt((1 - r.^2).^2 + (2 * zeta * r).^2);
+pxx_acc = (H_best.^2) .* pxx;
+
+% === 8. 位移 PSD 计算 ===
+pxx_disp = pxx_acc ./ (w.^4);
+pxx_disp(w == 0) = 0;  % 避免除零
+
+pxx_disp_raw = pxx ./ (w.^4);
+pxx_disp_raw(w == 0) = 0;
+
+% === 9. 输出最优参数 ===
+fprintf('✅ 最优刚度 k = %.2f N/m\n', best_k);
+fprintf('✅ 自动计算阻尼 c = %.2f Ns/m （基于阻尼比 ζ = %.2f）\n', best_c, zeta);
+fprintf('🎯 实际阻尼比 zeta_eff = %.4f\n', best_c / (2 * sqrt(best_k * m)));
+fprintf('🎯 积分频段 = [%.1f, %.1f] Hz\n', f_band(1), f_band(2));
+fprintf('🔻 最小归一化输出能量比 = %.3e\n', min_ratio);
+
+% === 10. 加速度 LPSD 对比图 ===
+figure;
+loglog(f, sqrt(pxx), 'k--', 'LineWidth', 1.2); hold on;
+loglog(f, sqrt(pxx_acc), 'b-', 'LineWidth', 1.5);
+xlabel('频率 (Hz)');
+ylabel('LPSD (m/s²/√Hz)');
+legend('原始加速度 LPSD', '响应加速度 LPSD');
+title('原始 vs 响应：加速度 LPSD');
+grid on;
+
+% === 11. 位移 LPSD 对比图 ===
+figure;
+loglog(f, sqrt(pxx_disp_raw), 'k--', 'LineWidth', 1.2); hold on;
+loglog(f, sqrt(pxx_disp), 'r-', 'LineWidth', 1.5);
+xlabel('频率 (Hz)');
+ylabel('LPSD (m/√Hz)');
+legend('原始位移 LPSD', '响应位移 LPSD');
+title('原始 vs 响应：位移 LPSD');
+grid on;
+
+% === 12. 加速度传递函数 H(f) ===
+figure;
+semilogx(f, H_best, 'k-', 'LineWidth', 1.5);
+xlabel('频率 (Hz)');
+ylabel('加速度传递率 |H(f)|');
+title('加速度传递函数模值');
+grid on;
+
+% === 13. 计算位移 RMS（原始 & 响应） ===
+df = mean(diff(f));
+idx1 = f >= 1 & f <= 40;
+idx2 = f >= 40 & f <= 1000;
+
+rms_disp_raw_1 = sqrt(sum(pxx_disp_raw(idx1)) * df);
+rms_disp_raw_2 = sqrt(sum(pxx_disp_raw(idx2)) * df);
+rms_disp_resp_1 = sqrt(sum(pxx_disp(idx1)) * df);
+rms_disp_resp_2 = sqrt(sum(pxx_disp(idx2)) * df);
+
+fprintf('\n=== 位移 RMS 结果 ===\n');
+fprintf('📏 原始位移 RMS [1–40 Hz] = %.3e m\n', rms_disp_raw_1);
+fprintf('📏 原始位移 RMS [40–1000 Hz] = %.3e m\n', rms_disp_raw_2);
+fprintf('📉 响应位移 RMS [1–40 Hz] = %.3e m\n', rms_disp_resp_1);
+fprintf('📉 响应位移 RMS [40–1000 Hz] = %.3e m\n', rms_disp_resp_2);
+
+% === 14. 保存结果 ===
+fid = fopen('最优参数结果.txt','w');
+fprintf(fid, '最优刚度 k = %.4f N/m\n', best_k);
+fprintf(fid, '最优阻尼 c = %.4f Ns/m\n', best_c);
+fprintf(fid, '最小归一化能量比 = %.3e\n', min_ratio);
+fprintf(fid, '响应位移 RMS [1–40 Hz] = %.3e m\n', rms_disp_resp_1);
+fprintf(fid, '响应位移 RMS [40–1000 Hz] = %.3e m\n', rms_disp_resp_2);
+fclose(fid);
