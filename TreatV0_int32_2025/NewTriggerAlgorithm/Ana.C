@@ -14,7 +14,6 @@ int Ana() {
 void PreAna(TString input_file)
 {
     Double_t fs = 5000.;
-    //ADC to voltage converter;
     Double_t vol = 1.0*2*10/(TMath::Power(2,24)-1);
     /*    
           []      "trigpos",

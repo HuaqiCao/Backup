@@ -1,7 +1,7 @@
-/Users/caohuaqi/Desktop/
+/Volumes/Expansion/Data_process/2504/BKG_SB4_4H_0422T1119/DLMO_narrow/
 DLMO.BIN2
 3000
-10000
-1500
-0
+5000
 1000
+300
+700

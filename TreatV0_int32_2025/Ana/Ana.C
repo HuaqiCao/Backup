@@ -13,7 +13,6 @@
 using namespace TMath;
 void Ana()
 {
-	// Declaration of leaf types
 	Long64_t MaxPos;
 	Double_t Baseline;
 	Double_t Amp_raw;
@@ -33,11 +32,10 @@ void Ana()
 	Double_t bl_RMS;
 	Double_t bl_slope;
 	Double_t bl_chi2;
-	TFile *f1 = new TFile("/Users/caohuaqi/Desktop/CUPID_China/Data_process/2504/BKG_SB2_4H_0421T0953/DLMO_wide/data/TriggerEvent.root", "READ");
+	TFile *f1 = new TFile("/Users/caohuaqi/Desktop/CUPID_China/Data_process/2504/BKG_SB2_4H_0421T0953/DLMO_narrow/data/TriggerEvent.root", "READ");
 
 	TTree *T1 = (TTree *)f1->Get("tree1");
 
-	// Set branch addresses and branch pointers
 	T1->SetBranchAddress("MaxPos", &MaxPos);
 	T1->SetBranchAddress("Baseline", &Baseline);
 	T1->SetBranchAddress("Amp_raw", &Amp_raw);
@@ -58,12 +56,13 @@ void Ana()
 	T1->SetBranchAddress("bl_slope", &bl_slope);
 	T1->SetBranchAddress("bl_chi2", &bl_chi2);
 
-	TFile *f2 = new TFile("../data/result.root", "RECREATE");
+	TFile *f2 = new TFile("/Users/caohuaqi/Workspace/Backup/TreatV0_int32_2025/Ana/result.root", "RECREATE");
 	TH1D *hamp1 = new TH1D("hamp1", " ;Amplitude;Counts", 3600, 0, 120);
 	TH1D *hamp2 = new TH1D("hamp2", " ;Amplitude;Counts", 3600, 0, 120);
 	TH1D *hamp3 = new TH1D("hamp3", " ;Amplitude;Counts", 3600, 0, 120);
 	TH1D *hamp4 = new TH1D("hamp4", " ;Amplitude;Counts", 3600, 0, 120);
 	TH1D *hamp5 = new TH1D("hamp5", " ;Amplitude;Counts", 3600, 0, 120);
+
 	TGraph *g1 = new TGraph();
 	TGraph *g2 = new TGraph();
 	TGraph *g3 = new TGraph();
@@ -81,10 +80,11 @@ void Ana()
 	k4 = 0;
 	k5 = 0;
 	k6 = 0;
-	// T1.SetBranchStatus("*",0); //disable all branches
+	// T1.SetBranchStatus("*",0);
 	// T1.SetBranchStatus("c",1);
 	// T1.setBranchStatus("e",1);
-	TFile *fcut = new TFile("cut.root", "RECREATE");
+
+	TFile *fcut = new TFile("/Users/caohuaqi/Workspace/Backup/TreatV0_int32_2025/Ana/cut.root", "RECREATE");
 	TTree *tcut = T1->CloneTree(0);
 	Double_t ene = 0.0;
 	tcut->Branch("ene", &ene, "ene/D");
@@ -195,6 +195,7 @@ void Ana()
 	TCanvas *amp_spec1 = new TCanvas("amp_spec1", "", 0, 0, 800, 600);
 	// hamp1->Scale(1.0/10.0);
 	// hamp2->Scale(1.0/10.0);
+
 	hamp1->Draw("HIST");
 	hamp2->Draw("HIST SAME");
 	hamp3->Draw("HIST SAME");
@@ -205,21 +206,64 @@ void Ana()
 	hamp1->GetYaxis()->SetTitle("Counts");
 	/*
 	hamp5->Draw("HIST SAME");
-hamp5->SetLineColor(kRed+2);
-hamp1->Draw("HIST");
+	hamp5->SetLineColor(kRed+2);
+	hamp1->Draw("HIST");
 	hamp2->Draw("HIST SAME");
 	hamp3->Draw("HIST SAME");
 	hamp4->Draw("HIST SAME");
-hamp2->SetLineColor(4);
-hamp3->SetLineColor(6);
-hamp4->SetLineColor(kRed);
-*/
+	hamp2->SetLineColor(4);
+	hamp3->SetLineColor(6);
+	hamp4->SetLineColor(kRed);
+	*/
 	TLegend *leg1 = new TLegend(0.55, 0.65, 0.76, 0.82);
 	leg1->AddEntry(hamp1, "Raw", "l");
 	leg1->AddEntry(hamp2, "Raw_fit", "l");
 	leg1->AddEntry(hamp3, "Filtered", "l");
 	leg1->Draw();
 
+	// 写入直方图和图形对象到 result.root
+	f2->cd();
+	hamp1->Write();
+	hamp2->Write();
+	hamp3->Write();
+	hamp4->Write();
+	hamp5->Write();
+
+	g1->Write("g1");
+	g2->Write("g2");
+	g3->Write("g3");
+	g4->Write("g4");
+	g5->Write("g5");
+	g6->Write("g6");
+	g7->Write("g7");
+	g8->Write("g8");
+	g9->Write("g9");
+
+	// 可选：也可以保存 canvas
+	c1->Write("c1");
+	c2->Write("c2");
+	c3->Write("c3");
+	c4->Write("c4");
+	c5->Write("c5");
+	c6->Write("c6");
+	c7->Write("c7");
+	c8->Write("c8");
+	c9->Write("c9");
+	amp_spec1->Write("amp_spec1");
+
+	// 关闭文件，完成写入
+	f2->Close();
+	c1->Update(); c1->SaveAs("f/c1_Baseline_vs_Amplitude.png");
+	c2->Update(); c2->SaveAs("f/c2_Time_vs_Baseline.png");
+	c3->Update(); c3->SaveAs("f/c3_Rise_vs_Decay.png");
+	c4->Update(); c4->SaveAs("f/c4_LstsqRaw_vs_Filter.png");
+	c5->Update(); c5->SaveAs("f/c5_Rawfit_vs_Filterfit.png");
+	c6->Update(); c6->SaveAs("f/c6_Chi2Filtered_vs_TVL.png");
+	c7->Update(); c7->SaveAs("f/c7_Chi2Filtered_vs_TVR.png");
+	c8->Update(); c8->SaveAs("f/c8_Amplitude_vs_Chi2Filtered.png");
+	c9->Update(); c9->SaveAs("f/c9_FilteredAmp_vs_DecayTime.png");
+	amp_spec1->Update(); amp_spec1->SaveAs("f/amp_spec1_AmplitudeSpectra.png");
+
 	// hamp1->Write("Specwithwater");
-	// f2->Close();
+	f2->Close();
 }
