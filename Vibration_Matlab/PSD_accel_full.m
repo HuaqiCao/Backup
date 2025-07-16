@@ -5,15 +5,10 @@ if isequal(filenames, 0)
     return;
 end
 
-% 保证 filenames 是 cell 数组
-if ~iscell(filenames)
-    filenames = {filenames};
-end
-
 % 参数设定
 ref_resistance = 1;  % 参考电阻，单位欧姆，用于等效功率计算（默认1Ω）
 
-% 图像句柄
+% 图像
 figure_linear = figure('Name', 'PSD: g^2/Hz');
 figure_dBm = figure('Name', 'PSD: dBm/Hz');
 
@@ -27,16 +22,16 @@ for i = 1:length(filenames)
     accel = data(:,2);       % 加速度（g）
 
     % 去直流偏置
-    accel = accel - mean(accel);
+    % accel = accel - mean(accel);
 
     % 采样率估计
     dt = mean(diff(time));
     fs = 1 / dt;
 
     % Welch 方法参数
-    nfft = 2^nextpow2(length(accel)/8);
-    window = hamming(nfft);
-    overlap = round(0.5 * nfft);
+    nfft = 100000;
+    window = hanning(nfft);
+    overlap = Nfft / 2;
     [pxx, f] = pwelch(accel, window, overlap, nfft, fs);
 
     % === 图1：线性 PSD (单位 g^2/Hz) ===

@@ -6,6 +6,9 @@ function load_vibration_data()
     g_const = 9.80665;       % 重力加速度 (m/s^2 per g)
     to_SI_unit = true;       % 是否转为 m/s^2
 
+    % ====== 🚀 改动变量名 ======
+    output_var_name = 'Vibration_Data';
+
     % ====== 选择 CSV 文件 ======
     [filename, pathname] = uigetfile('*.csv', 'Select CSV file');
     if isequal(filename, 0)
@@ -55,11 +58,11 @@ function load_vibration_data()
     end
 
     % ====== 创建 timeseries 对象 ======
-    vibration_data = timeseries(acceleration, time, 'Name', 'VibrationData');
-    assignin('base', 'MXC_accel', vibration_data);
+    ts = timeseries(acceleration, time, 'Name', output_var_name);
+    assignin('base', output_var_name, ts);
 
     % ====== 输出信息 ======
-    fprintf('✅ 变量 "MXC_accel" 已加载到工作区\n');
+    fprintf('✅ 变量 "%s" 已加载到工作区\n', output_var_name);
     fprintf('采样率: %d Hz\n', fs);
     fprintf('样本数: %d\n', length(time));
     fprintf('时间范围: %.4f ~ %.4f 秒\n', time(1), time(end));

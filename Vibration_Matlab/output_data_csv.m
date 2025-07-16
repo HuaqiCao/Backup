@@ -1,25 +1,24 @@
+input_name = 'simulate';   % 修改
+
 % Extract timeseries from Simulink output
-ts = out.Crystal_accel2;
+ts = out.(input_name);
 
 % Get time and data from the timeseries
 time = ts.Time;
 value = ts.Data;
-
 % Combine into two-column matrix
 data = [time, value];
 
-% 或者用 uigetfile 选一个文件并提取路径：
+% 选择导出路径
 [~, path] = uigetfile('*.csv', 'Select a data file to match export location');
-
 if isequal(path, 0)
     disp('Export cancelled.');
     return;
 end
 
-% Export to CSV in the same folder as the selected data file
-output_filename = fullfile(path, 'Crystal_accel2.csv');
+% 自动根据变量名设置输出文件名
+output_filename = fullfile(path, [input_name '.csv']);
 writematrix(data, output_filename);
 
-% Display confirmation
-fprintf('Exported to: %s\n', output_filename);
-
+% 显示导出信息
+fprintf('✅ Exported %s to: %s\n', input_name, output_filename);
