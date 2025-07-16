@@ -67,6 +67,7 @@ d_in_range = 5e-3:1e-3:9.5e-2;
 d_hook_range = 1e-3:1e-3:5e-3;
 r_hook_range = 2e-3:1e-3:8e-3;
 
+best_ratio = inf;
 best_c = NaN;
 best_H = [];
 best_params = [];
@@ -127,21 +128,20 @@ for i = 1:length(d_wire_range)
                     end
 
                     wn = sqrt(k_actual / m_eq);
-                    c_range = linspace(0, 1000, 200);
+                    c_range = linspace(0, 1000, 2);
                     for c = c_range
-                        % 修正传递函数表达式（根据图片中的公式）
-                        s = 1i*w_opt;
-                        H_opt = abs((c*s + k_actual)./(m_eq*s.^2 + c*s + k_actual));
+                        r_opt = w_opt / wn;
+                        H_opt = abs(1 + (r_opt.^2) ./ (1 - r_opt.^2 + 1i * 2 * c / (2*sqrt(k_actual * m_eq)) .* r_opt));
                         pxx_out_opt = (H_opt.^2) .* pxx_opt;
 
-                        % 计算传递函数
-                        s_full = 1i*w;
-                        H_full = abs((c*s_full + k_actual)./(m_eq*s_full.^2 + c*s_full + k_actual));
+                        energy_in = trapz(f_opt, pxx_opt);
+                        energy_out = trapz(f_opt, pxx_out_opt);
+                        ratio = energy_out / energy_in;
 
-                        % 更新最佳参数
-                        if ~isempty(best_H) || c == c_range(1)
+                        if ratio < best_ratio
+                            best_ratio = ratio;
                             best_c = c;
-                            best_H = H_full;
+                            best_H = abs(1 + (w / wn).^2 ./ (1 - (w / wn).^2 + 1i * 2 * c / (2*sqrt(k_actual * m_eq)) .* (w / wn)));
                             best_params = [d_wire, D, n_total, n_eff, m_s, m_eq, k_actual, sqrt(k_actual/m_eq)/(2*pi), FOS_e, f0_radial, sigma_max];
                         end
                     end
@@ -198,6 +198,7 @@ if ~isempty(results)
     fprintf('径向固有频率: %.2f Hz\n', best_params(10));
     fprintf('最大拉应力: %.2f MPa\n', best_params(11)/1e6);
     fprintf('最优阻尼: %.2f Ns/m\n', best_c);
+    fprintf('最小能量比: %.3e\n', best_ratio);
 end
 
 %% === 9. 绘图 ===
@@ -215,11 +216,7 @@ legend('Location', 'best'); grid on;
 figure('Name','加速度传递函数','Units','inches','Position', [1, 1, 9.59, 4.22]);
 semilogx(f, best_H, 'k-', 'LineWidth', 1.5);
 xlabel('频率 (Hz)'); ylabel('加速度传递率 |H(f)|');
-title('加速度传递函数模值'); 
-text(0.7, 0.9, sprintf('$$T_{x/y}(s) = \\frac{%.1fs + %.1f}{%.1fs^2 + %.1fs + %.1f}$$',...
-    best_c, best_params(7), best_params(6), best_c, best_params(7)),...
-    'Units','normalized','Interpreter','latex','FontSize',12);
-grid on;
+title('加速度传递函数模值'); grid on;
 
 % 3. 频率响应隔振倍率图
 figure('Name','功率传递率','Units','inches','Position', [1, 1, 9.59, 4.22]);

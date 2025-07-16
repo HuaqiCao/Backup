@@ -16,7 +16,7 @@ dt = mean(diff(time));
 fs = 1 / dt;
 
 % === 3. PSD 计算参数 ===
-nfft = 2^nextpow2(length(a_base)/8);
+nfft = 100000;
 window = hamming(nfft);
 overlap = round(0.5 * nfft);
 [pxx, f] = pwelch(a_base, window, overlap, nfft, fs);
