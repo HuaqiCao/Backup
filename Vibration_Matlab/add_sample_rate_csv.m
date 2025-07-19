@@ -1,49 +1,40 @@
-clear;
+% calculates the sampling rate & saves a new CSV file with the sampling rate included in the filename.     
 
-% Select CSV files
-[filenames, path] = uigetfile('*.csv', 'Select CSV files', 'MultiSelect', 'on');
-if isequal(filenames, 0)
+% === Select multiple CSV files ===
+[fileNames, folderPath] = uigetfile('*.csv', 'Select CSV files', 'MultiSelect', 'on');
+
+if isequal(fileNames, 0)
+    disp('❌ Selection cancelled.');
     return;
 end
 
-% Ensure filenames is a cell array
-if ~iscell(filenames)
-    filenames = {filenames};
+% Ensure fileNames is a cell array
+if ischar(fileNames)
+    fileNames = {fileNames};
 end
 
-% Create output folder if it doesn't exist
-if ~exist('fschange', 'dir')
-    mkdir('fschange');
+for i = 1:length(fileNames)
+    fullPath = fullfile(folderPath, fileNames{i});
+
+    % === Read data, skip first 4 header lines ===
+    opts = detectImportOptions(fullPath);
+    opts.DataLines = [5, Inf];
+    data = readmatrix(fullPath, opts);
+
+    % === Calculate sampling rate from time column ===
+    time = data(:, 1);
+    dt = mean(diff(time), 'omitnan');
+    fs = 1 / dt;
+
+    % === Print sampling rate ===
+    fprintf('📁 File: %s\n', fileNames{i});
+    fprintf('📊 Sampling rate: %.2f Hz\n', fs);
+
+    % === Save new CSV with sampling rate in filename ===
+    [~, name, ~] = fileparts(fileNames{i});
+    newName = sprintf('%s_fs%.0fHz.csv', name, fs);
+    newPath = fullfile(folderPath, newName);
+    writematrix(data, newPath);
+
+    fprintf('✅ Saved to: %s\n\n', newPath);
 end
-
-% Process each file
-for i = 1:length(filenames)
-    filename = filenames{i};
-    data = readmatrix(fullfile(path, filename));
-
-    % Estimate original sampling rate
-    fs_orig = round(1 / (data(101,1) - data(100,1)));
-
-    % Target sampling rate: half of original
-    fs_target = floor(fs_orig / 2);
-    if fs_target >= fs_orig
-        warning('Target rate >= original rate. Skipping %s.', filename);
-        continue;
-    end
-
-    % Create new filename
-    [~, name, ext] = fileparts(filename);
-    fs_str = sprintf('%.0E', fs_target);
-    new_filename = sprintf('%sHzfs_%s%s', fs_str, name, ext);
-
-    % Keep header (first 4 rows)
-    new_data = data(1:4, :);
-
-    % Resample the rest of the data
-    new_data = [new_data; resample(data(5:end, :), fs_target, fs_orig)];
-
-    % Write to new file
-    writematrix(new_data, fullfile('fschange', new_filename));
-end
-
-
