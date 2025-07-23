@@ -1,4 +1,7 @@
+% extracts a specified time range from multiple CSV files
+% saves the extracted data to a new folder named 'rangechange'. 
 % Prompt user for start and end times (seconds)
+
 t0 = input('Enter the start time in seconds: ');
 tt = input('Enter the end time in seconds: ');
 

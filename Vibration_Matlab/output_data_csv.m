@@ -1,3 +1,5 @@
+% 导出Simulink仿真数据到CSV文件
+
 input_name = 'simulate';   % 修改
 
 % Extract timeseries from Simulink output

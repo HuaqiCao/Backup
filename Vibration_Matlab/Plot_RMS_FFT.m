@@ -1,4 +1,4 @@
-clear;
+% time domain, RMS, and FFT analysis of CSV data
 
 % Select CSV file
 [fname, pathname] = uigetfile('*.csv', 'Select CSV File');

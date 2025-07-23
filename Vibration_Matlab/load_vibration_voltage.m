@@ -1,3 +1,6 @@
+% loads vibration voltage data from a CSV file
+% converts it to a timeseries object in the workspace.
+
 function load_vibration_voltage()
     % 设置变量名
     var_name = 'Vibration_Data';

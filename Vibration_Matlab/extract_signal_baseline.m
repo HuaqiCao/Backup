@@ -1,3 +1,5 @@
+% extracts signal and baseline data from a CSV file based on a threshold.  
+ 
 % Select a CSV file
 [filename, path] = uigetfile('*.csv', 'Select CSV file');
 if isequal(filename, 0)

@@ -1,3 +1,6 @@
+% extracts signal and baseline data from a CSV file based on a threshold.   
+% saves the results in a new directory named 'highpass'（code location）.
+
 % Select a CSV file
 [filename, path] = uigetfile('*.csv', 'Select CSV file');
 if isequal(filename, 0)

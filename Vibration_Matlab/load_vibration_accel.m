@@ -1,8 +1,12 @@
-function load_vibration_data()
+% loads vibration acceleration data from a CSV file
+% converts it to a timeseries object in the workspace.
+% saves the results in a new CSV file with acceleration data.
+
+function load_vibration_accel()
     % ====== 常量设定 ======
     sen = 1.026;             % 灵敏度 (V/g)
-    default_gain = 10.003;   % 默认增益
-    default_fs = 10000;      % 默认采样率
+    default_gain = 100.003;   % 默认增益
+    default_fs = 100000;      % 默认采样率
     g_const = 9.80665;       % 重力加速度 (m/s^2 per g)
     to_SI_unit = true;       % 是否转为 m/s^2
 
@@ -62,7 +66,7 @@ function load_vibration_data()
     assignin('base', output_var_name, ts);
 
     % ====== 输出信息 ======
-    fprintf('✅ 变量 "%s" 已加载到工作区\n', output_var_name);
+    fprintf('变量 "%s" 已加载到工作区\n', output_var_name);
     fprintf('采样率: %d Hz\n', fs);
     fprintf('样本数: %d\n', length(time));
     fprintf('时间范围: %.4f ~ %.4f 秒\n', time(1), time(end));
