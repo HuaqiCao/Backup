@@ -8,17 +8,17 @@ g = 9.81;                % 重力加速度 (m/s^2)
 % 材料属性 (黄铜)
 G = 77.5e9;                % 剪切模量 (Pa)
 rho = 7955;              % 密度 (kg/m^3)
-sigma_b = 565e6;         % 抗拉屈服强度 (Pa)
+sigma_b = 630e6;         % 抗拉屈服强度 (Pa)
 
 % 固有频率目标
-f0_vertical = 1.0;                 
+f0_vertical = 1.1;                 
 k_target = M * (2 * pi * f0_vertical)^2;
-
+L_Tower = 0.46;          % 塔架长度 (m)
 % 搜索范围
 d_wire_range = 1e-3:1e-3:5e-3;      % 线径范围 1-5mm
 d_in_range = 5e-3:1e-3:9.5e-2;      % 内径范围 5-95mm
 d_hook_range = 1e-3:1e-3:5e-3;      % 挂钩直径范围 1-5mm
-r_hook_range = 3e-3:1e-3:10e-3;      % 挂钩半径范围 3-10mm
+r_hook_range = 3e-3:1e-3:10e-3;     % 挂钩半径范围 3-10mm
 
 results = [];
 best_freq = Inf;         % 初始化最佳频率（低于目标值的最小频率）
@@ -66,22 +66,26 @@ for i = 1:length(d_wire_range)
                     delta_static = m_eq * g / k_actual;
                     L_eq = n_total * d_wire + delta_static + 2 * d_hook + 2 * r_hook;
                     
-                    % 装配长度约束 (L_eq ≤ 330mm)
-                    if L_eq > 0.53
+                    % 装配长度约束 (L_eq ≤ 350mm)
+                    if L_eq > 0.35
                         continue;
                     end
-                    
+                    % 计算自由长度
+                    L0 = n_total * d_wire + 2 * d_hook + 2 * r_hook; 
+
+                    % 计算摆长
+                    L = L_eq + L_Tower / 2 ;  
+
                     % 计算径向固有频率
-                    f0_radial = sqrt(g / L_eq) / (2 * pi);
+                    f0_radial = sqrt(g / L) / (2 * pi);
                     
                     % 计算最大载荷和剪应力
                     F_max = m_eq * g;
                     Kw = (4*c_index - 1)/(4*c_index - 4) + 0.615/c_index;  % 曲度系数
                     tau_e = Kw * (8 * F_max * D) / (pi * d_wire^3);  % 最大剪应力
                     
-                    % 疲劳安全系数检查
-                    FOS_e = sigma_b / tau_e;
-                    if FOS_e < 1/0.45  % 安全系数不足
+                    % 疲劳检查(t_e < 0.45σ_b)
+                    if tau_e > 0.45 * sigma_b 
                         continue;
                     end
                     
@@ -105,13 +109,13 @@ for i = 1:length(d_wire_range)
                         n_total*d_wire*1000, L_eq*1000, A_coil*1e6, ...
                         m_s, m_eq, k_actual, ...
                         actual_freq, ...
-                        tau_e/1e6, FOS_e, f0_radial, sigma_max/1e6];
+                        tau_e/1e6, f0_radial, sigma_max/1e6];
                     
                     % 更新最佳参数（寻找低于目标频率的最小频率）
                     if actual_freq < f0_vertical && actual_freq < best_freq
                         best_freq = actual_freq;
                         best_params = [d_wire, D, n_total, n_eff, m_s, m_eq, k_actual, ...
-                            actual_freq, FOS_e, f0_radial, sigma_max];
+                            actual_freq, f0_radial, sigma_max];
                     end
                 end  % 结束k循环（有效圈数）
             end  % 结束n循环（挂钩半径）
@@ -126,15 +130,15 @@ if ~isempty(results)
         '总圈数_n_total', '有效圈数_n_eff', '节距_p_mm', '自由长度_L0_mm', ...
         '装配长度_Leq_mm', '横截面积_A_mm2', '弹簧质量_ms_kg', ...
         '等效质量_meq_kg', '刚度_k_N_m', '轴向固频_fn_Hz', ...
-        '最大剪应力_tau_MPa', '疲劳安全系数_FOSf', '径向固频_fr_Hz', ...
+        '最大剪应力_tau_MPa', '径向固频_fr_Hz', ...
         '最大拉应力_sigma_MPa'};
     
     disp('满足设计约束的弹簧参数:');
-    fprintf('\n%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-12s %-12s %-10s %-10s %-12s %-12s %-10s %-10s\n', header{:});
+    fprintf('\n%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-12s %-12s %-10s %-10s %-12s %-10s %-10s\n', header{:});
     
     % 显示所有满足约束的结果
     for i = 1:size(results,1)
-        fprintf('%-10.2f %-10.2f %-10.2f %-10.2f %-10.2f %-10d %-10d %-10.2f %-10.2f %-10.2f %-10.2f %-12.4f %-12.4f %-10.1f %-10.2f %-12.2f %-12.2f %-10.2f %-10.2f\n', results(i,:));
+        fprintf('%-10.2f %-10.2f %-10.2f %-10.2f %-10.2f %-10d %-10d %-10.2f %-10.2f %-10.2f %-10.2f %-12.4f %-12.4f %-10.1f %-10.2f %-12.2f %-10.2f %-10.2f\n', results(i,:));
     end
 
     % 输出最佳参数
@@ -147,9 +151,8 @@ if ~isempty(results)
         fprintf('等效质量: %.4f kg\n', best_params(6));
         fprintf('刚度: %.1f N/m\n', best_params(7));
         fprintf('轴向固有频率: %.4f Hz (目标: %.1f Hz)\n', best_params(8), f0_vertical);
-        fprintf('疲劳安全系数: %.2f\n', best_params(9));
-        fprintf('径向固有频率: %.2f Hz\n', best_params(10));
-        fprintf('最大拉应力: %.2f MPa (许用值: %.2f MPa)\n', best_params(11)/1e6, 0.7*sigma_b/1e6);
+        fprintf('径向固有频率: %.2f Hz\n', best_params(9));
+        fprintf('最大拉应力: %.2f MPa (许用值: %.2f MPa)\n', best_params(10)/1e6, 0.7*sigma_b/1e6);
     else
         fprintf('\n=== 警告：未找到低于目标频率 %.1f Hz的弹簧设计 ===\n', f0_vertical);
         fprintf('=== 将选择最接近目标频率的设计 ===\n');
@@ -168,9 +171,8 @@ if ~isempty(results)
         fprintf('等效质量: %.4f kg\n', best_params(6));
         fprintf('刚度: %.1f N/m\n', best_params(7));
         fprintf('轴向固有频率: %.4f Hz (目标: %.1f Hz)\n', best_params(8), f0_vertical);
-        fprintf('疲劳安全系数: %.2f\n', best_params(9));
-        fprintf('径向固有频率: %.2f Hz\n', best_params(10));
-        fprintf('最大拉应力: %.2f MPa (许用值: %.2f MPa)\n', best_params(11), 0.7*sigma_b/1e6);
+        fprintf('径向固有频率: %.2f Hz\n', best_params(9));
+        fprintf('最大拉应力: %.2f MPa (许用值: %.2f MPa)\n', best_params(10), 0.7*sigma_b/1e6);
     end
 
     % ============== 阻尼优化部分 ==============
@@ -395,7 +397,7 @@ if ~isempty(results)
     
     % ============== PSD 和 LPSD 分析 ==============
     % 计算频域参数 - 使用1000000点FFT
-    nfft = 500000;  % 100万点FFT
+    nfft = 100000;  % 100万点FFT
     window = hanning(nfft);
     overlap = round(0.5 * nfft);
     
@@ -450,7 +452,7 @@ if ~isempty(results)
     % ============== RMS 计算 ==============
     % 定义频带范围
     band_edges = [0.1, 40; 0.1, 100; 1, 40; 40, 100; 1, 100];
-    band_names = {'[0-40] Hz', '[0-100] Hz', '[1-40] Hz', '[40-100] Hz', '[1-100] Hz'};
+    band_names = {'[0.1-40] Hz', '[0.1-100] Hz', '[1-40] Hz', '[40-100] Hz', '[1-100] Hz'};
     df = mean(diff(f));  % 频率分辨率
     
     % 计算各频段的 RMS 加速度（单位：μg）和 RMS 位移（单位：nm）
