@@ -321,7 +321,7 @@ fig_time = figure('Name', 'Time-Domain Comparison of Acceleration', 'Units', 'in
 acc_base_g_detrend = acc_base / g;
 plot(time, acc_base_g_detrend, 'b-', 'LineWidth', 1.5, 'DisplayName', 'Before Isolation on MXC_vertical @RT'); 
 hold on;
-plot(time, acc_isolated / g, 'r-', 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT'); 
+plot(time, acc_isolated / g, 'r-', 'LineWidth', 1.5, 'DisplayName', 'After Isolation'); 
 xlabel('Time (s)');
 ylabel('Acceleration (g)');
 title('Time-Domain Acceleration Comparison (Vertical)', 'FontSize', 24);
@@ -352,7 +352,7 @@ fprintf('Isolated acceleration data saved as: %s\n', outputFileName);
 
 % ============== PSD AND LPSD ANALYSIS ==============
 % Segment parameters
-seglen = fs * 50;
+seglen = fs * 100;
 window = hamming(seglen);
 overlap = round(seglen / 2);
 nfft = seglen; 
@@ -376,7 +376,7 @@ fmax_plot = max(f(f < fs/2));
 fig_psd = figure('Name', 'PSD Comparison', 'Units', 'inches', 'Position', figSize);
 loglog(f, pxx_base / g^2, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, 'DisplayName', 'Before Isolation on MXC_vertical @RT');
 hold on;
-loglog(f, pxx_isolated / g^2, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
+loglog(f, pxx_isolated / g^2, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('PSD [g^2/Hz]');
 title('Power Spectral Density Comparison'); xlim([0.1, fmax_plot]);
 
@@ -384,7 +384,7 @@ title('Power Spectral Density Comparison'); xlim([0.1, fmax_plot]);
 fig_acc_lpsd = figure('Name', 'LPSD of Acceleration', 'Units', 'inches', 'Position', figSize);
 loglog(f, lpsd_base, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, 'DisplayName', 'Before Isolation on MXC_vertical @RT');
 hold on;
-loglog(f, lpsd_isolated, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
+loglog(f, lpsd_isolated, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [g/\surdHz]');
 title('Acceleration LPSD'); xlim([0.1, fmax_plot]);
 
@@ -392,13 +392,13 @@ title('Acceleration LPSD'); xlim([0.1, fmax_plot]);
 fig_disp_lpsd = figure('Name', 'LPSD of Displacement', 'Units', 'inches', 'Position', figSize);
 loglog(f, lpsd_base_disp * 1e9, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, 'DisplayName', 'Before Isolation on MXC_vertical @RT');
 hold on;
-loglog(f, lpsd_isolated_disp * 1e9, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
+loglog(f, lpsd_isolated_disp * 1e9, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [nm/\surdHz]');
 title('Displacement LPSD'); xlim([0.1, fmax_plot]);
 
 % RMS frequency band analysis
-band_edges = [1, 40; 40, 100; 1, 100];
-band_names = {'[1–40] Hz','[40–100] Hz','[1–100] Hz'};
+band_edges = [0.1, 40; 0.1, 100; 1, 40; 40, 100; 1, 100];
+band_names = {'[0.1–40] Hz','[0.1–100] Hz','[1–40] Hz','[40–100] Hz','[1–100] Hz'};
 df = mean(diff(f));
 nBands = size(band_edges, 1);
 
