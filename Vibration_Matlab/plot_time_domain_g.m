@@ -1,4 +1,3 @@
-% plot_time_domain_g_multi_csv.m
 % 多选 CSV → 去增益(100)和灵敏度(1.026 g/V) → 叠加时域曲线（单位 g）
 % 假设 CSV 前4行是表头；第1列=时间(s)，第2列=测量电压(V，已含增益)
 
@@ -67,7 +66,7 @@ end
 
 xlabel('Time (s)');
 ylabel('Acceleration (g)');
-title('Time-Domain Acceleration (g) — Multiple CSVs');
+title('Time-Domain Acceleration (g)');
 legend(legNames, 'Interpreter','none', 'Location','best');
 
 % 横轴最大为“数据的长度”（取所有文件中最长的一条）
