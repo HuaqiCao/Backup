@@ -12,7 +12,7 @@ zero_time_start = true;   % 是否把每条曲线的起点对齐到 t=0
     '选择一个或多个 CSV（前4行表头：time(s), voltage(V)）', ...
     'MultiSelect','on');
 if isequal(files,0), error('已取消选择'); end
-if ischar(files), files = {files}; end   % 如果只选了1个，转成 cell
+if ischar(files), files = {files}; end  
 
 %% 绘图
 figure('Name','Time-Domain Acceleration (g)');
