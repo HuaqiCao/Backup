@@ -1,15 +1,15 @@
 %% ===== Parameter Settings =====
-gain = 100;                 
-sens_g_per_V = 1.026;       
-remove_dc = true;           
-zero_time_start = true;     
-g0 = 9.81;                  
+gain = 100;
+sens_g_per_V = 1.026;
+remove_dc = true;
+zero_time_start = true;
+g0 = 9.81;
 
 band_edges = [1, 40; 40, 100; 1, 100];
 band_names = {'[1–40] Hz', '[40–100] Hz', '[1–100] Hz'};
 
 set(0,'defaultAxesFontName','Arial');
-set(0,'defaultTextInterpreter','none');    
+set(0,'defaultTextInterpreter','none');
 set(0,'defaultLegendInterpreter','none');
 set(0,'defaultAxesTickLabelInterpreter','none');
 
@@ -32,31 +32,33 @@ title(axT,'Time-Domain Acceleration (g)');
 legNames = cell(1, numFiles);
 maxDuration = 0;
 
-figPSD  = figure('Name','Acceleration PSD', 'ToolBar','none');  
-ax1 = axes(figPSD);  hold(ax1,'on'); grid(ax1,'on');
-set(ax1,'XScale','log','YScale','log'); xlabel(ax1,'Frequency (Hz)'); ylabel(ax1,'PSD [g^2/Hz]'); title(ax1,'Acceleration PSD');
-xlim(ax1, [1, 1e4]);
+figPSD  = figure('Name','Acceleration PSD', 'ToolBar','none');
+ax1 = axes(figPSD); hold(ax1,'on'); grid(ax1,'on');
+set(ax1,'XScale','log','YScale','log');
+xlabel(ax1,'Frequency (Hz)'); ylabel(ax1,'PSD [g^2/Hz]');
+title(ax1,'Acceleration PSD');
 
-figLPSD = figure('Name','Acceleration LPSD', 'ToolBar','none'); 
+figLPSD = figure('Name','Acceleration LPSD', 'ToolBar','none');
 ax2 = axes(figLPSD); hold(ax2,'on'); grid(ax2,'on');
-set(ax2,'XScale','log','YScale','log'); xlabel(ax2,'Frequency (Hz)'); ylabel(ax2,'LPSD [g/sqrt(Hz)]'); title(ax2,'Acceleration LPSD');
-xlim(ax2, [1, 1e4]);
+set(ax2,'XScale','log','YScale','log');
+xlabel(ax2,'Frequency (Hz)'); ylabel(ax2,'LPSD [g/sqrt(Hz)]');
+title(ax2,'Acceleration LPSD');
 
-figDLPSD = figure('Name','Displacement LPSD', 'ToolBar','none');  
+figDLPSD = figure('Name','Displacement LPSD', 'ToolBar','none');
 ax3 = axes(figDLPSD); hold(ax3,'on'); grid(ax3,'on');
-set(ax3,'XScale','log','YScale','log'); xlabel(ax3,'Frequency (Hz)'); ylabel(ax3,'LPSD [nm/sqrt(Hz)]'); title(ax3,'Displacement LPSD');
-xlim(ax3, [1, 1e4]);
+set(ax3,'XScale','log','YScale','log');
+xlabel(ax3,'Frequency (Hz)'); ylabel(ax3,'LPSD [nm/sqrt(Hz)]');
+title(ax3,'Displacement LPSD');
 
 allRMS_acc = cell(numFiles,1);
 allRMS_disp = cell(numFiles,1);
 fileLabels = cell(numFiles,1);
+allFreqMax = zeros(numFiles,1);
 
 %% ===== Main Loop for File Processing =====
 for k = 1:numFiles
     infile = fullfile(path, files{k});
     [~, nameOnly] = fileparts(files{k});
-
-    % Clean filename for display
     nameSafe = regexprep(nameOnly, '[^\w\-.]', '_');
     fileLabels{k} = nameSafe;
 
@@ -81,14 +83,14 @@ for k = 1:numFiles
     end
 
     styleID = mod(k-1, numel(markers)) + 1;
-    plot(axT, t, acc_g, 'LineWidth', 1.2, ...
-        'Color', colors(k,:), 'LineStyle', markers{styleID});
+    plot(axT, t, acc_g, 'LineWidth', 1.2, 'Color', colors(k,:), 'LineStyle', markers{styleID});
     legNames{k} = sprintf('%s (g)', nameSafe);
     if ~isempty(t)
-        maxDuration = max(maxDuration, t(end) - t(1));
+        maxDuration = max(maxDuration, t(end));
     end
 
-    dt = median(diff(t)); fs = 1/dt;
+    dt = median(diff(t));
+    fs = 1/dt;
     N = numel(acc_g);
     seg_target = max(1024, floor(N/4));
     seglen = 2^floor(log2(seg_target));
@@ -101,8 +103,8 @@ for k = 1:numFiles
     [pxx_g, f] = pwelch(acc_g, win, overlap, nfft, fs);
     df = mean(diff(f));
     valid = f > 0;
-    f = f(valid);
-    pxx_g = pxx_g(valid);
+    f = f(valid); pxx_g = pxx_g(valid);
+    allFreqMax(k) = max(f);
 
     lpsd_acc_g = sqrt(pxx_g);
     lpsd_acc_ms2 = lpsd_acc_g * g0;
@@ -125,19 +127,27 @@ for k = 1:numFiles
     allRMS_acc{k}  = RMS_acc_g;
     allRMS_disp{k} = RMS_disp_m;
 
-    plot(ax1, f, pxx_g, 'Color', colors(k,:), 'LineStyle', markers{styleID}, ...
-        'LineWidth', 1.5, 'DisplayName', nameSafe);
-    plot(ax2, f, lpsd_acc_g, 'Color', colors(k,:), 'LineStyle', markers{styleID}, ...
-        'LineWidth', 1.5, 'DisplayName', nameSafe);
-    plot(ax3, f, lpsd_disp_nm, 'Color', colors(k,:), 'LineStyle', markers{styleID}, ...
-        'LineWidth', 1.5, 'DisplayName', nameSafe);
+    plot(ax1, f, pxx_g, 'Color', colors(k,:), 'LineStyle', markers{styleID}, 'LineWidth', 1.5, 'DisplayName', nameSafe);
+    plot(ax2, f, lpsd_acc_g, 'Color', colors(k,:), 'LineStyle', markers{styleID}, 'LineWidth', 1.5, 'DisplayName', nameSafe);
+    plot(ax3, f, lpsd_disp_nm, 'Color', colors(k,:), 'LineStyle', markers{styleID}, 'LineWidth', 1.5, 'DisplayName', nameSafe);
 end
 
 legend(axT, legNames, 'Interpreter','none','Location','best');
-if maxDuration > 0, xlim(axT, [0, maxDuration]); end
+if maxDuration > 0
+    xlim(axT, [0, maxDuration]);
+end
+
 legend(ax1, 'show', 'Interpreter','none', 'Location','best');
 legend(ax2, 'show', 'Interpreter','none', 'Location','best');
 legend(ax3, 'show', 'Interpreter','none', 'Location','best');
+
+% ===== Automatically set frequency axis max
+fmax_plot = max(allFreqMax);
+if fmax_plot > 1
+    xlim(ax1, [1, fmax_plot]);
+    xlim(ax2, [1, fmax_plot]);
+    xlim(ax3, [1, fmax_plot]);
+end
 
 %% ===== Output RMS Summary Table =====
 rms_cell = cell(numFiles, 1+3+3);
