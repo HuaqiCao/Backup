@@ -1,3 +1,6 @@
+% 考虑疲劳极限（经验值），计算已知固有频率下，弹簧的 K 值以及疲劳 & 屈服强度极限载荷  
+% 寻找最优的阻尼系数 C，并使用最优参数计算减振效果
+
 % === BASE PARAMETERS ===
 M = 12.6;                % Load mass (kg)
 g = 9.81;                % Gravitational acceleration (m/s^2)
@@ -100,70 +103,109 @@ for i = 1:length(d_wire_range)
         end
     end
 end
-if ~isempty(results)
-    % ===== DISPLAY RESULTS =====
-    header = {'Wire_d_mm', 'Inner_d_mm', 'Outer_d_mm', 'Mean_D_mm', 'Index_c', ...
-        'Total_turns', 'Eff_turns', 'Pitch_mm', 'Free_len_L0_mm', ...
-        'Assembly_len_Leq_mm', 'Area_mm2', 'Spring_mass_kg', ...
-        'Eff_mass_kg', 'Stiffness_N_m', 'Freq_Hz', ...
-        'Tau_max_MPa', 'Radial_freq_Hz', 'Sigma_max_MPa'};
+
+    if ~isempty(results)
+        % ===== DISPLAY RESULTS =====
+        header = {'Wire_d_mm', 'Inner_d_mm', 'Outer_d_mm', 'Mean_D_mm', 'Index_c', ...
+            'Total_turns', 'Eff_turns', 'Pitch_mm', 'Free_len_L0_mm', ...
+            'Assembly_len_Leq_mm', 'Area_mm2', 'Spring_mass_kg', ...
+            'Eff_mass_kg', 'Stiffness_N_m', 'Freq_Hz', ...
+            'Tau_max_MPa', 'Radial_freq_Hz', 'Sigma_max_MPa'};
+        
+        fprintf('\n%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-12s %-12s %-10s %-10s %-12s %-10s %-10s\n', header{:});
+        
+        for i = 1:size(results,1)
+            fprintf('%-10.2f %-10.2f %-10.2f %-10.2f %-10.2f %-10d %-10d %-10.2f %-10.2f %-10.2f %-10.2f %-12.4f %-12.4f %-10.1f %-10.2f %-12.2f %-10.2f %-10.2f\n', results(i,:));
+        end
     
-    fprintf('\n%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-12s %-12s %-10s %-10s %-12s %-10s %-10s\n', header{:});
-
-    for i = 1:size(results,1)
-        fprintf('%-10.2f %-10.2f %-10.2f %-10.2f %-10.2f %-10d %-10d %-10.2f %-10.2f %-10.2f %-10.2f %-12.4f %-12.4f %-10.1f %-10.2f %-12.2f %-10.2f %-10.2f\n', results(i,:));
+        if ~isempty(best_params)
+            fprintf('\n=== Optimal Spring Design (Minimum Freq: %.4f Hz) ===\n', best_freq);
+            fprintf('Wire Diameter: %.1f mm\n', best_params(1)*1000);
+            fprintf('Mean Diameter: %.1f mm\n', best_params(2)*1000);
+            fprintf('Total Turns: %d (Effective Turns: %d)\n', best_params(3), best_params(4));
+            fprintf('Spring Mass: %.4f kg\n', best_params(5));
+            fprintf('Effective Mass: %.4f kg\n', best_params(6));
+            fprintf('Stiffness: %.1f N/m\n', best_params(7));
+            fprintf('Axial Natural Freq: %.4f Hz (Target: %.1f Hz)\n', best_params(8), f0_vertical);
+            fprintf('Radial Natural Freq: %.2f Hz\n', best_params(9));
+            fprintf('Max Tensile Stress: %.2f MPa (Limit: %.2f MPa)\n', best_params(10)/1e6, 0.7*sigma_b/1e6);
+        end
+    
+        % ===== NEW SPRING PARAMETERS TABLE =====
+        % Additional table for Spring material and dimensions
+        spring_material = 'Stainless Steel';  % Modify as needed based on material choice
+        d_wire = best_params(1);  % Wire diameter in meters
+        D = best_params(2);  % Mean diameter in meters
+        n_eff = best_params(4);  % Effective turns
+        L0 = n_eff * d_wire;  % Original length
+        k_actual = best_params(7);  % Spring stiffness (N/m)
+        best_c = best_c;  % Optimal damping coefficient
+        
+        % Create the data for the new table
+        spring_data = {
+            spring_material, ...
+            d_wire*1000, ...   % Wire diameter in mm
+            D*1000, ...        % Mean diameter in mm
+            n_eff, ...         % Effective turns
+            L0, ...            % Original length in meters
+            k_actual, ...      % Stiffness (N/m)
+            best_c ...         % Damping coefficient (N·s/m)
+        };
+    
+        % Header for new table
+        spring_header = {'Material', 'Wire Diameter (mm)', 'Mean Diameter (mm)', 'Effective Turns', 'Original Length (m)', 'Stiffness (N/m)', 'Damping Coefficient (N·s/m)'};
+        
+        % Display the new table in the MATLAB figure using uitable
+        fig_spring = figure('Name', 'Spring Parameters', 'Units', 'inches', 'Position', figSize);
+        uitable(fig_spring, ...
+            'Data', spring_data, ...
+            'ColumnName', spring_header, ...
+            'Units', 'normalized', ...
+            'Position', [0.05, 0.05, 0.9, 0.9], ...
+            'FontSize', 10, ...
+            'RowName', []);  % Hide row names for this table
+    else
+        % If no design meets the constraints, display the message
+        disp('No design found meeting all constraints.');
     end
-
-    if ~isempty(best_params)
-        fprintf('\n=== Optimal Spring Design (Minimum Freq: %.4f Hz) ===\n', best_freq);
-        fprintf('Wire Diameter: %.1f mm\n', best_params(1)*1000);
-        fprintf('Mean Diameter: %.1f mm\n', best_params(2)*1000);
-        fprintf('Total Turns: %d (Effective Turns: %d)\n', best_params(3), best_params(4));
-        fprintf('Spring Mass: %.4f kg\n', best_params(5));
-        fprintf('Effective Mass: %.4f kg\n', best_params(6));
-        fprintf('Stiffness: %.1f N/m\n', best_params(7));
-        fprintf('Axial Natural Freq: %.4f Hz (Target: %.1f Hz)\n', best_params(8), f0_vertical);
-        fprintf('Radial Natural Freq: %.2f Hz\n', best_params(9));
-        fprintf('Max Tensile Stress: %.2f MPa (Limit: %.2f MPa)\n', best_params(10)/1e6, 0.7*sigma_b/1e6);
-    end
-
+    
     % ====== DAMPING OPTIMIZATION ======
     k_actual = best_params(7);   
     m_eq = best_params(6);       
     fn = best_params(8);         
     wn = 2*pi*fn;                
-
+    
     c_range = linspace(0.1, 1000, 10000);  
     f_range = 0:0.1:100;         
     omega_range = 2*pi*f_range;
-
+    
     best_c = 0;
     min_T_energy = Inf;          
     best_T = [];
-
+    
     T_energy_values = zeros(size(c_range));
     zeta_values = zeros(size(c_range));
-
+    
     C_constant = 2*sqrt(k_actual*m_eq);
-
+    
     for idx = 1:length(c_range)
         c = c_range(idx);
         zeta = c / C_constant;
         zeta_values(idx) = zeta;
-
+    
         T = zeros(size(omega_range));
         for j = 1:length(omega_range)
             omega = omega_range(j);
             r = omega/wn;
-
+    
             numerator = sqrt(1 + (2*zeta*r)^2);
             denominator = sqrt((1 - r^2)^2 + (2*zeta*r)^2);
             T(j) = numerator / denominator;
         end
-
+    
         T_energy = trapz(f_range, T.^2);
         T_energy_values(idx) = T_energy;
-
+    
         if T_energy < min_T_energy
             min_T_energy = T_energy;
             min_peak_T = max(T);
@@ -173,7 +215,7 @@ if ~isempty(results)
             best_zeta = zeta;
         end
     end
-
+    
     % ===== DISPLAY OPTIMAL DAMPING =====
     fprintf('\n=== Optimal Damping Parameters ===\n');
     fprintf('Best Damping Coefficient c = %.2f N·s/m\n', best_c);
@@ -181,7 +223,7 @@ if ~isempty(results)
     fprintf('Minimum Peak Transmission Ratio = %.4f\n', min_peak_T);
     fprintf('Minimum Avg Transmission Ratio = %.4f\n', min_avg_T);
     fprintf('Minimum Energy (0–100 Hz) = %.4f\n', min_T_energy);
-
+    
     % === GLOBAL PLOT SETTINGS ===
     fontEN = 'Arial';
     set(0,'defaultAxesFontName',fontEN);
@@ -191,8 +233,9 @@ if ~isempty(results)
     set(0,'defaultAxesFontSize',12);
     set(0,'defaultTextInterpreter','none');     
     set(0,'defaultLegendInterpreter','none');   
-
+    
     figSize = [1, 1, 10, 5];  % in inches
+    
     % === Figure 1: Frequency Response Curve ===
     figure('Name', 'Transmission Ratio Curve', 'Units', 'inches', 'Position', figSize);
     semilogx(f_range, best_T, 'b-', 'LineWidth', 2);
@@ -200,18 +243,18 @@ if ~isempty(results)
     plot([fn, fn], [0, max(best_T)], 'r--', 'LineWidth', 1.5, 'DisplayName', 'Natural Frequency');  
     fn_sqrt2 = fn * sqrt(2);
     plot([fn_sqrt2, fn_sqrt2], [0, max(best_T)], 'g--', 'LineWidth', 1.5, 'DisplayName', '√2×Natural Frequency');
-
+    
     xlabel('Frequency (Hz)');
     ylabel('Transmission Ratio |T|');
-    title(sprintf('Frequency Response Curve (c=%.2f N·s/m, \\zeta=%.4f)', best_c, best_zeta), 'FontSize', 16);
-    text(0.5, 0.8, '$T = \frac{\sqrt{1 + (2\zeta r)^2}}{\sqrt{(1 - r^2)^2 + (2\zeta r)^2}}$', ...
-        'Interpreter', 'latex', 'FontSize', 14, 'Units', 'normalized');
+    title(sprintf('Frequency Response Curve', best_c, best_zeta), 'FontSize', 24);
+    text(0.6, 0.6, '$T = \frac{\sqrt{1 + (2\zeta r)^2}}{\sqrt{(1 - r^2)^2 + (2\zeta r)^2}}$', ...
+        'Interpreter', 'latex', 'FontSize', 20, 'Units', 'normalized');
     legend('Transmission Ratio', 'Natural Frequency', '√2×Natural Frequency', ...
-        'Location', 'best', 'Interpreter', 'none', 'FontSize', 12);
+        'Location', 'best', 'Interpreter', 'none', 'FontSize', 16);
     grid on;
     xlim([0.1, 100]);
     ylim([0, max(best_T) * 1.1]);
-
+    
     % === Figure 2: Transmission Energy vs Damping Coefficient ===
     figure('Name', 'Energy vs Damping Coefficient', 'Units', 'inches', 'Position', figSize);
     semilogx(c_range, T_energy_values, 'b-', 'LineWidth', 2);
@@ -219,16 +262,16 @@ if ~isempty(results)
     plot([best_c, best_c], [min(T_energy_values), max(T_energy_values)], 'r--', 'LineWidth', 1.5);
     xlabel('Damping Coefficient c (N·s/m)');
     ylabel('Transmission Energy E (0–100 Hz)');
-    title('Energy vs. Damping Coefficient', 'FontSize', 16);
-    text(0.05, 0.85, '$E = \int_{0}^{100} T^2(f) df$', ...
-        'Interpreter', 'latex', 'FontSize', 14, 'Units', 'normalized');
-    text(0.05, 0.75, sprintf('$c_{best} = %.2f$ N$\\cdot$s/m', best_c), ...
-        'Interpreter', 'latex', 'FontSize', 14, 'Units', 'normalized');
-    text(0.05, 0.65, sprintf('$\\zeta_{best} = %.4f$', best_zeta), ...
-        'Interpreter', 'latex', 'FontSize', 14, 'Units', 'normalized');
-    legend('Transmission Energy', 'Optimal Damping Coefficient', 'Location', 'best', 'FontSize', 12);
+    title('Energy vs. Damping Coefficient', 'FontSize', 24);
+    text(0.05, 0.75, '$E = \int_{0}^{100} T^2(f) df$', ...
+        'Interpreter', 'latex', 'FontSize', 18, 'Units', 'normalized');
+    text(0.05, 0.65, sprintf('$c_{best} = %.2f$ N$\\cdot$s/m', best_c), ...
+        'Interpreter', 'latex', 'FontSize', 18, 'Units', 'normalized');
+    text(0.05, 0.55, sprintf('$\\zeta_{best} = %.4f$', best_zeta), ...
+        'Interpreter', 'latex', 'FontSize', 18, 'Units', 'normalized');
+    legend('Transmission Energy', 'Optimal Damping Coefficient', 'Location', 'best', 'FontSize', 16);
     grid on;
-
+    
     % === Figure 3: Transmission Energy vs Damping Ratio ===
     figure('Name', 'Energy vs Damping Ratio', 'Units', 'inches', 'Position', figSize);
     plot(zeta_values, T_energy_values, 'b-', 'LineWidth', 2);
@@ -236,13 +279,72 @@ if ~isempty(results)
     plot([best_zeta, best_zeta], [min(T_energy_values), max(T_energy_values)], 'r--', 'LineWidth', 1.5);
     xlabel('Damping Ratio \zeta');
     ylabel('Transmission Energy E (0–100 Hz)');
-    title('Energy vs. Damping Ratio', 'FontSize', 16);
-    text(0.05, 0.85, '$E = \int_{0}^{100} T^2(f) df$', ...
-        'Interpreter', 'latex', 'FontSize', 14, 'Units', 'normalized');
-    text(0.05, 0.75, sprintf('$\\zeta_{best} = %.4f$', best_zeta), ...
-        'Interpreter', 'latex', 'FontSize', 14, 'Units', 'normalized');
-    legend('Transmission Energy', 'Optimal Damping Ratio', 'Location', 'best', 'FontSize', 12);
+    title('Energy vs. Damping Ratio', 'FontSize', 24);
+    text(0.2, 0.85, '$E = \int_{0}^{100} T^2(f) df$', ...
+        'Interpreter', 'latex', 'FontSize', 18, 'Units', 'normalized');
+    text(0.2, 0.75, sprintf('$\\zeta_{best} = %.4f$', best_zeta), ...
+        'Interpreter', 'latex', 'FontSize', 18, 'Units', 'normalized');
+    legend('Transmission Energy', 'Optimal Damping Ratio', 'Location', 'best', 'FontSize', 16);
     grid on;
+
+
+    % ============== 减振效果分析 ==============
+    % 选择 CSV 文件读取加速度数据
+    [fileName, filePath] = uigetfile('*.csv', '选择振源加速度 CSV 文件');
+    if isequal(fileName, 0)
+        error('用户取消了文件选择。');
+    end
+    fullFileName = fullfile(filePath, fileName);
+    
+    % 读取 CSV 文件（保留前4行标题）
+    fid = fopen(fullFileName, 'r');
+    headerLines = cell(4,1);
+    for i = 1:4
+        headerLines{i} = fgetl(fid);
+    end
+    fclose(fid);
+    
+    % 读取数据部分
+    opts = detectImportOptions(fullFileName, 'NumHeaderLines', 4);
+    data = readmatrix(fullFileName, opts);
+    time = data(:, 1);
+    voltage = data(:, 2);  % 电压信号
+    
+    % 传感器参数
+    gain = 100;         % 增益
+    sensitivity = 1.026; % 灵敏度 (g/V)
+    
+    % 转换为加速度 (g) - 减振前的原始数据
+    acc_base_g = voltage / ( gain * sensitivity );
+    
+    % 转换为 SI 单位的加速度并去直流分量
+    acc_base = acc_base_g * g;               % 将基础加速度转换为 m/s^2
+    acc_base = acc_base - mean(acc_base);    % 去除直流分量
+    
+    % 采样参数
+    dt = mean(diff(time));
+    fs = 1 / dt;
+    N = length(time);
+    
+    % 计算频域传递函数 H(jω)
+    omega = 2 * pi * fs * (0:(N/2)) / N;
+    H = zeros(size(omega));
+    for ii = 1:length(omega)
+        s = 1i * omega(ii);
+        H(ii) = (best_c * s + k_actual) / (m_eq * s^2 + best_c * s + k_actual);
+    end
+    % 将传递函数扩展为完整频谱（共轭对称）
+    H_full = [H, conj(flip(H(2:end-1)))];
+    
+    % 频域滤波计算隔振后的加速度
+    fft_base = fft(acc_base);
+    fft_isolated = fft_base .* H_full.';
+    acc_isolated = real(ifft(fft_isolated));
+    
+    % 去直流分量
+    acc_isolated = acc_isolated - mean(acc_isolated);
+    
+    % ============== 绘制减振前后对比图 ==============
     % === Time-Domain Comparison ===
     fig_time = figure('Name', 'Time-Domain Comparison of Acceleration', 'Units', 'inches', 'Position', figSize);
     acc_base_g_detrend = acc_base / g;
@@ -251,11 +353,33 @@ if ~isempty(results)
     plot(time, acc_isolated / g, 'r-', 'LineWidth', 1.5, 'DisplayName', 'After Isolation (simulated)'); 
     xlabel('Time (s)');
     ylabel('Acceleration (g)');
-    title('Time-Domain Acceleration Comparison', 'FontSize', 16);
+    title('Time-Domain Acceleration Comparison', 'FontSize', 24);
     legend('show', 'Location', 'best', 'FontSize', 12);
     grid on;
     xlim([min(time), max(time)]);
-
+    
+    % ============== 输出减振后的CSV文件 ==============
+    % 将减振后加速度转换为电压信号
+    acc_isolated_g = acc_isolated / g; % 转换为g单位
+    voltage_isolated = acc_isolated_g * sensitivity * gain;
+    
+    % 创建输出文件名
+    [~, name, ext] = fileparts(fileName);
+    outputFileName = fullfile(filePath, [name '_isolated' ext]);
+    
+    % 写入CSV文件（包含原始标题）
+    fid = fopen(outputFileName, 'w');
+    for i = 1:4
+        fprintf(fid, '%s\n', headerLines{i});
+    end
+    for i = 1:length(time)
+        fprintf(fid, '%.6f,%.6f\n', time(i), voltage_isolated(i));
+    end
+    fclose(fid);
+    
+    fprintf('减振后的加速度数据已保存为: %s\n', outputFileName);
+    
+    % ============== PSD 和 LPSD 分析 ==============
     % === PSD and LPSD Computation ===
     nfft = 100000;
     window = hanning(nfft);
@@ -277,8 +401,8 @@ if ~isempty(results)
     loglog(f, pxx_isolated / g^2, 'r-', 'LineWidth', 1.5, 'DisplayName', 'After Isolation');
     xlabel('Frequency (Hz)');
     ylabel('PSD [g²/Hz]');
-    title('Power Spectral Density Comparison', 'FontSize', 16);
-    legend('show', 'Location', 'best', 'FontSize', 12);
+    title('Power Spectral Density Comparison', 'FontSize', 24);
+    legend('show', 'Location', 'best', 'FontSize', 16);
     grid on;
     xlim([0.1, 200]);
 
@@ -289,8 +413,8 @@ if ~isempty(results)
     loglog(f, lpsd_isolated, 'r-', 'LineWidth', 1.5, 'DisplayName', 'After Isolation');
     xlabel('Frequency (Hz)');
     ylabel('LPSD [g/√Hz]');
-    title('Linear Power Spectral Density of Acceleration', 'FontSize', 16);
-    legend('show', 'Location', 'best', 'FontSize', 12);
+    title('Linear Power Spectral Density of Acceleration', 'FontSize', 24);
+    legend('show', 'Location', 'best', 'FontSize', 16);
     grid on;
     xlim([0.1, 200]);
 
@@ -301,11 +425,12 @@ if ~isempty(results)
     loglog(f, lpsd_isolated_disp * 1e9, 'r-', 'LineWidth', 1.5, 'DisplayName', 'After Isolation');
     xlabel('Frequency (Hz)');
     ylabel('LPSD [nm/√Hz]');
-    title('Linear Power Spectral Density of Displacement', 'FontSize', 16);
-    legend('show', 'Location', 'best', 'FontSize', 12);
+    title('Linear Power Spectral Density of Displacement', 'FontSize', 24);
+    legend('show', 'Location', 'best', 'FontSize', 16);
     grid on;
     xlim([0.1, 200]);
-    % === RMS Calculation ===
+    
+        % === RMS Calculation ===
     band_edges = [0.1, 40; 0.1, 100; 1, 40; 40, 100; 1, 100];
     band_names = {'[0.1–40] Hz', '[0.1–100] Hz', '[1–40] Hz', '[40–100] Hz', '[1–100] Hz'};
     df = mean(diff(f));  
@@ -329,27 +454,33 @@ if ~isempty(results)
     % === Create Table Data ===
     rms_results = cell(nBands, 7);
     for iBand = 1:nBands
-        rms_results{iBand,1} = band_names{iBand};
-        rms_results{iBand,2} = sprintf('%.2f', RMS_base_acc(iBand));
-        rms_results{iBand,3} = sprintf('%.2f', RMS_isolated_acc(iBand));
-        rms_results{iBand,4} = sprintf('%.1f%%', reduction_acc(iBand));
-        rms_results{iBand,5} = sprintf('%.2f', RMS_base_disp(iBand));
-        rms_results{iBand,6} = sprintf('%.2f', RMS_isolated_disp(iBand));
-        rms_results{iBand,7} = sprintf('%.1f%%', reduction_disp(iBand));
+        rms_results{iBand,1} = band_names{iBand};  % Frequency band names remain unchanged
+        rms_results{iBand,2} = sprintf('%.3e', RMS_base_acc(iBand));     % Format as scientific notation (μg)
+        rms_results{iBand,3} = sprintf('%.3e', RMS_isolated_acc(iBand)); % Format as scientific notation (μg)
+        rms_results{iBand,4} = sprintf('%.3f', reduction_acc(iBand));    % % 
+        rms_results{iBand,5} = sprintf('%.3e', RMS_base_disp(iBand));    % Format as scientific notation (nm)
+        rms_results{iBand,6} = sprintf('%.3e', RMS_isolated_disp(iBand));% Format as scientific notation (nm)
+        rms_results{iBand,7} = sprintf('%.3f', reduction_disp(iBand));   % % 
     end
-
-    % === Table Column Names ===
+    
     col_names = {'Frequency Band', 'Before Acc (μg)', 'After Acc (μg)', 'Reduction (%)', ...
                  'Before Disp (nm)', 'After Disp (nm)', 'Reduction (%)'};
-
-    % === Filter Out Hidden Bands ===
-    display_idx = [3, 4, 5];  % Skip 0.1–40 and 0.1–100
-    fig_rms = figure('Name', 'RMS Comparison Table', 'Units', 'inches', 'Position', figSize);
-    uitable(fig_rms, 'Data', rms_results(display_idx, :), ...
-                   'ColumnName', col_names, ...
-                   'Units', 'normalized', 'Position', [0.05, 0.05, 0.9, 0.9], ...
-                   'FontSize', 10, 'RowName', []);
-
+    
+    % === 可显示的行索引（如果不打算筛选，就全选）===
+    display_idx = [3, 4, 5];  % 显示需要的频段
+    
+    % === 确保有一个有效的 figure 句柄用于 uitable ===
+    fig_rms = figure('Name', 'RMS Summary', 'Units', 'inches', 'Position', figSize);
+    
+    % MATLAB uitable 更稳的是用 cell 数组（混合文本+数值）
+    uitable(fig_rms, ...
+            'Data', rms_results(display_idx, :), ...
+            'ColumnName', col_names, ...
+            'Units', 'normalized', ...
+            'Position', [0.05, 0.05, 0.9, 0.9], ...
+            'FontSize', 10, ...
+            'RowName', []);  % 没有额外格式化，只显示原始数据
+    
     % === Command Line Output ===
     fprintf('\n=== RMS Comparison Summary ===\n');
     fprintf('%-18s %-20s %-20s %-15s %-20s %-20s %-15s\n', ...
@@ -357,11 +488,8 @@ if ~isempty(results)
         'Before Disp (nm)', 'After Disp (nm)', 'Reduction (%)');
     fprintf('-------------------------------------------------------------------------------------------------------------\n');
     for iBand = display_idx
-        fprintf('%-18s %-20.2f %-20.2f %-15.1f %-20.2f %-20.2f %-15.1f\n', ...
+        fprintf('%-18s %-20s %-20s %-15s %-20s %-20s %-15s\n', ...
             band_names{iBand}, ...
-            RMS_base_acc(iBand), RMS_isolated_acc(iBand), reduction_acc(iBand), ...
-            RMS_base_disp(iBand), RMS_isolated_disp(iBand), reduction_disp(iBand));
+            rms_results{iBand,2}, rms_results{iBand,3}, rms_results{iBand,4}, ...
+            rms_results{iBand,5}, rms_results{iBand,6}, rms_results{iBand,7});
     end
-else
-    disp('No design found meeting all constraints.');
-end
