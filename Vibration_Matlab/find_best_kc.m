@@ -212,7 +212,7 @@ plot(r_range, best_T, 'b-', 'LineWidth', 2, 'DisplayName', 'Transmission Ratio')
 hold on;
 plot([1, 1], [0, max(best_T)], 'r--', 'LineWidth', 1.5, 'DisplayName', 'Natural Frequency');
 r_sqrt2 = sqrt(2);
-plot([fn_sqrt2, fn_sqrt2], [0, max(best_T)], 'g--', 'LineWidth', 1.5, 'DisplayName', '√2×Natural Frequency');
+plot([r_sqrt2, r_sqrt2], [0, max(best_T)], 'g--', 'LineWidth', 1.5, 'DisplayName', '√2×Natural Frequency');
 
 xlabel('Frequency Ratio (r = ω/ω_n)');
 ylabel('Transmission Ratio T');
@@ -249,7 +249,7 @@ hold on;
 plot([best_zeta, best_zeta], [min(T_energy_values), max(T_energy_values)], 'r--', 'LineWidth', 1.5);
 xlabel('Damping Ratio $\zeta$', 'Interpreter', 'latex');
 ylabel('Transmission Energy E (0–100 Hz)');
-title('Energy vs. Damping Ratio (Vertical)', 'FontSize', 24);
+title('Energy vs. Damping Ratio (Vertical)', 'FontSize', 30);
 text(0.2, 0.85, '$E = \int_{0}^{100} T^2(f) df$', ...
     'Interpreter', 'latex', 'FontSize', 18, 'Units', 'normalized');
 text(0.2, 0.75, sprintf('$\\zeta_{best} = %.4f$', best_zeta), ...
@@ -357,6 +357,13 @@ window = hamming(seglen);
 overlap = round(seglen / 2);
 nfft = seglen; 
 
+% --- Welch 分段数 N ---
+L     = seglen;           % window length
+nover = overlap;
+N_sig = numel(acc_base);
+N_win = floor((N_sig - nover) / (L - nover));
+fprintf('Welch averaging windows N = %d\n', N_win);
+
 % PSD calculation
 [pxx_base, f] = pwelch(acc_base, window, overlap, nfft, fs);
 [pxx_isolated, ~] = pwelch(acc_isolated, window, overlap, nfft, fs);
@@ -378,23 +385,23 @@ loglog(f, pxx_base / g^2, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, 'Displa
 hold on;
 loglog(f, pxx_isolated / g^2, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('PSD [g^2/Hz]');
-title('Power Spectral Density Comparison'); xlim([0.1, fmax_plot]);
+title('Power Spectral Density (Vertical)'); xlim([0.1, fmax_plot]);
 
 % Plot acceleration LPSD
 fig_acc_lpsd = figure('Name', 'LPSD of Acceleration', 'Units', 'inches', 'Position', figSize);
 loglog(f, lpsd_base, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, 'DisplayName', 'Before Isolation on MXC_vertical @RT');
 hold on;
 loglog(f, lpsd_isolated, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
-legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [g/\surdHz]');
-title('Acceleration LPSD'); xlim([0.1, fmax_plot]);
+legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [g/√Hz]');
+title('Acceleration LPSD (Vertical)'); xlim([0.1, fmax_plot]);
 
 % Plot displacement LPSD
 fig_disp_lpsd = figure('Name', 'LPSD of Displacement', 'Units', 'inches', 'Position', figSize);
 loglog(f, lpsd_base_disp * 1e9, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, 'DisplayName', 'Before Isolation on MXC_vertical @RT');
 hold on;
 loglog(f, lpsd_isolated_disp * 1e9, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
-legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [nm/\surdHz]');
-title('Displacement LPSD'); xlim([0.1, fmax_plot]);
+legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [nm/√Hz]');
+title('Displacement LPSD (Vertical)'); xlim([0.1, fmax_plot]);
 
 % RMS frequency band analysis
 band_edges = [1, 40; 40, 100; 1, 100];
