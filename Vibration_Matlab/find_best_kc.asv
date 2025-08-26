@@ -354,7 +354,7 @@ ylabel('Acceleration (g)');
 title('Time-Domain Acceleration Comparison (Vertical)', 'FontSize', 24);
 legend('show', 'Location', 'best', 'FontSize', 12);
 grid on;
-xlim([0 , 1]);
+xlim([min(time), ma]);
 
 % ============== OUTPUT ISOLATED CSV FILE ==============
 % Convert isolated acceleration to voltage signal
