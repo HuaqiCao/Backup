@@ -324,20 +324,16 @@ dt = mean(diff(time));
 fs = 1 / dt;
 N = length(time);
 
-% Calculate frequency response function H(jω)
-omega = 2 * pi * fs * (0:(N/2)) / N;
-H = zeros(size(omega));
-for ii = 1:length(omega)
-    s = 1i * omega(ii);
-    H(ii) = (best_c * s + k_actual) / (m_eq * s^2 + best_c * s + k_actual);
-end
-% Extend to full spectrum (conjugate symmetric)
-H_full = [H, conj(flip(H(2:end-1)))];
+% Vectorized full-spectrum FRF aligned with FFT bins (0..N-1)
+k = (0:(N-1)).';                         % <-- 列向量：N×1
+omega_full = 2*pi*fs * (k / N);          % rad/s, N×1
+s = 1i * omega_full;                     % N×1
+H_full = (best_c .* s + k_actual) ./ (m_eq .* (s.^2) + best_c .* s + k_actual);  % N×1
 
 % Frequency domain filtering for isolated acceleration
-fft_base = fft(acc_base);
-fft_isolated = fft_base .* H_full.';
-acc_isolated = real(ifft(fft_isolated));
+fft_base = fft(acc_base(:));             % 保证列向量 N×1
+fft_isolated = fft_base .* H_full;       % 逐元素乘，尺寸匹配 N×1
+acc_isolated = real(ifft(fft_isolated, 'symmetric'));  % 数值更稳，结果应为实数
 
 % Remove DC component
 acc_isolated = acc_isolated - mean(acc_isolated);
@@ -405,12 +401,6 @@ fprintf('Base   Parseval: var_time=%.6g, var_freq=%.6g, ratio=%.3f\n', ...
         var_time_base, var_freq_base, var_time_base/var_freq_base);
 fprintf('Iso    Parseval: var_time=%.6g, var_freq=%.6g, ratio=%.3f\n', ...
         var_time_isolated, var_freq_isolated, var_time_isolated/var_freq_isolated);
-
-% 时域方差
-var_time = var(acc_isolated);
-% 频域 PSD 积分（pwelch 一侧谱）
-var_freq = trapz(f, pxx_isolated);
-fprintf('Check: var_time=%.6g, var_freq=%.6g, ratio=%.3f\n', var_time, var_freq, var_time/var_freq);
 
 % LPSD calculation (normalized units)
 lpsd_base = sqrt(pxx_base) / g;
@@ -503,8 +493,8 @@ for iBand = 1:nBands
 end
 
 % === SAVE RMS SUMMARY TO EXCEL ===
-red_acc  = (RMS_base_acc  - RMS_isolated_acc ) ./ RMS_base_acc  * 100;
-red_disp = (RMS_base_disp - RMS_isolated_disp) ./ RMS_base_disp * 100;
+red_acc  = (RMS_base_acc  - RMS_isolated_acc ) ./ max(RMS_base_acc,  eps) * 100;
+red_disp = (RMS_base_disp - RMS_isolated_disp) ./ max(RMS_base_disp, eps) * 100;
 
 rmsHeader = {'Frequency Band','Before Acc (µg)','After Acc (µg)','Reduction (%)', ...
              'Before Disp (nm)','After Disp (nm)','Reduction (%)'};
