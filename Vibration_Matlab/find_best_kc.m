@@ -24,6 +24,9 @@ r_hook_range = 3e-3:1e-3:10e-3;     % Hook radius (3-10mm)
 results = [];
 best_freq = Inf;         
 best_params = [];
+best_L0 = NaN;                       % 保存最佳弹簧原长（m）
+material_name = 'Stainless Steel';   % 材质名称（304 不锈钢）
+
 
 % Spring design optimization loop
 for i = 1:length(d_wire_range)
@@ -96,9 +99,10 @@ for i = 1:length(d_wire_range)
                       tau_e/1e6, f0_radial, sigma_max/1e6];
 
                     if actual_freq < f0_vertical && actual_freq < best_freq
-                        best_freq = actual_freq;
-                        best_params = [d_wire, D, n_total, n_eff, m_s, m_eq, k_actual, ...
-                            actual_freq, f0_radial, sigma_max];
+                            best_freq = actual_freq;
+                            best_params = [d_wire, D, n_total, n_eff, m_s, m_eq, k_actual, ...
+                                actual_freq, f0_radial, sigma_max, L]; 
+                            best_L0 = L0;
                     end
                 end
             end
@@ -127,10 +131,11 @@ if ~isempty(results)
         fprintf('Total Turns: %d (Effective Turns: %d)\n', best_params(3), best_params(4));
         fprintf('Spring Mass: %.4f kg\n', best_params(5));
         fprintf('Effective Mass: %.4f kg\n', best_params(6));
-        fprintf('Stiffness: %.1f N/m\n', best_params(7));
+        fprintf('Stiffness: %.2f N/m\n', best_params(7));
         fprintf('Axial Natural Freq: %.4f Hz (Target: %.1f Hz)\n', best_params(8), f0_vertical);
         fprintf('Radial Natural Freq: %.2f Hz\n', best_params(9));
         fprintf('Max Tensile Stress: %.2f MPa (Limit: %.2f MPa)\n', best_params(10)/1e6, 0.7*sigma_b/1e6);
+        fprintf('Spring Length L = %.4f m\n', best_params(11));
     end
 else
     disp('No design found meeting all constraints.');
@@ -191,6 +196,28 @@ fprintf('Minimum Peak Transmission Ratio = %.4f\n', min_peak_T);
 fprintf('Minimum Avg Transmission Ratio = %.4f\n', min_avg_T);
 fprintf('Minimum Energy (0–100 Hz) = %.4f\n', min_T_energy);
 
+% === SAVE BEST SPRING PARAMS TO EXCEL ===
+% 以所选 CSV 的文件名为前缀，保存在同一目录
+if exist('filePath','var') ~= 1
+    filePath = pwd; name = datestr(now,'yyyymmdd_HHMMSS'); % 万一前面没选CSV
+end
+
+springHeader = {'Material','Wire Diameter (mm)','Mean Diameter (mm)', ...
+                'Effective Turns','Original Length (m)', ...
+                'Stiffness (N/m)','Damping Coefficient (N·s/m)'};
+springRow = { ...
+    material_name, ...
+    round(best_params(1)*1000,2), ...   % 线径 mm
+    round(best_params(2)*1000,2), ...   % 中径 mm
+    best_params(4), ...                 % 有效圈数
+    round(best_L0,4), ...               % 原长 m（保留4位更合理）
+    round(best_params(7),2), ...        % k 两位小数
+    round(best_c,2) };                  % c 两位小数
+
+springXlsx = fullfile(filePath, [name '_best_spring.xlsx']);
+writecell([springHeader; springRow], springXlsx);
+fprintf('Best spring parameters saved: %s\n', springXlsx);
+
 % === GLOBAL PLOT SETTINGS ===
 fontEN = 'Arial';
 set(0,'defaultAxesFontName',fontEN);
@@ -249,7 +276,7 @@ hold on;
 plot([best_zeta, best_zeta], [min(T_energy_values), max(T_energy_values)], 'r--', 'LineWidth', 1.5);
 xlabel('Damping Ratio $\zeta$', 'Interpreter', 'latex');
 ylabel('Transmission Energy E (0–100 Hz)');
-title('Energy vs. Damping Ratio (Vertical)', 'FontSize', 30);
+title('Energy vs. Damping Ratio (Vertical)', 'FontSize', 24);
 text(0.2, 0.85, '$E = \int_{0}^{100} T^2(f) df$', ...
     'Interpreter', 'latex', 'FontSize', 18, 'Units', 'normalized');
 text(0.2, 0.75, sprintf('$\\zeta_{best} = %.4f$', best_zeta), ...
@@ -385,7 +412,7 @@ loglog(f, pxx_base / g^2, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, 'Displa
 hold on;
 loglog(f, pxx_isolated / g^2, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('PSD [g^2/Hz]');
-title('Power Spectral Density (Vertical)'); xlim([0.1, fmax_plot]);
+title('Power Spectral Density (Vertical)','FontSize', 24); xlim([0.1, fmax_plot]);
 
 % Plot acceleration LPSD
 fig_acc_lpsd = figure('Name', 'LPSD of Acceleration', 'Units', 'inches', 'Position', figSize);
@@ -393,7 +420,7 @@ loglog(f, lpsd_base, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, 'DisplayName
 hold on;
 loglog(f, lpsd_isolated, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [g/√Hz]');
-title('Acceleration LPSD (Vertical)'); xlim([0.1, fmax_plot]);
+title('Acceleration LPSD (Vertical)','FontSize', 24); xlim([0.1, fmax_plot]);
 
 % Plot displacement LPSD
 fig_disp_lpsd = figure('Name', 'LPSD of Displacement', 'Units', 'inches', 'Position', figSize);
@@ -401,35 +428,71 @@ loglog(f, lpsd_base_disp * 1e9, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, '
 hold on;
 loglog(f, lpsd_isolated_disp * 1e9, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [nm/√Hz]');
-title('Displacement LPSD (Vertical)'); xlim([0.1, fmax_plot]);
+title('Displacement LPSD (Vertical)','FontSize', 24); xlim([0.1, fmax_plot]);
 
-% RMS frequency band analysis
-band_edges = [1, 40; 40, 100; 1, 100];
-band_names = {'[1–40] Hz','[40–100] Hz','[1–100] Hz'};
-df = mean(diff(f));
+% ===== RMS frequency band analysis =====
+band_edges = [1, 40; 40, 1000; 1, 1000];
+band_names = {'[1–40] Hz','[40–1k] Hz','[1–1k] Hz'};
 nBands = size(band_edges, 1);
 
-% Initialize arrays
-RMS_base_acc = zeros(1, nBands);
-RMS_isolated_acc = zeros(1, nBands);
-RMS_base_disp = zeros(1, nBands);
+% 初始化
+RMS_base_acc      = zeros(1, nBands);
+RMS_isolated_acc  = zeros(1, nBands);
+RMS_base_disp     = zeros(1, nBands);
 RMS_isolated_disp = zeros(1, nBands);
 
+% 统一边界规则：段1=[1,40)；段2=[40,1000]；全带=[1,1000]
 for iBand = 1:nBands
-    idx = (f >= band_edges(iBand,1)) & (f <= band_edges(iBand,2));
-    RMS_base_acc(iBand) = sqrt(sum((lpsd_base(idx).^2) * df)) * 1e6;     % µg
-    RMS_isolated_acc(iBand) = sqrt(sum((lpsd_isolated(idx).^2) * df)) * 1e6;
-    RMS_base_disp(iBand) = sqrt(sum((lpsd_base_disp(idx).^2) * df)) * 1e9;  % nm
-    RMS_isolated_disp(iBand) = sqrt(sum((lpsd_isolated_disp(idx).^2) * df)) * 1e9;
+    lo = band_edges(iBand,1);
+    hi = band_edges(iBand,2);
+    hi = min(hi, max(f));      % 防止上界超出频栅格最大值
+
+    if iBand == 1
+        idx = (f >= lo) & (f <  hi);     % [1,40)
+    elseif iBand == nBands
+        idx = (f >= lo) & (f <= hi);     % [1,1000]
+    else
+        idx = (f >= lo) & (f <= hi);     % [40,1000]
+    end
+
+    % LPSD^2 在频带上的积分 = 能量；开根号得到 RMS
+    RMS_base_acc(iBand)      = sqrt(trapz(f(idx), (lpsd_base(idx)).^2))          * 1e6; % ug
+    RMS_isolated_acc(iBand)  = sqrt(trapz(f(idx), (lpsd_isolated(idx)).^2))      * 1e6;
+    RMS_base_disp(iBand)     = sqrt(trapz(f(idx), (lpsd_base_disp(idx)).^2))     * 1e9; % nm
+    RMS_isolated_disp(iBand) = sqrt(trapz(f(idx), (lpsd_isolated_disp(idx)).^2)) * 1e9;
 end
 
-% Output RMS results
+% 输出 RMS 结果
 fprintf('\n=== RMS Comparison Summary ===\n');
-fprintf('%-16s %-12s %-12s %-10s | %-12s %-12s %-10s\n', 'Band', 'Acc (\u00b5g)', 'After (\u00b5g)', 'Red. %', 'Disp (nm)', 'After (nm)', 'Red. %');
+fprintf('%-16s %-12s %-12s %-10s | %-12s %-12s %-10s\n', ...
+    'Frequency Band','Before Acc (\xB5g)','After Acc (\xB5g)','Reduction (%)', ...
+    'Before Disp (nm)','After Disp (nm)','Reduction (%)');
 for iBand = 1:nBands
-    red_acc = (RMS_base_acc(iBand) - RMS_isolated_acc(iBand)) / RMS_base_acc(iBand) * 100;
-    red_disp = (RMS_base_disp(iBand) - RMS_isolated_disp(iBand)) / RMS_base_disp(iBand) * 100;
+    red_acc  = (RMS_base_acc(iBand)  - RMS_isolated_acc(iBand))  ./ max(RMS_base_acc(iBand),  eps) * 100;
+    red_disp = (RMS_base_disp(iBand) - RMS_isolated_disp(iBand)) ./ max(RMS_base_disp(iBand), eps) * 100;
     fprintf('%-16s %-12.2f %-12.2f %-10.2f | %-12.2f %-12.2f %-10.2f\n', ...
         band_names{iBand}, RMS_base_acc(iBand), RMS_isolated_acc(iBand), red_acc, ...
         RMS_base_disp(iBand), RMS_isolated_disp(iBand), red_disp);
 end
+
+% === SAVE RMS SUMMARY TO EXCEL ===
+red_acc  = (RMS_base_acc  - RMS_isolated_acc ) ./ RMS_base_acc  * 100;
+red_disp = (RMS_base_disp - RMS_isolated_disp) ./ RMS_base_disp * 100;
+
+rmsHeader = {'Frequency Band','Before Acc (µg)','After Acc (µg)','Reduction (%)', ...
+             'Before Disp (nm)','After Disp (nm)','Reduction (%)'};
+
+rmsData = [ ...
+    round(RMS_base_acc(:),3), ...
+    round(RMS_isolated_acc(:),3), ...
+    round(red_acc(:),3), ...
+    round(RMS_base_disp(:),3), ...
+    round(RMS_isolated_disp(:),3), ...
+    round(red_disp(:),3) ];
+
+rmsCell = [ band_names(:), num2cell(rmsData) ];
+
+rmsXlsx = fullfile(filePath, [name '_rms_summary.xlsx']);
+writecell([rmsHeader; rmsCell], rmsXlsx);
+fprintf('RMS summary saved: %s\n', rmsXlsx);
+
