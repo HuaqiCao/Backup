@@ -24,9 +24,8 @@ r_hook_range = 3e-3:1e-3:10e-3;     % Hook radius (3-10mm)
 results = [];
 best_freq = Inf;         
 best_params = [];
-best_L0 = NaN;                       % 保存最佳弹簧原长（m）
-material_name = 'Stainless Steel';   % 材质名称（304 不锈钢）
-
+best_L0 = NaN;                       % Save best spring free length (m)
+material_name = 'Stainless Steel';   % Material name (304 stainless steel)
 
 % Spring design optimization loop
 for i = 1:length(d_wire_range)
@@ -197,9 +196,9 @@ fprintf('Minimum Avg Transmission Ratio = %.4f\n', min_avg_T);
 fprintf('Minimum Energy (0–100 Hz) = %.4f\n', min_T_energy);
 
 % === SAVE BEST SPRING PARAMS TO EXCEL ===
-% 以所选 CSV 的文件名为前缀，保存在同一目录
+% Use the chosen CSV's file name as prefix; save in the same folder
 if exist('filePath','var') ~= 1
-    filePath = pwd; name = datestr(now,'yyyymmdd_HHMMSS'); % 万一前面没选CSV
+    filePath = pwd; name = datestr(now,'yyyymmdd_HHMMSS'); % Fallback if CSV not selected before
 end
 
 springHeader = {'Material','Wire Diameter (mm)','Mean Diameter (mm)', ...
@@ -207,23 +206,23 @@ springHeader = {'Material','Wire Diameter (mm)','Mean Diameter (mm)', ...
                 'Stiffness (N/m)','Damping Coefficient (N·s/m)'};
 springRow = { ...
     material_name, ...
-    round(best_params(1)*1000,2), ...   % 线径 mm
-    round(best_params(2)*1000,2), ...   % 中径 mm
-    best_params(4), ...                 % 有效圈数
-    round(best_L0,4), ...               % 原长 m（保留4位更合理）
-    round(best_params(7),2), ...        % k 两位小数
-    round(best_c,2) };                  % c 两位小数
+    round(best_params(1)*1000,2), ...   % Wire dia (mm)
+    round(best_params(2)*1000,2), ...   % Mean dia (mm)
+    best_params(4), ...                 % Effective turns
+    round(best_L0,4), ...               % Free length (m)
+    round(best_params(7),2), ...        % k (two decimals)
+    round(best_c,2) };                  % c (two decimals)
 
-% —— 路径与文件名清洗（防止 “目录/ 文件名” 中有首尾空格、空格等非法字符）——
+% — Path and file-name clean up (trim spaces and illegal chars) —
 if exist('filePath','var') ~= 1 || isempty(filePath)
     filePath = pwd; 
 end
 if exist('name','var') ~= 1 || isempty(name)
     name = datestr(now,'yyyymmdd_HHMMSS'); 
 end
-filePath = strtrim(char(filePath));              % 去首尾空格（修复 “…/Vibration_Matlab/ ”）
+filePath = strtrim(char(filePath));              % Trim spaces
 name     = strtrim(char(name));
-name     = regexprep(name,'[^\w\-.]','_');       % 任何非字母数字/下划线/点/连字符 -> 下划线
+name     = regexprep(name,'[^\w\-.]','_');       % Non [A-Za-z0-9_.-] -> underscore
 
 springXlsx = fullfile(filePath, sprintf('%s_best_spring.xlsx', name));
 try
@@ -342,15 +341,15 @@ fs = 1 / dt;
 N = length(time);
 
 % Vectorized full-spectrum FRF aligned with FFT bins (0..N-1)
-k = (0:(N-1)).';                         % <-- 列向量：N×1
+k = (0:(N-1)).';                         % Column vector: N×1
 omega_full = 2*pi*fs * (k / N);          % rad/s, N×1
 s = 1i * omega_full;                     % N×1
 H_full = (best_c .* s + k_actual) ./ (m_eq .* (s.^2) + best_c .* s + k_actual);  % N×1
 
-% Frequency domain filtering for isolated acceleration
-fft_base = fft(acc_base(:));             % 保证列向量 N×1
-fft_isolated = fft_base .* H_full;       % 逐元素乘，尺寸匹配 N×1
-acc_isolated = real(ifft(fft_isolated, 'symmetric'));  % 数值更稳，结果应为实数
+% Frequency-domain filtering for isolated acceleration
+fft_base = fft(acc_base(:));             % Ensure column vector N×1
+fft_isolated = fft_base .* H_full;       % Elementwise multiply, sizes match N×1
+acc_isolated = real(ifft(fft_isolated, 'symmetric'));  % Stable numeric; real result
 
 % Remove DC component
 acc_isolated = acc_isolated - mean(acc_isolated);
@@ -397,7 +396,7 @@ window = hamming(seglen);
 overlap = round(seglen / 2);
 nfft = seglen; 
 
-% --- Welch 分段数 N ---
+% --- Welch number of segments N ---
 L     = seglen;           % window length
 nover = overlap;
 N_sig = numel(acc_base);
@@ -408,7 +407,7 @@ fprintf('Welch averaging windows N = %d\n', N_win);
 [pxx_base, f] = pwelch(acc_base, window, overlap, nfft, fs);
 [pxx_isolated, ~] = pwelch(acc_isolated, window, overlap, nfft, fs);
 
-% ===== Parseval consistency checks (base & isolated) =====
+% ===== Parseval checks (base & isolated) =====
 var_time_base     = var(acc_base);
 var_freq_base     = trapz(f, pxx_base);
 var_time_isolated = var(acc_isolated);
@@ -459,13 +458,13 @@ band_edges = [1, 40; 40, 1000; 1, 1000];
 band_names = {'[1–40] Hz','[40–1k] Hz','[1–1k] Hz'};
 nBands = size(band_edges, 1);
 
-% 先准备“位移 PSD”：由加速度 PSD 换算（避开 f=0）
+% Prepare displacement PSD from acceleration PSD (avoid f=0)
 pxx_base_disp     = pxx_base     ./ (2*pi*f).^4;   % (m^2/Hz)
 pxx_isolated_disp = pxx_isolated ./ (2*pi*f).^4;   % (m^2/Hz)
 pxx_base_disp( f==0 )     = 0;
 pxx_isolated_disp( f==0 ) = 0;
 
-% 初始化
+% Initialize arrays
 RMS_base_acc      = zeros(1, nBands);
 RMS_isolated_acc  = zeros(1, nBands);
 RMS_base_disp     = zeros(1, nBands);
@@ -476,7 +475,7 @@ for iBand = 1:nBands
     hi = band_edges(iBand,2);
     hi = min(hi, max(f));
 
-    % 边界规则：段1=[1,40)；段2=(40,1000]；全带=[1,1000]
+    % Band edge rules: band1=[1,40); band2=(40,1000]; full=[1,1000]
     if iBand == 1
         idx = (f >= lo) & (f <  hi);      % [1,40)
     elseif iBand == nBands
@@ -485,17 +484,17 @@ for iBand = 1:nBands
         idx = (f >  lo) & (f <= hi);      % (40,1000]
     end
 
-    % --- 直接对 PSD 积分（与 LPSD^2 再积分完全等价） ---
-    % 加速度：把 m/s^2 的 PSD 换算到 g，再求 RMS -> µg
+    % --- Integrate PSD directly (equivalent to integrating LPSD^2) ---
+    % Acceleration: convert PSD to g-based, then RMS -> µg
     RMS_base_acc(iBand)     = sqrt(trapz(f(idx), pxx_base(idx))     / g^2) * 1e6;
     RMS_isolated_acc(iBand) = sqrt(trapz(f(idx), pxx_isolated(idx)) / g^2) * 1e6;
 
-    % 位移：直接用位移 PSD（m^2/Hz），RMS -> nm
+    % Displacement: use displacement PSD (m^2/Hz), RMS -> nm
     RMS_base_disp(iBand)     = sqrt(trapz(f(idx), pxx_base_disp(idx)))     * 1e9;
     RMS_isolated_disp(iBand) = sqrt(trapz(f(idx), pxx_isolated_disp(idx))) * 1e9;
 end
 
-% 输出 RMS 结果
+% Print RMS results
 fprintf('\n=== RMS Comparison Summary (PT_on) ===\n');
 fprintf('%-16s %-12s %-12s %-10s | %-12s %-12s %-10s\n', ...
     'Frequency Band','Before Acc (\xB5g)','After Acc (\xB5g)','Reduction (%)', ...
@@ -526,7 +525,7 @@ rmsData = [ ...
 
 rmsCell = [ band_names(:), num2cell(rmsData) ];
 
-% —— 再次确保路径/文件名干净 ——
+% — Ensure path/file name are clean again —
 filePath = strtrim(char(filePath));
 name     = strtrim(char(name));
 name     = regexprep(name,'[^\w\-.]','_');
@@ -540,4 +539,3 @@ catch ME
     writecell([rmsHeader; rmsCell], rmsXlsx);
 end
 fprintf('RMS summary saved: %s\n', rmsXlsx);
-

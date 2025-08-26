@@ -1,34 +1,32 @@
-% Vertical vibration isolation design with fatigue limit and damping optimization
-% Computes spring parameters, damping coefficient, and isolation performance
+% Vertical vibration isolation design with fatigue and damping optimization
 
 % === BASE PARAMETERS ===
 M = 12.6;                % Load mass (kg)
-g = 9.81;                % Gravitational acceleration (m/s^2)
+g = 9.81;                % Gravity (m/s^2)
 
-% Material Properties (304)
+% Material (304 Stainless Steel)
 G = 77.5e9;              % Shear modulus (Pa)
 rho = 7955;              % Density (kg/m^3)
-sigma_b = 630e6;         % Tensile yield strength (Pa)
+sigma_b = 630e6;         % Yield strength (Pa)
 
-% Target Natural Frequency
+% Target natural frequency
 f0_vertical = 1.1;                  
 k_target = M * (2 * pi * f0_vertical)^2;
-L_Tower = 0.46;          % Tower height (m)
+L_Tower = 0.46;         
 
-% Search Ranges
-d_wire_range = 1e-3:1e-3:5e-3;      % Wire diameter (1-5mm)
-d_in_range = 5e-3:1e-3:9.5e-2;      % Inner diameter (5-95mm)
-d_hook_range = 1e-3:1e-3:5e-3;      % Hook diameter (1-5mm)
-r_hook_range = 3e-3:1e-3:10e-3;     % Hook radius (3-10mm)
+% Search ranges
+d_wire_range = 1e-3:1e-3:5e-3;      % Wire diameter (1–5 mm)
+d_in_range = 5e-3:1e-3:9.5e-2;      % Inner diameter (5–95 mm)
+d_hook_range = 1e-3:1e-3:5e-3;      % Hook diameter (1–5 mm)
+r_hook_range = 3e-3:1e-3:10e-3;     % Hook radius (3–10 mm)
 
 results = [];
 best_freq = Inf;         
 best_params = [];
-best_L0 = NaN;                       % 保存最佳弹簧原长（m）
-material_name = 'Stainless Steel';   % 材质名称（304 不锈钢）
+best_L0 = NaN;                       % store best free length (m)
+material_name = 'Stainless Steel';   % material name (304 SS)
 
-
-% Spring design optimization loop
+% === SPRING DESIGN OPTIMIZATION ===
 for i = 1:length(d_wire_range)
     for j = 1:length(d_in_range)
         for m = 1:length(d_hook_range)
@@ -39,8 +37,8 @@ for i = 1:length(d_wire_range)
                 r_hook = r_hook_range(n);
 
                 d_out = d_in + 2 * d_wire;
-                D = (d_in + d_out) / 2;
-                c_index = D / d_wire;
+                D = (d_in + d_out) / 2;      % mean diameter
+                c_index = D / d_wire;        % spring index
 
                 if d_out > 0.1
                     continue;
@@ -55,22 +53,23 @@ for i = 1:length(d_wire_range)
 
                     k_actual = (G * d_wire^4) / (8 * D^3 * n_eff);
 
-                    A_coil = pi * (d_wire^2 / 4);         
-                    L_wire = n_eff * pi * D;              
-                    m_s = rho * A_coil * L_wire;          
-                    m_eq = M + (1/3) * m_s;               
+                    A_coil = pi * (d_wire^2 / 4);         % wire cross-section area
+                    L_wire = n_eff * pi * D;              % wire length (approx)
+                    m_s = rho * A_coil * L_wire;          % spring mass
+                    m_eq = M + (1/3) * m_s;               % effective mass
 
-                    delta_static = m_eq * g / k_actual;
+                    delta_static = m_eq * g / k_actual;   % static deflection
                     L_eq = n_total * d_wire + delta_static + 2 * d_hook + 2 * r_hook;
 
                     if L_eq > 0.35
                         continue;
                     end
-                    L0 = n_total * d_wire + 2 * d_hook + 2 * r_hook;
-                    L = L_eq + L_Tower * 2 / 5;  
+
+                    L0 = n_total * d_wire + 2 * d_hook + 2 * r_hook;  % free length
+                    L = L_eq + L_Tower * 2 / 5;                       % installed length estimate
                     pitch = (L0 - 2 * d_hook - 2 * r_hook) / n_eff;
 
-                    f0_radial = sqrt(g / L) / (2 * pi);
+                    f0_radial = sqrt(g / L) / (2 * pi);   % radial (pendulum) approx
 
                     F_max = m_eq * g;
                     Kw = (4*c_index - 1)/(4*c_index -4) + 0.615/c_index;
@@ -147,8 +146,8 @@ m_eq = best_params(6);
 fn = best_params(8);         
 wn = 2*pi*fn;                
 
-c_range = linspace(0.1, 1000, 10000);  
-f_range = 0:0.1:100;         
+c_range = linspace(0.1, 10000, 10000);  % damping coefficient sweep
+f_range = 0:0.1:100;                    % freq sweep (Hz)
 omega_range = 2*pi*f_range;
 
 best_c = 0;
@@ -158,7 +157,7 @@ best_T = [];
 T_energy_values = zeros(size(c_range));
 zeta_values = zeros(size(c_range));
 
-C_constant = 2*sqrt(k_actual*m_eq);
+C_constant = 2*sqrt(k_actual*m_eq);     % critical damping denominator
 
 for idx = 1:length(c_range)
     c = c_range(idx);
@@ -197,9 +196,9 @@ fprintf('Minimum Avg Transmission Ratio = %.4f\n', min_avg_T);
 fprintf('Minimum Energy (0–100 Hz) = %.4f\n', min_T_energy);
 
 % === SAVE BEST SPRING PARAMS TO EXCEL ===
-% 以所选 CSV 的文件名为前缀，保存在同一目录
+% Use chosen CSV directory; if not set, fallback to current dir
 if exist('filePath','var') ~= 1
-    filePath = pwd; name = datestr(now,'yyyymmdd_HHMMSS'); % 万一前面没选CSV
+    filePath = pwd; name = datestr(now,'yyyymmdd_HHMMSS');
 end
 
 springHeader = {'Material','Wire Diameter (mm)','Mean Diameter (mm)', ...
@@ -207,15 +206,32 @@ springHeader = {'Material','Wire Diameter (mm)','Mean Diameter (mm)', ...
                 'Stiffness (N/m)','Damping Coefficient (N·s/m)'};
 springRow = { ...
     material_name, ...
-    round(best_params(1)*1000,2), ...   % 线径 mm
-    round(best_params(2)*1000,2), ...   % 中径 mm
-    best_params(4), ...                 % 有效圈数
-    round(best_L0,4), ...               % 原长 m（保留4位更合理）
-    round(best_params(7),2), ...        % k 两位小数
-    round(best_c,2) };                  % c 两位小数
+    round(best_params(1)*1000,2), ...   % wire dia (mm)
+    round(best_params(2)*1000,2), ...   % mean dia (mm)
+    best_params(4), ...                 % effective turns
+    round(best_L0,4), ...               % free length (m)
+    round(best_params(7),2), ...        % stiffness
+    round(best_c,2) };                  % damping c
 
-springXlsx = fullfile(filePath, [name '_best_spring.xlsx']);
-writecell([springHeader; springRow], springXlsx);
+% — path/name cleanup —
+if exist('filePath','var') ~= 1 || isempty(filePath)
+    filePath = pwd; 
+end
+if exist('name','var') ~= 1 || isempty(name)
+    name = datestr(now,'yyyymmdd_HHMMSS'); 
+end
+filePath = strtrim(char(filePath));      % trim blanks
+name     = strtrim(char(name));
+name     = regexprep(name,'[^\w\-.]','_'); % sanitize
+
+springXlsx = fullfile(filePath, sprintf('%s_best_spring.xlsx', name));
+try
+    writecell([springHeader; springRow], springXlsx);
+catch ME
+    warning('写入失败：%s\n-> %s\n改为写到当前目录。', springXlsx, ME.message);
+    springXlsx = fullfile(pwd, sprintf('%s_best_spring.xlsx', name));
+    writecell([springHeader; springRow], springXlsx);
+end
 fprintf('Best spring parameters saved: %s\n', springXlsx);
 
 % === GLOBAL PLOT SETTINGS ===
@@ -286,213 +302,201 @@ grid on;
 xlim([0, 5]);
 set(gca, 'FontName', 'Arial', 'FontSize', 12);
 
-% ============== VIBRATION ISOLATION ANALYSIS ==============
-% Select CSV file with acceleration data
+%% === VIBRATION ISOLATION ANALYSIS (FREQUENCY-DOMAIN FILTERING) ===
+% Select CSV with acceleration data
 [fileName, filePath] = uigetfile('*.csv', 'Select Source Acceleration CSV File');
-if isequal(fileName, 0)
-    error('User canceled file selection.');
-end
+if isequal(fileName, 0), error('User canceled file selection.'); end
 fullFileName = fullfile(filePath, fileName);
 
-% Read CSV file (keep first 4 header lines)
+% Read first 4 header lines (preserve for output)
 fid = fopen(fullFileName, 'r');
 headerLines = cell(4,1);
-for i = 1:4
-    headerLines{i} = fgetl(fid);
-end
+for i = 1:4, headerLines{i} = fgetl(fid); end
 fclose(fid);
 
-% Read data
+% Load data
 opts = detectImportOptions(fullFileName, 'NumHeaderLines', 4);
 data = readmatrix(fullFileName, opts);
 time = data(:, 1);
 voltage = data(:, 2);  % Voltage signal
 
-% Sensor parameters
-gain = 100;         % Gain
-sensitivity = 1.026; % Sensitivity (g/V)
+% Sensor params
+gain = 100;            
+sensitivity = 1.026;   % g/V
 
-% Convert to acceleration (g) - raw data before isolation
-acc_base_g = voltage / ( gain * sensitivity );
+% Convert voltage -> acceleration (g), then to SI and detrend
+acc_base_g = voltage / (gain * sensitivity);
+acc_base = acc_base_g * g;               
+acc_base = acc_base - mean(acc_base);    
 
-% Convert to SI units and remove DC component
-acc_base = acc_base_g * g;               % Convert to m/s^2
-acc_base = acc_base - mean(acc_base);    % Remove DC offset
-
-% Sampling parameters
+% Sampling
 dt = mean(diff(time));
 fs = 1 / dt;
 N = length(time);
 
-% Calculate frequency response function H(jω)
-omega = 2 * pi * fs * (0:(N/2)) / N;
-H = zeros(size(omega));
-for ii = 1:length(omega)
-    s = 1i * omega(ii);
-    H(ii) = (best_c * s + k_actual) / (m_eq * s^2 + best_c * s + k_actual);
-end
-% Extend to full spectrum (conjugate symmetric)
-H_full = [H, conj(flip(H(2:end-1)))];
+% Full-spectrum FRF aligned with FFT bins (0..N-1)
+k = (0:(N-1)).';                         
+omega_full = 2*pi*fs * (k / N);          
+s = 1i * omega_full;                     
+H_full = (best_c .* s + k_actual) ./ (m_eq .* (s.^2) + best_c .* s + k_actual);
 
-% Frequency domain filtering for isolated acceleration
-fft_base = fft(acc_base);
-fft_isolated = fft_base .* H_full.';
-acc_isolated = real(ifft(fft_isolated));
-
-% Remove DC component
+% Apply FRF in frequency domain
+fft_base = fft(acc_base(:));             
+fft_isolated = fft_base .* H_full;       
+acc_isolated = real(ifft(fft_isolated, 'symmetric'));  
 acc_isolated = acc_isolated - mean(acc_isolated);
 
-% ============== PLOT COMPARISON ==============
-% Time-Domain Comparison
-fig_time = figure('Name', 'Time-Domain Comparison of Acceleration', 'Units', 'inches', 'Position', figSize);
-acc_base_g_detrend = acc_base / g;
-plot(time, acc_base_g_detrend, 'b-', 'LineWidth', 1.5, 'DisplayName', 'Before Isolation on MXC_vertical @RT'); 
+%% === TIME-DOMAIN COMPARISON PLOT ===
+figure('Name', 'Time-Domain Acceleration', 'Units', 'inches', 'Position', [1 1 10 5]);
+plot(time, acc_base/g, 'b-', 'LineWidth', 1.5, 'DisplayName', 'Before isolation'); 
 hold on;
-plot(time, acc_isolated / g, 'r-', 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT'); 
-xlabel('Time (s)');
-ylabel('Acceleration (g)');
-title('Time-Domain Acceleration Comparison (Vertical)', 'FontSize', 24);
+plot(time, acc_isolated/g, 'r-', 'LineWidth', 1.5, 'DisplayName', 'After isolation'); 
+xlabel('Time (s)'); ylabel('Acceleration (g)');
+title('Time-Domain Acceleration (Vertical)', 'FontSize', 20);
 legend('show', 'Location', 'best', 'FontSize', 12);
-grid on;
-xlim([min(time), ma]);
+grid on; xlim([min(time) , max(time)]);
 
-% ============== OUTPUT ISOLATED CSV FILE ==============
-% Convert isolated acceleration to voltage signal
-acc_isolated_g = acc_isolated / g; % Convert to g units
+%% === WRITE FILTERED CSV (KEEP ORIGINAL HEADERS) ===
+acc_isolated_g = acc_isolated / g; 
 voltage_isolated = acc_isolated_g * sensitivity * gain;
 
-% Create output filename
 [~, name, ext] = fileparts(fileName);
 outputFileName = fullfile(filePath, [name '_isolated' ext]);
 
-% Write CSV file (with original headers)
 fid = fopen(outputFileName, 'w');
-for i = 1:4
-    fprintf(fid, '%s\n', headerLines{i});
-end
-for i = 1:length(time)
-    fprintf(fid, '%.6f,%.6f\n', time(i), voltage_isolated(i));
-end
+for i = 1:4, fprintf(fid, '%s\n', headerLines{i}); end
+for i = 1:length(time), fprintf(fid, '%.6f,%.6f\n', time(i), voltage_isolated(i)); end
 fclose(fid);
+fprintf('Saved isolated CSV: %s\n', outputFileName);
 
-fprintf('Isolated acceleration data saved as: %s\n', outputFileName);
-
-% ============== PSD AND LPSD ANALYSIS ==============
-% Segment parameters
-seglen = fs * 10;
-window = hamming(seglen);
+%% === PSD & LPSD (WELCH) ===
+seglen  = min(round(fs*10), N); 
+window  = hamming(seglen);
 overlap = round(seglen / 2);
-nfft = seglen; 
+nfft    = seglen; 
 
-% --- Welch 分段数 N ---
-L     = seglen;           % window length
+L = seglen;           
 nover = overlap;
 N_sig = numel(acc_base);
 N_win = floor((N_sig - nover) / (L - nover));
-fprintf('Welch averaging windows N = %d\n', N_win);
+fprintf('Welch windows: N = %d\n', N_win);
 
-% PSD calculation
-[pxx_base, f] = pwelch(acc_base, window, overlap, nfft, fs);
+[pxx_base, f]     = pwelch(acc_base,     window, overlap, nfft, fs);
 [pxx_isolated, ~] = pwelch(acc_isolated, window, overlap, nfft, fs);
 
-% LPSD calculation (normalized units)
-lpsd_base = sqrt(pxx_base) / g;
-lpsd_isolated = sqrt(pxx_isolated) / g;
-lpsd_base_disp = g ./ ((2*pi*f).^2) .* lpsd_base;
-lpsd_isolated_disp = g ./ ((2*pi*f).^2) .* lpsd_isolated;
-lpsd_base_disp(f==0) = 0;
-lpsd_isolated_disp(f==0) = 0;
+% Parseval sanity check
+var_time_base     = var(acc_base);
+var_freq_base     = trapz(f, pxx_base);
+var_time_isolated = var(acc_isolated);
+var_freq_isolated = trapz(f, pxx_isolated);
+fprintf('Parseval base:  time=%.6g, freq=%.6g, ratio=%.3f\n', var_time_base,     var_freq_base,     var_time_base/var_freq_base);
+fprintf('Parseval iso:   time=%.6g, freq=%.6g, ratio=%.3f\n', var_time_isolated, var_freq_isolated, var_time_isolated/var_freq_isolated);
 
-% Auto-set xlim range
+% LPSD (accel and displacement)
+lpsd_base    = sqrt(pxx_base)    / g;
+lpsd_iso     = sqrt(pxx_isolated)/ g;
+lpsd_base_d  = g ./ ((2*pi*f).^2) .* lpsd_base;
+lpsd_iso_d   = g ./ ((2*pi*f).^2) .* lpsd_iso;
+lpsd_base_d(f==0) = 0; lpsd_iso_d(f==0) = 0;
+
 fmax_plot = max(f(f < fs/2));
 
-% Plot PSD comparison
-fig_psd = figure('Name', 'PSD Comparison', 'Units', 'inches', 'Position', figSize);
-loglog(f, pxx_base / g^2, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, 'DisplayName', 'Before Isolation on MXC_vertical @RT');
-hold on;
-loglog(f, pxx_isolated / g^2, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
+% PSD plot
+figure('Name', 'PSD Comparison', 'Units', 'inches', 'Position', [1 1 10 5]);
+loglog(f, pxx_base / g^2, '-',  'LineWidth', 1.5, 'DisplayName', 'Before'); hold on;
+loglog(f, pxx_isolated / g^2, '--','LineWidth', 1.5, 'DisplayName', 'After');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('PSD [g^2/Hz]');
-title('Power Spectral Density (Vertical)','FontSize', 24); xlim([0.1, fmax_plot]);
+title('PSD (Vertical)','FontSize', 20); xlim([0.1, fmax_plot]);
 
-% Plot acceleration LPSD
-fig_acc_lpsd = figure('Name', 'LPSD of Acceleration', 'Units', 'inches', 'Position', figSize);
-loglog(f, lpsd_base, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, 'DisplayName', 'Before Isolation on MXC_vertical @RT');
-hold on;
-loglog(f, lpsd_isolated, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
+% Acceleration LPSD
+figure('Name', 'LPSD (Acceleration)', 'Units', 'inches', 'Position', [1 1 10 5]);
+loglog(f, lpsd_base, '-', 'LineWidth', 1.5, 'DisplayName', 'Before'); hold on;
+loglog(f, lpsd_iso,  '--','LineWidth', 1.5, 'DisplayName', 'After');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [g/√Hz]');
-title('Acceleration LPSD (Vertical)','FontSize', 24); xlim([0.1, fmax_plot]);
+title('Acceleration LPSD (Vertical)','FontSize', 20); xlim([0.1, fmax_plot]);
 
-% Plot displacement LPSD
-fig_disp_lpsd = figure('Name', 'LPSD of Displacement', 'Units', 'inches', 'Position', figSize);
-loglog(f, lpsd_base_disp * 1e9, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, 'DisplayName', 'Before Isolation on MXC_vertical @RT');
-hold on;
-loglog(f, lpsd_isolated_disp * 1e9, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
+% Displacement LPSD
+figure('Name', 'LPSD (Displacement)', 'Units', 'inches', 'Position', [1 1 10 5]);
+loglog(f, lpsd_base_d * 1e9, '-', 'LineWidth', 1.5, 'DisplayName', 'Before'); hold on;
+loglog(f, lpsd_iso_d  * 1e9, '--','LineWidth', 1.5, 'DisplayName', 'After');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [nm/√Hz]');
-title('Displacement LPSD (Vertical)','FontSize', 24); xlim([0.1, fmax_plot]);
+title('Displacement LPSD (Vertical)','FontSize', 20); xlim([0.1, fmax_plot]);
 
-% ===== RMS frequency band analysis =====
+%% === RMS BY BANDS (USING PSD) ===
 band_edges = [1, 40; 40, 1000; 1, 1000];
 band_names = {'[1–40] Hz','[40–1k] Hz','[1–1k] Hz'};
 nBands = size(band_edges, 1);
 
-% 初始化
-RMS_base_acc      = zeros(1, nBands);
-RMS_isolated_acc  = zeros(1, nBands);
-RMS_base_disp     = zeros(1, nBands);
-RMS_isolated_disp = zeros(1, nBands);
+% Displacement PSD (from acceleration PSD), avoid f=0
+pxx_base_d = pxx_base     ./ (2*pi*f).^4;   pxx_base_d(f==0) = 0;
+pxx_iso_d  = pxx_isolated ./ (2*pi*f).^4;   pxx_iso_d(f==0)  = 0;
 
-% 统一边界规则：段1=[1,40)；段2=[40,1000]；全带=[1,1000]
+RMS_base_acc      = zeros(1, nBands);
+RMS_iso_acc       = zeros(1, nBands);
+RMS_base_disp     = zeros(1, nBands);
+RMS_iso_disp      = zeros(1, nBands);
+
 for iBand = 1:nBands
     lo = band_edges(iBand,1);
-    hi = band_edges(iBand,2);
-    hi = min(hi, max(f));      % 防止上界超出频栅格最大值
+    hi = min(band_edges(iBand,2), max(f));
 
+    % Band edges: [1,40), (40,1000], [1,1000]
     if iBand == 1
-        idx = (f >= lo) & (f <  hi);     % [1,40)
+        idx = (f >= lo) & (f <  hi);
     elseif iBand == nBands
-        idx = (f >= lo) & (f <= hi);     % [1,1000]
+        idx = (f >= lo) & (f <= hi);
     else
-        idx = (f >= lo) & (f <= hi);     % [40,1000]
+        idx = (f >  lo) & (f <= hi);
     end
 
-    % LPSD^2 在频带上的积分 = 能量；开根号得到 RMS
-    RMS_base_acc(iBand)      = sqrt(trapz(f(idx), (lpsd_base(idx)).^2))          * 1e6; % ug
-    RMS_isolated_acc(iBand)  = sqrt(trapz(f(idx), (lpsd_isolated(idx)).^2))      * 1e6;
-    RMS_base_disp(iBand)     = sqrt(trapz(f(idx), (lpsd_base_disp(idx)).^2))     * 1e9; % nm
-    RMS_isolated_disp(iBand) = sqrt(trapz(f(idx), (lpsd_isolated_disp(idx)).^2)) * 1e9;
+    % Acceleration RMS in µg
+    RMS_base_acc(iBand) = sqrt(trapz(f(idx), pxx_base(idx))     / g^2) * 1e6;
+    RMS_iso_acc(iBand)  = sqrt(trapz(f(idx), pxx_isolated(idx)) / g^2) * 1e6;
+
+    % Displacement RMS in nm
+    RMS_base_disp(iBand) = sqrt(trapz(f(idx), pxx_base_d(idx))) * 1e9;
+    RMS_iso_disp(iBand)  = sqrt(trapz(f(idx), pxx_iso_d(idx)))  * 1e9;
 end
 
-% 输出 RMS 结果
-fprintf('\n=== RMS Comparison Summary ===\n');
-fprintf('%-16s %-12s %-12s %-10s | %-12s %-12s %-10s\n', ...
-    'Frequency Band','Before Acc (\xB5g)','After Acc (\xB5g)','Reduction (%)', ...
-    'Before Disp (nm)','After Disp (nm)','Reduction (%)');
+fprintf('\n=== RMS Summary ===\n');
+fprintf('%-12s %-12s %-12s %-9s | %-12s %-12s %-9s\n', ...
+    'Band','Acc Bef (µg)','Acc Aft (µg)','Red (%)','Disp Bef (nm)','Disp Aft (nm)','Red (%)');
+
 for iBand = 1:nBands
-    red_acc  = (RMS_base_acc(iBand)  - RMS_isolated_acc(iBand))  ./ max(RMS_base_acc(iBand),  eps) * 100;
-    red_disp = (RMS_base_disp(iBand) - RMS_isolated_disp(iBand)) ./ max(RMS_base_disp(iBand), eps) * 100;
-    fprintf('%-16s %-12.2f %-12.2f %-10.2f | %-12.2f %-12.2f %-10.2f\n', ...
-        band_names{iBand}, RMS_base_acc(iBand), RMS_isolated_acc(iBand), red_acc, ...
-        RMS_base_disp(iBand), RMS_isolated_disp(iBand), red_disp);
+    red_acc  = (RMS_base_acc(iBand)  - RMS_iso_acc(iBand))  ./ max(RMS_base_acc(iBand),  eps) * 100;
+    red_disp = (RMS_base_disp(iBand) - RMS_iso_disp(iBand)) ./ max(RMS_base_disp(iBand), eps) * 100;
+    fprintf('%-12s %-12.2f %-12.2f %-9.2f | %-12.2f %-12.2f %-9.2f\n', ...
+        band_names{iBand}, RMS_base_acc(iBand), RMS_iso_acc(iBand), red_acc, ...
+        RMS_base_disp(iBand), RMS_iso_disp(iBand), red_disp);
 end
 
-% === SAVE RMS SUMMARY TO EXCEL ===
-red_acc  = (RMS_base_acc  - RMS_isolated_acc ) ./ RMS_base_acc  * 100;
-red_disp = (RMS_base_disp - RMS_isolated_disp) ./ RMS_base_disp * 100;
+%% === SAVE RMS SUMMARY TO EXCEL ===
+red_acc  = (RMS_base_acc  - RMS_iso_acc ) ./ max(RMS_base_acc,  eps) * 100;
+red_disp = (RMS_base_disp - RMS_iso_disp) ./ max(RMS_base_disp, eps) * 100;
 
-rmsHeader = {'Frequency Band','Before Acc (µg)','After Acc (µg)','Reduction (%)', ...
-             'Before Disp (nm)','After Disp (nm)','Reduction (%)'};
+rmsHeader = {'Band','Acc Before (µg)','Acc After (µg)','Red (%)', ...
+             'Disp Before (nm)','Disp After (nm)','Red (%)'};
 
 rmsData = [ ...
     round(RMS_base_acc(:),3), ...
-    round(RMS_isolated_acc(:),3), ...
+    round(RMS_iso_acc(:),3), ...
     round(red_acc(:),3), ...
     round(RMS_base_disp(:),3), ...
-    round(RMS_isolated_disp(:),3), ...
+    round(RMS_iso_disp(:),3), ...
     round(red_disp(:),3) ];
 
 rmsCell = [ band_names(:), num2cell(rmsData) ];
 
-rmsXlsx = fullfile(filePath, [name '_rms_summary.xlsx']);
-writecell([rmsHeader; rmsCell], rmsXlsx);
-fprintf('RMS summary saved: %s\n', rmsXlsx);
+filePath = strtrim(char(filePath));
+name     = strtrim(char(name));
+name     = regexprep(name,'[^\w\-.]','_');
 
+rmsXlsx = fullfile(filePath, sprintf('%s_rms_summary.xlsx', name));
+try
+    writecell([rmsHeader; rmsCell], rmsXlsx);
+catch ME
+    warning('Write failed: %s -> %s. Writing to current dir.', rmsXlsx, ME.message);
+    rmsXlsx = fullfile(pwd, sprintf('%s_rms_summary.xlsx', name));
+    writecell([rmsHeader; rmsCell], rmsXlsx);
+end
+fprintf('Saved RMS summary: %s\n', rmsXlsx);
