@@ -379,7 +379,7 @@ fprintf('Isolated acceleration data saved as: %s\n', outputFileName);
 
 % ============== PSD AND LPSD ANALYSIS ==============
 % Segment parameters
-seglen = fs * 10;
+seglen = min(round(fs*10), N); 
 window = hamming(seglen);
 overlap = round(seglen / 2);
 nfft = seglen; 
@@ -394,6 +394,23 @@ fprintf('Welch averaging windows N = %d\n', N_win);
 % PSD calculation
 [pxx_base, f] = pwelch(acc_base, window, overlap, nfft, fs);
 [pxx_isolated, ~] = pwelch(acc_isolated, window, overlap, nfft, fs);
+
+% ===== Parseval consistency checks (base & isolated) =====
+var_time_base     = var(acc_base);
+var_freq_base     = trapz(f, pxx_base);
+var_time_isolated = var(acc_isolated);
+var_freq_isolated = trapz(f, pxx_isolated);
+
+fprintf('Base   Parseval: var_time=%.6g, var_freq=%.6g, ratio=%.3f\n', ...
+        var_time_base, var_freq_base, var_time_base/var_freq_base);
+fprintf('Iso    Parseval: var_time=%.6g, var_freq=%.6g, ratio=%.3f\n', ...
+        var_time_isolated, var_freq_isolated, var_time_isolated/var_freq_isolated);
+
+% 时域方差
+var_time = var(acc_isolated);
+% 频域 PSD 积分（pwelch 一侧谱）
+var_freq = trapz(f, pxx_isolated);
+fprintf('Check: var_time=%.6g, var_freq=%.6g, ratio=%.3f\n', var_time, var_freq, var_time/var_freq);
 
 % LPSD calculation (normalized units)
 lpsd_base = sqrt(pxx_base) / g;
@@ -412,7 +429,7 @@ loglog(f, pxx_base / g^2, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, 'Displa
 hold on;
 loglog(f, pxx_isolated / g^2, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('PSD [g^2/Hz]');
-title('Power Spectral Density (Vertical)','FontSize', 24); xlim([0.1, fmax_plot]);
+title('Power Spectral Density  (Vertical ，PT_on )','FontSize', 24); xlim([0.1, fmax_plot]);
 
 % Plot acceleration LPSD
 fig_acc_lpsd = figure('Name', 'LPSD of Acceleration', 'Units', 'inches', 'Position', figSize);
@@ -420,7 +437,7 @@ loglog(f, lpsd_base, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, 'DisplayName
 hold on;
 loglog(f, lpsd_isolated, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [g/√Hz]');
-title('Acceleration LPSD (Vertical)','FontSize', 24); xlim([0.1, fmax_plot]);
+title('Acceleration LPSD  (Vertical , PT_on)','FontSize', 24); xlim([0.1, fmax_plot]);
 
 % Plot displacement LPSD
 fig_disp_lpsd = figure('Name', 'LPSD of Displacement', 'Units', 'inches', 'Position', figSize);
@@ -428,12 +445,18 @@ loglog(f, lpsd_base_disp * 1e9, '-', 'Color', [0.1,0.2,0.8], 'LineWidth', 1.5, '
 hold on;
 loglog(f, lpsd_isolated_disp * 1e9, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [nm/√Hz]');
-title('Displacement LPSD (Vertical)','FontSize', 24); xlim([0.1, fmax_plot]);
+title('Displacement LPSD  (Vertical , PT_on)','FontSize', 24); xlim([0.1, fmax_plot]);
 
-% ===== RMS frequency band analysis =====
+% ===== RMS frequency band analysis  (use PSD directly) =====
 band_edges = [1, 40; 40, 1000; 1, 1000];
 band_names = {'[1–40] Hz','[40–1k] Hz','[1–1k] Hz'};
 nBands = size(band_edges, 1);
+
+% 先准备“位移 PSD”：由加速度 PSD 换算（避开 f=0）
+pxx_base_disp     = pxx_base     ./ (2*pi*f).^4;   % (m^2/Hz)
+pxx_isolated_disp = pxx_isolated ./ (2*pi*f).^4;   % (m^2/Hz)
+pxx_base_disp( f==0 )     = 0;
+pxx_isolated_disp( f==0 ) = 0;
 
 % 初始化
 RMS_base_acc      = zeros(1, nBands);
@@ -441,32 +464,36 @@ RMS_isolated_acc  = zeros(1, nBands);
 RMS_base_disp     = zeros(1, nBands);
 RMS_isolated_disp = zeros(1, nBands);
 
-% 统一边界规则：段1=[1,40)；段2=[40,1000]；全带=[1,1000]
 for iBand = 1:nBands
     lo = band_edges(iBand,1);
     hi = band_edges(iBand,2);
-    hi = min(hi, max(f));      % 防止上界超出频栅格最大值
+    hi = min(hi, max(f));
 
+    % 边界规则：段1=[1,40)；段2=(40,1000]；全带=[1,1000]
     if iBand == 1
-        idx = (f >= lo) & (f <  hi);     % [1,40)
+        idx = (f >= lo) & (f <  hi);      % [1,40)
     elseif iBand == nBands
-        idx = (f >= lo) & (f <= hi);     % [1,1000]
+        idx = (f >= lo) & (f <= hi);      % [1,1000]
     else
-        idx = (f >= lo) & (f <= hi);     % [40,1000]
+        idx = (f >  lo) & (f <= hi);      % (40,1000]
     end
 
-    % LPSD^2 在频带上的积分 = 能量；开根号得到 RMS
-    RMS_base_acc(iBand)      = sqrt(trapz(f(idx), (lpsd_base(idx)).^2))          * 1e6; % ug
-    RMS_isolated_acc(iBand)  = sqrt(trapz(f(idx), (lpsd_isolated(idx)).^2))      * 1e6;
-    RMS_base_disp(iBand)     = sqrt(trapz(f(idx), (lpsd_base_disp(idx)).^2))     * 1e9; % nm
-    RMS_isolated_disp(iBand) = sqrt(trapz(f(idx), (lpsd_isolated_disp(idx)).^2)) * 1e9;
+    % --- 直接对 PSD 积分（与 LPSD^2 再积分完全等价） ---
+    % 加速度：把 m/s^2 的 PSD 换算到 g，再求 RMS -> µg
+    RMS_base_acc(iBand)     = sqrt(trapz(f(idx), pxx_base(idx))     / g^2) * 1e6;
+    RMS_isolated_acc(iBand) = sqrt(trapz(f(idx), pxx_isolated(idx)) / g^2) * 1e6;
+
+    % 位移：直接用位移 PSD（m^2/Hz），RMS -> nm
+    RMS_base_disp(iBand)     = sqrt(trapz(f(idx), pxx_base_disp(idx)))     * 1e9;
+    RMS_isolated_disp(iBand) = sqrt(trapz(f(idx), pxx_isolated_disp(idx))) * 1e9;
 end
 
 % 输出 RMS 结果
-fprintf('\n=== RMS Comparison Summary ===\n');
+fprintf('\n=== RMS Comparison Summary (PT_on) ===\n');
 fprintf('%-16s %-12s %-12s %-10s | %-12s %-12s %-10s\n', ...
     'Frequency Band','Before Acc (\xB5g)','After Acc (\xB5g)','Reduction (%)', ...
     'Before Disp (nm)','After Disp (nm)','Reduction (%)');
+
 for iBand = 1:nBands
     red_acc  = (RMS_base_acc(iBand)  - RMS_isolated_acc(iBand))  ./ max(RMS_base_acc(iBand),  eps) * 100;
     red_disp = (RMS_base_disp(iBand) - RMS_isolated_disp(iBand)) ./ max(RMS_base_disp(iBand), eps) * 100;
