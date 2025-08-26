@@ -214,8 +214,25 @@ springRow = { ...
     round(best_params(7),2), ...        % k 两位小数
     round(best_c,2) };                  % c 两位小数
 
-springXlsx = fullfile(filePath, [name '_best_spring.xlsx']);
-writecell([springHeader; springRow], springXlsx);
+% —— 路径与文件名清洗（防止 “目录/ 文件名” 中有首尾空格、空格等非法字符）——
+if exist('filePath','var') ~= 1 || isempty(filePath)
+    filePath = pwd; 
+end
+if exist('name','var') ~= 1 || isempty(name)
+    name = datestr(now,'yyyymmdd_HHMMSS'); 
+end
+filePath = strtrim(char(filePath));              % 去首尾空格（修复 “…/Vibration_Matlab/ ”）
+name     = strtrim(char(name));
+name     = regexprep(name,'[^\w\-.]','_');       % 任何非字母数字/下划线/点/连字符 -> 下划线
+
+springXlsx = fullfile(filePath, sprintf('%s_best_spring.xlsx', name));
+try
+    writecell([springHeader; springRow], springXlsx);
+catch ME
+    warning('写入失败：%s\n-> %s\n改为写到当前目录。', springXlsx, ME.message);
+    springXlsx = fullfile(pwd, sprintf('%s_best_spring.xlsx', name));
+    writecell([springHeader; springRow], springXlsx);
+end
 fprintf('Best spring parameters saved: %s\n', springXlsx);
 
 % === GLOBAL PLOT SETTINGS ===
@@ -509,7 +526,18 @@ rmsData = [ ...
 
 rmsCell = [ band_names(:), num2cell(rmsData) ];
 
-rmsXlsx = fullfile(filePath, [name '_rms_summary.xlsx']);
-writecell([rmsHeader; rmsCell], rmsXlsx);
+% —— 再次确保路径/文件名干净 ——
+filePath = strtrim(char(filePath));
+name     = strtrim(char(name));
+name     = regexprep(name,'[^\w\-.]','_');
+
+rmsXlsx = fullfile(filePath, sprintf('%s_rms_summary.xlsx', name));
+try
+    writecell([rmsHeader; rmsCell], rmsXlsx);
+catch ME
+    warning('写入失败：%s\n-> %s\n改为写到当前目录。', rmsXlsx, ME.message);
+    rmsXlsx = fullfile(pwd, sprintf('%s_rms_summary.xlsx', name));
+    writecell([rmsHeader; rmsCell], rmsXlsx);
+end
 fprintf('RMS summary saved: %s\n', rmsXlsx);
 
