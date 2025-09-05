@@ -124,17 +124,17 @@ if ~isempty(results)
     end
 
     if ~isempty(best_params)
-        fprintf('\n=== Optimal Spring Design (Minimum Freq: %.4f Hz) ===\n', best_freq);
+        fprintf('\n=== Optimal Spring Design ===\n', best_freq);
         fprintf('Wire Diameter: %.1f mm\n', best_params(1)*1000);
         fprintf('Mean Diameter: %.1f mm\n', best_params(2)*1000);
         fprintf('Total Turns: %d (Effective Turns: %d)\n', best_params(3), best_params(4));
         fprintf('Spring Mass: %.4f kg\n', best_params(5));
         fprintf('Effective Mass: %.4f kg\n', best_params(6));
         fprintf('Stiffness: %.2f N/m\n', best_params(7));
-        fprintf('Axial Natural Freq: %.4f Hz (Target: %.1f Hz)\n', best_params(8), f0_vertical);
+        fprintf('Axial Natural Freq: %.4f Hz\n', best_params(8));
         fprintf('Radial Natural Freq: %.2f Hz\n', best_params(9));
-        fprintf('Max Tensile Stress: %.2f MPa (Limit: %.2f MPa)\n', best_params(10)/1e6, 0.7*sigma_b/1e6);
         fprintf('Spring Length L = %.4f m\n', best_params(11));
+        fprintf('Max Tensile Stress: %.2f MPa (Limit: %.2f MPa)\n', best_params(10)/1e6, 0.7*sigma_b/1e6);
     end
 else
     disp('No design found meeting all constraints.');
@@ -147,7 +147,7 @@ fn = best_params(8);
 wn = 2*pi*fn;                
 
 c_range = linspace(0.1, 1000, 10000);  
-f_range = 0:0.1:100;         
+f_range = 0:0.1:1000;         
 omega_range = 2*pi*f_range;
 
 best_c = 0;
@@ -273,9 +273,9 @@ semilogx(c_range, T_energy_values, 'b-', 'LineWidth', 2);
 hold on;
 plot([best_c, best_c], [min(T_energy_values), max(T_energy_values)], 'r--', 'LineWidth', 1.5);
 xlabel('Damping Coefficient c (N·s/m)');
-ylabel('Transmission Energy E (0–100 Hz)');
+ylabel('Transmission Energy E (0–1000 Hz)');
 title('Energy vs. Damping Coefficient (Vertical)', 'FontSize', 24);
-text(0.05, 0.75, '$E = \int_{0}^{100} T^2(f) df$', ...
+text(0.05, 0.75, '$E = \int_{0}^{1000} T^2(f) df$', ...
     'Interpreter', 'latex', 'FontSize', 18, 'Units', 'normalized');
 text(0.05, 0.65, sprintf('$c_{best} = %.2f$ N$\\cdot$s/m', best_c), ...
     'Interpreter', 'latex', 'FontSize', 18, 'Units', 'normalized');
@@ -291,9 +291,9 @@ plot(zeta_values, T_energy_values, 'b-', 'LineWidth', 2);
 hold on;
 plot([best_zeta, best_zeta], [min(T_energy_values), max(T_energy_values)], 'r--', 'LineWidth', 1.5);
 xlabel('Damping Ratio $\zeta$', 'Interpreter', 'latex');
-ylabel('Transmission Energy E (0–100 Hz)');
+ylabel('Transmission Energy E (0–1000 Hz)');
 title('Energy vs. Damping Ratio (Vertical)', 'FontSize', 24);
-text(0.2, 0.85, '$E = \int_{0}^{100} T^2(f) df$', ...
+text(0.2, 0.85, '$E = \int_{0}^{1000} T^2(f) df$', ...
     'Interpreter', 'latex', 'FontSize', 18, 'Units', 'normalized');
 text(0.2, 0.75, sprintf('$\\zeta_{best} = %.4f$', best_zeta), ...
     'Interpreter', 'latex', 'FontSize', 18, 'Units', 'normalized');
