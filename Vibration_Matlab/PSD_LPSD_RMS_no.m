@@ -10,7 +10,7 @@ end
 numFiles = numel(fileNames);
 
 %% === 2) Sensor params ===
-sensitivity = 1.026;    % V/g
+sensitivity = 1.000;    % V/g
 gain        = 100.0;    % amplifier gain
 g           = 9.81;     % m/s^2
 
@@ -76,7 +76,7 @@ for iFile = 1:numFiles
     N  = numel(time);
 
     % === Welch settings same as reference ===
-    seglen  = min(round(fs*10), N);
+    seglen  = min(round(fs*5), N);
     window  = hamming(seglen);
     overlap = round(seglen/2);
     nfft    = seglen;
