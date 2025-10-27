@@ -76,7 +76,7 @@ for iFile = 1:numFiles
     N  = numel(time);
 
     % === Welch settings same as reference ===
-    seglen  = min(round(fs*5), N);
+    seglen  = min(round(fs*20), N);
     window  = hamming(seglen);
     overlap = round(seglen/2);
     nfft    = seglen;
