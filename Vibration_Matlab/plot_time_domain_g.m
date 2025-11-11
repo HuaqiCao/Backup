@@ -1,5 +1,4 @@
-% 多选 CSV → 去增益(100)和灵敏度(1.026 g/V) → 叠加时域曲线（单位 g）
-% 假设 CSV 前4行是表头；第1列=时间(s)，第2列=测量电压(V，已含增益)
+% Multi-CSV → remove gain(100) & sensitivity(1.026 V/g) → time-domain accel (g)
 
 %% 参数
 gain = 100;               % 前端增益

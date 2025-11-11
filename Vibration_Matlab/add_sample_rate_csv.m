@@ -1,4 +1,5 @@
-% calculates the sampling rate & saves a new CSV file with the sampling rate included in the filename.     
+% calculates the sampling rate
+% saves a new CSV file with the sampling rate included in the filename.     
 
 % === Select multiple CSV files ===
 [fileNames, folderPath] = uigetfile('*.csv', 'Select CSV files', 'MultiSelect', 'on');

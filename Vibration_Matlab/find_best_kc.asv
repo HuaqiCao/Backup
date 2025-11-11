@@ -441,7 +441,7 @@ loglog(f(pos), Sa_base(pos)/g0^2, '-',  'Color', [0.1,0.2,0.8], 'LineWidth', 1.5
 hold on;
 loglog(f(pos), Sa_isolated(pos)/g0^2, '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('PSD [g^2/Hz]');
-title('Power Spectral Density  (Vertical , PT_on)','FontSize', 24); xlim([fmin_valid, fmax_plot]);
+title('Power Spectral Density  (Vertical , PT\_on)','FontSize', 24); xlim([fmin_valid, fmax_plot]);
 
 % ---- Acceleration LPSD ----
 fig_acc_lpsd = figure('Name', 'LPSD of Acceleration', 'Units', 'inches', 'Position', figSize);
@@ -449,7 +449,7 @@ loglog(f(pos), lpsd_base(pos),     '-',  'Color', [0.1,0.2,0.8], 'LineWidth', 1.
 hold on;
 loglog(f(pos), lpsd_isolated(pos), '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [ g/\surd Hz ]');
-title('Acceleration LPSD  (Vertical , PT_on)','FontSize', 24); xlim([fmin_valid, fmax_plot]);
+title('Acceleration LPSD  (Vertical , PT\_on)','FontSize', 24); xlim([fmin_valid, fmax_plot]);
 
 % ---- Displacement LPSD ----
 fig_disp_lpsd = figure('Name', 'LPSD of Displacement', 'Units', 'inches', 'Position', figSize);
@@ -457,7 +457,7 @@ loglog(f(pos), lpsd_base_disp(pos), '-',  'Color', [0.1,0.2,0.8], 'LineWidth', 1
 hold on;
 loglog(f(pos), lpsd_iso_disp(pos),  '--', 'Color', [0.8,0.2,0.2], 'LineWidth', 1.5, 'DisplayName', 'After Isolation on MXC simulation_vertical @RT');
 legend('show'); grid on; xlabel('Frequency (Hz)'); ylabel('LPSD [ nm/\surd Hz ]');
-title('Displacement LPSD  (Vertical , PT_on)','FontSize', 24); xlim([fmin_valid, fmax_plot]);
+title('Displacement LPSD  (Vertical , PT\_on)','FontSize', 24); xlim([fmin_valid, fmax_plot]);
 
 % ===== RMS frequency band analysis (SI -> convert) =====
 band_edges = [1, 40; 40, 1000; 1, 1000];

@@ -1,3 +1,4 @@
+% Calculates and plots spring natural frequency vs extension.
 % === 参数设定 ===
 g = 9.81;           % 重力加速度 [m/s^2]
 %m = 12.8;           % 质量 [kg]
