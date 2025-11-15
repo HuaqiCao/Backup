@@ -55,7 +55,7 @@ colors  = lines(numFiles);
 markers = {'-','--',':','-.'};
 
 %% === Bands (half-open/half-closed) ===
-bands = [1 40; 40 1000; 1 1000];   % Hz
+bands = [0 40; 40 1000; 1 1000];   % Hz
 band_labels = {'[1–40) Hz','(40–1000] Hz','[1–1000] Hz'};
 
 allRMS  = cell(numFiles,1);   % [3 x 2]: [Acc_SI(m/s^2), Disp_m]
