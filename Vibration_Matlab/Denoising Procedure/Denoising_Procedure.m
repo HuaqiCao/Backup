@@ -10,7 +10,7 @@
 %% Settings
 header     = 4;      % number of header lines to skip in CSV
 detrend_on = true;   % remove mean
-df_target  = 0.5;    % target frequency resolution (Hz)
+df_target  = 0.2;    % target frequency resolution (Hz)
 overlap_fr = 0.95;   % Welch overlap fraction
 
 %% ===== 1) Pick X-files (auxiliary sensors) =====
@@ -35,7 +35,7 @@ if isequal(yFile,0)
 end
 fprintf('Y file: %s\n', yFile);
 
-%% ===== 3) Read all X and Y, build common time base =====
+%% ===== 3) Read all X and Y =====
 Xs_raw = cell(nX,1);
 ts_raw = cell(nX,1);
 Fs_list = zeros(nX,1);
@@ -76,11 +76,26 @@ if any(isnan(tY) | isnan(Yv))
 end
 FsY = 1/median(diff(tY));
 
-% Unified sampling rate (approx.)
-Fs = round(mean([Fs_list(:); FsY]));
-fprintf('Approx. Fs = %.2f Hz\n', Fs);
+%% ===== Show original Fs / duration for each channel =====
+fprintf('\n===== INPUT DATA INFORMATION =====\n');
+for k = 1:nX
+    Nk = numel(ts_raw{k});
+    duration_k = ts_raw{k}(end) - ts_raw{k}(1);
+    Fsk = Fs_list(k);
+    fprintf('X%d: %d samples, duration = %.3f s, Fs = %.3f Hz\n', ...
+        k, Nk, duration_k, Fsk);
+end
+Ny = numel(tY);
+durationY = tY(end) - tY(1);
+fprintf('Y:  %d samples, duration = %.3f s, Fs = %.3f Hz\n', ...
+    Ny, durationY, FsY);
+fprintf('=================================\n');
 
-% Find common time interval
+%% ===== 4) Choose common sampling rate (use lowest Fs) =====
+Fs = round(min([Fs_list(:); FsY]));   % e.g. X=10k, Y=5k -> Fs=5k
+fprintf('Common Fs (resample target) = %.2f Hz\n', Fs);
+
+%% ===== 5) Find common time interval (原来的方式：公共重叠区间) =====
 t_start = zeros(nX+1,1);
 t_end   = zeros(nX+1,1);
 for k = 1:nX
@@ -90,29 +105,44 @@ end
 t_start(end) = tY(1);
 t_end(end)   = tY(end);
 
-t0 = max(t_start);
-t1 = min(t_end);
+t0 = max(t_start);   % 最晚开始时间
+t1 = min(t_end);     % 最早结束时间
 if t1 <= t0
     error('No common time interval among all channels.');
 end
 
-t = (t0:1/Fs:t1).';
-N = numel(t);
-fprintf('Common duration: %.2f s (%d samples)\n', t1 - t0, N);
+fprintf('\n=== Time alignment (overlap intersection) ===\n');
+fprintf('t0 = %.6f s, t1 = %.6f s, duration = %.6f s\n', ...
+    t0, t1, t1 - t0);
 
-% Interpolate to common grid
+% 统一时间轴（只是重叠区间上）：长度按之前的 [t0, t1]
+t = (t0 : 1/Fs : t1).';
+N = numel(t);
+fprintf('Common grid: %d samples, Fs = %.3f Hz\n', N, Fs);
+
+%% ===== 6) Interpolate / resample to common grid =====
 X = zeros(N, nX);
 for k = 1:nX
-    X(:,k) = interp1(ts_raw{k}, Xs_raw{k}, t, 'linear', 'extrap');
+    X(:,k) = interp1(ts_raw{k}, Xs_raw{k}, t, 'linear');
 end
-Y = interp1(tY, Yv, t, 'linear', 'extrap');
+Y = interp1(tY, Yv, t, 'linear');
+
+% 防止浮点边界带来的 NaN
+mask = ~any(isnan([X Y]),2);
+if ~all(mask)
+    X = X(mask,:);
+    Y = Y(mask);
+    t = t(mask);
+    N = numel(t);
+    fprintf('After removing NaNs at edges: N = %d samples\n', N);
+end
 
 if detrend_on
     X = detrend(X, 0);
     Y = detrend(Y, 0);
 end
 
-%% ===== 4) Welch parameters from target Δf =====
+%% ===== 7) Welch parameters from target Δf =====
 wlen = round(Fs / df_target);
 wlen = min(wlen, N);      % cannot exceed signal length
 wlen = max(wlen, 256);    % reasonable minimum
@@ -121,10 +151,7 @@ nfft = 2^nextpow2(max(N, wlen));
 df_act = Fs / wlen;
 fprintf('wlen = %d, nfft = %d, Δf ≈ %.3f Hz\n', wlen, nfft, df_act);
 
-%% ===== 5) Compute G_xx(f) and G_xi_y(f) (Welch) =====
-% G_xx(i,j,f) = < X_i^*(f) X_j(f) >
-% G_xy(i,f)   = < X_i^*(f) Y(f)   >
-
+%% ===== 8) Compute G_xx(f) and G_xi_y(f) (Welch) =====
 Gxx = zeros(nX, nX, nfft/2+1);
 Gxy = zeros(nX,       nfft/2+1);
 
@@ -149,7 +176,7 @@ end
 
 nFreq = numel(f);
 
-%% ===== 6) H(f) = G_xx^{-1}(f) * G_xy(f) =====
+%% ===== 9) H(f) = G_xx^{-1}(f) * G_xy(f) =====
 H = zeros(nX, nFreq);
 for kf = 1:nFreq
     Gxx_k = squeeze(Gxx(:,:,kf));   % nX × nX
@@ -166,7 +193,7 @@ for kf = 1:nFreq
     H(:,kf) = Gxx_k \ gxy_k;
 end
 
-%% ===== 7) Build full H(f) and compute residual y'(t) =====
+%% ===== 10) Build full H(f) and compute residual y'(t) =====
 H_full = zeros(nfft, nX);
 for i = 1:nX
     Hi_pos = H(i,:).';          % 0..Fs/2
@@ -188,7 +215,7 @@ y_hat   = y_hat(1:N);
 
 y_res = Y - y_hat;              % residual y'(t)
 
-%% ===== 8) PSD before / after denoising (in mV^2/Hz) =====
+%% ===== 11) PSD before / after denoising (in mV^2/Hz) =====
 [Py,  f_psd] = pwelch(Y,     win, noverlap, nfft, Fs);
 [Pres,~]     = pwelch(y_res, win, noverlap, nfft, Fs);
 
@@ -206,3 +233,12 @@ title(sprintf('Average ANPS Before and After Denoising (\\Delta f = %.3f Hz)', d
 legend('Raw ANPS','Denoised ANPS','Location','best');
 
 fprintf('Done.\n');
+
+%% ===== 12) New Figure: Time-domain raw vs denoised =====
+figure('Color','w'); hold on; grid on; box on;
+plot(t, Y*1e3, 'LineWidth',1.2);       % raw Y, convert to mV
+plot(t, y_res*1e3, 'LineWidth',1.2);   % residual (denoised), mV
+xlabel('Time [s]');
+ylabel('Amplitude [mV]');
+title('Time-domain Signal Before and After H_{xy} Denoising');
+legend('Raw Y(t)', 'Denoised y''(t)', 'Location', 'best');
