@@ -1,7 +1,7 @@
-/Volumes/Expansion/Data_process/2504/BKG_SB4_4H_0422T1119/DLMO_narrow/
-DLMO.BIN2
-3000
-5000
+/Users/caohuaqi/Desktop/2408/CSV/SB12_T6at9p46mK_bkg_4h40min_5kHz_2408200106/1cmLMO/
+1cmLMO.BIN2
 1000
+10000
 300
-700
+30
+200
