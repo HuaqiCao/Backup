@@ -1,7 +1,7 @@
-/Users/caohuaqi/Desktop/2408/CSV/SB12_T6at9p46mK_bkg_4h40min_5kHz_2408200106/1cmLMO/
-1cmLMO.BIN2
-1000
+/Users/caohuaqi/Desktop/
+DLMO.BIN2
+3000
 10000
-300
-30
-200
+1500
+0
+1000
