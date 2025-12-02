@@ -12,10 +12,16 @@ def process_tdms_files(input_path, output_path):
     #files = [f for f in os.listdir(input_path) if f.endswith(".tdms")]
     #files = [f for f in os.listdir(input_path) if f.endswith(".tdms") and "112037" in f]
     #files = [f for f in os.listdir(input_path) if f.endswith(".tdms") and "12-05" in f ] 
-    files = [f for f in os.listdir(input_path) if f.endswith(".tdms") and "2024" in f ] 
-
+    #files = [f for f in os.listdir(input_path) if f.endswith(".tdms") and "2024" in f ] 
+    files = [
+    f for f in os.listdir(input_path)
+    if f.endswith(".tdms")
+    and "2024" in f
+    and not f.startswith("._")   # ← 跳过以 ._ 开头的假文件
+    ]
     for file in files:
         fname = os.path.join(input_path, file)
+        
         #设置文件大小至少为1GB大小
         #if os.path.getsize(fname) < 0.8 * 1024 * 1024 * 1024 or os.path.getsize(fname) > 6 * 1024 * 1024 * 1024:  # 1GB = 1 * 1024^3 bytes
         #if os.path.getsize(fname) > 80 * 1024 * 1024 or os.path.getsize(fname) < 70 * 1024 * 1024:  # 1GB = 1 * 1024^3 bytes
@@ -71,8 +77,8 @@ def process_tdms_files(input_path, output_path):
 
         print(f"Finished processing file: {fname}")
 
-input_path = "D:\\Lab\\2408"
-output_path = "D:\\Lab\\2408\\CSV"
+input_path = "/Volumes/Expansion/Data process/2410"
+output_path = "/Volumes/Expansion/Data process/2410/CSV"
 
 # 调用函数处理TDMS文件
 process_tdms_files(input_path, output_path)
