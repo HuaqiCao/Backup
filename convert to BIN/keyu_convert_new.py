@@ -12,7 +12,7 @@ def process_tdms_files(input_path, output_path):
     #files = [f for f in os.listdir(input_path) if f.endswith(".tdms")]
     #files = [f for f in os.listdir(input_path) if f.endswith(".tdms") and "112037" in f]
     #files = [f for f in os.listdir(input_path) if f.endswith(".tdms") and "12-05" in f ] 
-    files = [f for f in os.listdir(input_path) if f.endswith(".tdms") and "184706" in f ] 
+    files = [f for f in os.listdir(input_path) if f.endswith(".tdms") and "2024" in f ] 
 
     for file in files:
         fname = os.path.join(input_path, file)
@@ -71,8 +71,8 @@ def process_tdms_files(input_path, output_path):
 
         print(f"Finished processing file: {fname}")
 
-input_path = "/Users/caohuaqi/Desktop"
-output_path = "/Users/caohuaqi/Desktop"
+input_path = "D:\\Lab\\2408"
+output_path = "D:\\Lab\\2408\\CSV"
 
 # 调用函数处理TDMS文件
 process_tdms_files(input_path, output_path)
