@@ -1,6 +1,6 @@
 function load_vibration_voltage()
     % 设置变量名
-    var_name = 'b';
+    var_name = 'Vibration_Data';
 
     % 选择 CSV 文件
     [filename, pathname] = uigetfile('*.csv', '选择CSV数据文件');
