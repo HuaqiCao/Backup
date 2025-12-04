@@ -19,7 +19,7 @@ for i = 1:length(filenames)
     sen = 1.026;      % Sensitivity (V/g)
     g = 9.81;         % Gravity (m/s^2)
     wint = 1;         % Window length (s)
-    gain = 10.003;    % Default gain
+    gain = 100.003;    % Default gain
     fs = 10000;       % Sampling frequency (Hz)
     
     % Adjust gain based on filename
