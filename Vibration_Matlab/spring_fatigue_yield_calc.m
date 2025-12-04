@@ -1,26 +1,28 @@
 % Compute fatigue & yield load limits for axial tension spring
+% 轴向拉伸弹簧的疲劳极限 / 屈服极限 / 刚度 / 自振频率计算
+% 输入几何参数、材料强度、安全系数等 → 输出疲劳载荷、屈服载荷、静力参数与动力学参数
 
-% === Input parameters ===
+% === 输入弹簧参数 ===
 prompt = {
-    'Wire diameter d (mm):', ...
-    'Outer diameter D_o (mm):', ...
-    'Inner diameter D_i (mm):', ...
-    'Active coils N_a:', ...
-    'Tensile strength σ_b (MPa):', ...
-    'Shear modulus G (GPa):', ...
-    'Density ρ (kg/m³):', ...
-    'Fatigue SF (normal stress):', ...
-    'Fatigue SF (shear stress):', ...
-    'Yield SF (normal stress):', ...
-    'Yield SF (shear stress):', ...
-    'Damping ratio ζ (e.g. 0.02):'
+    '线径 d (mm):', ...
+    '外径 D_o (mm):', ...
+    '内径 D_i (mm):', ...
+    '有效圈数 N_a:', ...
+    '抗拉强度 σ_b (MPa):', ...
+    '剪切模量 G (GPa):', ...
+    '密度 ρ (kg/m³):', ...
+    '疲劳 SF（正应力）:', ...
+    '疲劳 SF（剪应力）:', ...
+    '屈服 SF（正应力）:', ...
+    '屈服 SF（剪应力）:', ...
+    '阻尼比 ζ (如 0.02):'
 };
 def = {'1.5','16.5','13.5','100','450','80','7850','1.5','1.5','1.2','1.2','0.02'};
 options.Resize = 'on';
 answ = inputdlg(prompt, 'Spring Parameters Input', [1 55], def, options);
 if isempty(answ), return; end
 
-% === Convert units ===
+% === 单位转换（mm→m、MPa→Pa、GPa→Pa）===
 d = str2double(answ{1}) / 1000;
 Do = str2double(answ{2}) / 1000;
 Di = str2double(answ{3}) / 1000;
@@ -35,36 +37,36 @@ SF_tau_y = str2double(answ{11});
 zeta = str2double(answ{12});
 g = 9.81;
 
-% === Geometry & correction factor ===
-Dm = (Do + Di) / 2;
-C = Dm / d;
-Kw = (4*C - 1)/(4*C - 4) + 0.615/C;
+% === 几何参数与 Wahl 修正系数 ===
+Dm = (Do + Di) / 2;        % 中径
+C = Dm / d;                % 弹簧指数
+Kw = (4*C - 1)/(4*C - 4) + 0.615/C;   % Wahl 因子
 
-% === Material limits ===
-sigma_e = 0.5 * sigma_b;
-tau_e = 0.29 * sigma_b;
-tau_b = 0.577 * sigma_b;
+% === 材料疲劳与屈服极限（经验公式）===
+sigma_e = 0.5 * sigma_b;     % 正应力疲劳极限
+tau_e = 0.29 * sigma_b;      % 剪应力疲劳极限
+tau_b = 0.577 * sigma_b;     % 剪应力屈服强度（von Mises）
 
-% === Fatigue-limited force ===
-F_sigma_f = (pi * d^2 / 4) * (sigma_e / SF_sigma_f);
-F_tau_f = (pi * d^3 / (8 * Dm * Kw)) * (tau_e / SF_tau_f);
+% === 疲劳极限下的允许拉力 ===
+F_sigma_f = (pi * d^2 / 4) * (sigma_e / SF_sigma_f);            % 正应力控制
+F_tau_f   = (pi * d^3 / (8 * Dm * Kw)) * (tau_e / SF_tau_f);    % 剪应力控制
 F_fatigue = min(F_sigma_f, F_tau_f);
 
-% === Yield-limited force ===
+% === 屈服极限下的允许拉力 ===
 F_sigma_y = (pi * d^2 / 4) * (sigma_b / SF_sigma_y);
-F_tau_y = (pi * d^3 / (8 * Dm * Kw)) * (tau_b / SF_tau_y);
-F_yield = min(F_sigma_y, F_tau_y);
+F_tau_y   = (pi * d^3 / (8 * Dm * Kw)) * (tau_b / SF_tau_y);
+F_yield   = min(F_sigma_y, F_tau_y);
 
-% === Dynamic properties ===
-A = pi * (d/2)^2;
-L = Na * pi * Dm;
-V = A * L;
-m = V * rho;
-k = G * d^4 / (8 * Dm^3 * Na);
-fn = (1 / (2*pi)) * sqrt(k / m);
-c = 2 * zeta * sqrt(k * m);
+% === 动力学参数（质量、刚度、固有频率、阻尼）===
+A = pi * (d/2)^2;          % 线材截面积
+L = Na * pi * Dm;          % 线材长度
+V = A * L;                 % 体积
+m = V * rho;               % 质量
+k = G * d^4 / (8 * Dm^3 * Na);   % 刚度 k
+fn = (1 / (2*pi)) * sqrt(k / m); % 固有频率
+c = 2 * zeta * sqrt(k * m);      % 阻尼系数（等效）
 
-% === Results text ===
+% === 汇总结果（文本）===
 result = sprintf([...
     'Spring Analysis Results\n\n',...
     '--- Basic Properties ---\n',...
@@ -86,6 +88,6 @@ result = sprintf([...
     F_sigma_f, F_tau_f, F_fatigue, F_fatigue/g,...
     F_sigma_y, F_tau_y, F_yield, F_yield/g);
 
-% === Display result in resizable dialog ===
+% === 弹出可调整大小的结果窗口 ===
 h = msgbox(result, 'Spring Calculation Result', 'none');
-set(h, 'Resize', 'on');  % make it resizable
+set(h, 'Resize', 'on');

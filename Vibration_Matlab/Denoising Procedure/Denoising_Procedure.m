@@ -1,19 +1,15 @@
-%% ===== Multi-channel H_xy Denoising (CUORE-style) =====
-% First dialog: select X CSV files (multi-select)
-% Second dialog: select Y CSV file (single)
-% Formula:
-%   G_xx(f) = < X_i^*(f) X_j(f) >
-%   G_xy(f) = < X_i^*(f) Y(f) >
-%   H(f)    = G_xx^{-1}(f) G_xy(f)
-%   y'(t)   = y(t) - sum_i h_i * x_i(t)
+%% ============================================================
+% 本程序用于执行“多通道 H_xy 去噪”（CUORE 风格）。
+% X 通道为辅助噪声传感器，Y 通道为主信号（bolo）。
+%% ============================================================
 
-%% Settings
-header     = 4;      % number of header lines to skip in CSV
-detrend_on = true;   % remove mean
-df_target  = 0.2;    % target frequency resolution (Hz)
-overlap_fr = 0.95;   % Welch overlap fraction
+%% ===== 参数设置 =====
+header     = 4;      % CSV 文件前几行表头
+detrend_on = true;   % 是否去直流分量
+df_target  = 0.2;    % Welch 目标频率分辨率 Δf
+overlap_fr = 0.95;   % Welch 重叠率
 
-%% ===== 1) Pick X-files (auxiliary sensors) =====
+%% ===== 1) 选择多个 X CSV 文件 =====
 [xFiles, xPath] = uigetfile('*.csv', ...
     'Select X CSV files (auxiliary sensors)', ...
     'MultiSelect','on');
@@ -21,26 +17,26 @@ if isequal(xFiles,0)
     error('No X files selected.');
 end
 
-% Normalize to cell array
+% 若只选一个文件，转换成 cell
 if ischar(xFiles)
     xFiles = {xFiles};
 end
 nX = numel(xFiles);
 fprintf('Selected %d X-files.\n', nX);
 
-%% ===== 2) Pick Y-file (bolometer) =====
+%% ===== 2) 选择 Y（bolo）文件 =====
 [yFile, yPath] = uigetfile('*.csv','Select Y CSV file (bolometer)');
 if isequal(yFile,0)
     error('No Y file selected.');
 end
 fprintf('Y file: %s\n', yFile);
 
-%% ===== 3) Read all X and Y =====
+%% ===== 3) 读取所有 X 与 Y =====
 Xs_raw = cell(nX,1);
 ts_raw = cell(nX,1);
 Fs_list = zeros(nX,1);
 
-% Read X files
+% 读取 X
 for k = 1:nX
     fname = fullfile(xPath, xFiles{k});
     opts = detectImportOptions(fname);
@@ -48,8 +44,8 @@ for k = 1:nX
     opts.VariableNamingRule = 'preserve';
     T = readtable(fname, opts);
 
-    t = T{:,1};
-    v = T{:,2};
+    t = T{:,1};    % 时间列
+    v = T{:,2};    % 数据列
     [t, idx] = sort(t(:)); v = v(idx);
 
     if any(isnan(t) | isnan(v))
@@ -61,7 +57,7 @@ for k = 1:nX
     Fs_list(k)  = 1/median(diff(t));
 end
 
-% Read Y file
+% 读取 Y
 optsY = detectImportOptions(fullfile(yPath,yFile));
 optsY.DataLines = [header+1, Inf];
 optsY.VariableNamingRule = 'preserve';
@@ -76,7 +72,7 @@ if any(isnan(tY) | isnan(Yv))
 end
 FsY = 1/median(diff(tY));
 
-%% ===== Show original Fs / duration for each channel =====
+%% ===== 输出输入数据统计 =====
 fprintf('\n===== INPUT DATA INFORMATION =====\n');
 for k = 1:nX
     Nk = numel(ts_raw{k});
@@ -91,11 +87,11 @@ fprintf('Y:  %d samples, duration = %.3f s, Fs = %.3f Hz\n', ...
     Ny, durationY, FsY);
 fprintf('=================================\n');
 
-%% ===== 4) Choose common sampling rate (use lowest Fs) =====
-Fs = round(min([Fs_list(:); FsY]));   % e.g. X=10k, Y=5k -> Fs=5k
+%% ===== 4) 选公共采样率（取最小 Fs） =====
+Fs = round(min([Fs_list(:); FsY]));
 fprintf('Common Fs (resample target) = %.2f Hz\n', Fs);
 
-%% ===== 5) Find common time interval (原来的方式：公共重叠区间) =====
+%% ===== 5) 求所有通道的公共时间区间（区间交集） =====
 t_start = zeros(nX+1,1);
 t_end   = zeros(nX+1,1);
 for k = 1:nX
@@ -105,8 +101,8 @@ end
 t_start(end) = tY(1);
 t_end(end)   = tY(end);
 
-t0 = max(t_start);   % 最晚开始时间
-t1 = min(t_end);     % 最早结束时间
+t0 = max(t_start);   % 最晚起点
+t1 = min(t_end);     % 最早终点
 if t1 <= t0
     error('No common time interval among all channels.');
 end
@@ -115,19 +111,19 @@ fprintf('\n=== Time alignment (overlap intersection) ===\n');
 fprintf('t0 = %.6f s, t1 = %.6f s, duration = %.6f s\n', ...
     t0, t1, t1 - t0);
 
-% 统一时间轴（只是重叠区间上）：长度按之前的 [t0, t1]
+% 公共统一时间轴
 t = (t0 : 1/Fs : t1).';
 N = numel(t);
 fprintf('Common grid: %d samples, Fs = %.3f Hz\n', N, Fs);
 
-%% ===== 6) Interpolate / resample to common grid =====
+%% ===== 6) 各通道插值到统一时间轴 =====
 X = zeros(N, nX);
 for k = 1:nX
     X(:,k) = interp1(ts_raw{k}, Xs_raw{k}, t, 'linear');
 end
 Y = interp1(tY, Yv, t, 'linear');
 
-% 防止浮点边界带来的 NaN
+% 去掉插值边界 NaN
 mask = ~any(isnan([X Y]),2);
 if ~all(mask)
     X = X(mask,:);
@@ -137,68 +133,70 @@ if ~all(mask)
     fprintf('After removing NaNs at edges: N = %d samples\n', N);
 end
 
+% 去直流
 if detrend_on
     X = detrend(X, 0);
     Y = detrend(Y, 0);
 end
 
-%% ===== 7) Welch parameters from target Δf =====
+%% ===== 7) Welch 参数（根据目标 Δf 设置窗长） =====
 wlen = round(Fs / df_target);
-wlen = min(wlen, N);      % cannot exceed signal length
-wlen = max(wlen, 256);    % reasonable minimum
+wlen = min(wlen, N);
+wlen = max(wlen, 256);
 noverlap = min(floor(wlen*overlap_fr), wlen-1);
 nfft = 2^nextpow2(max(N, wlen));
 df_act = Fs / wlen;
 fprintf('wlen = %d, nfft = %d, Δf ≈ %.3f Hz\n', wlen, nfft, df_act);
 
-%% ===== 8) Compute G_xx(f) and G_xi_y(f) (Welch) =====
+%% ===== 8) 计算自谱 G_xx 和互谱 G_xy =====
 Gxx = zeros(nX, nX, nfft/2+1);
 Gxy = zeros(nX,       nfft/2+1);
 
 win = hann(wlen);
 
 for i = 1:nX
-    % Auto-spectrum G_xi_xi
+    % 自谱
     [Sii, f] = pwelch(X(:,i), win, noverlap, nfft, Fs);
     Gxx(i,i,:) = Sii;
 
-    % Cross-spectrum between X_i and X_j
+    % X_i 与 X_j 的互谱
     for j = i+1:nX
         [Sij, ~] = cpsd(X(:,i), X(:,j), win, noverlap, nfft, Fs);
         Gxx(i,j,:) = Sij;
         Gxx(j,i,:) = conj(Sij);
     end
 
-    % Cross with Y: G_xi_y
+    % X_i 与 Y 的互谱
     [Siy, ~] = cpsd(X(:,i), Y, win, noverlap, nfft, Fs);
     Gxy(i,:) = Siy;
 end
 
 nFreq = numel(f);
 
-%% ===== 9) H(f) = G_xx^{-1}(f) * G_xy(f) =====
+%% ===== 9) 计算 H(f) = G_xx^{-1} * G_xy =====
 H = zeros(nX, nFreq);
 for kf = 1:nFreq
-    Gxx_k = squeeze(Gxx(:,:,kf));   % nX × nX
-    gxy_k = Gxy(:,kf);              % nX × 1
+    Gxx_k = squeeze(Gxx(:,:,kf));
+    gxy_k = Gxy(:,kf);
 
-    % Small diagonal regularization
+    % 小正则项，避免矩阵病态
     reg = 1e-6 * trace(Gxx_k) / max(nX,1);
     if ~isfinite(reg) || reg <= 0
         reg = 1e-6;
     end
     Gxx_k = Gxx_k + reg * eye(nX);
 
-    % Solve G_xx * H = G_xy
+    % 求解 H
     H(:,kf) = Gxx_k \ gxy_k;
 end
 
-%% ===== 10) Build full H(f) and compute residual y'(t) =====
+%% ===== 10) 构造完整频域滤波器，回时域得到 y'(t) =====
 H_full = zeros(nfft, nX);
 for i = 1:nX
-    Hi_pos = H(i,:).';          % 0..Fs/2
+    Hi_pos = H(i,:).';
     H_full(1:nFreq, i) = Hi_pos;
 
+    % 填充负频率
     if mod(nfft,2) == 0
         H_full(nFreq+1:end, i) = conj(Hi_pos(end-1:-1:2));
     else
@@ -206,20 +204,17 @@ for i = 1:nX
     end
 end
 
-X_f = fft(X, nfft, 1);          % nfft × nX
-Y_f = fft(Y, nfft, 1);          % nfft × 1 (not used directly here)
-
+X_f = fft(X, nfft, 1);
 Y_hat_f = sum(X_f .* H_full, 2);
 y_hat   = real(ifft(Y_hat_f));
 y_hat   = y_hat(1:N);
 
-y_res = Y - y_hat;              % residual y'(t)
+y_res = Y - y_hat;   % 去噪后信号
 
-%% ===== 11) PSD before / after denoising (in mV^2/Hz) =====
+%% ===== 11) 去噪前后 PSD（单位 mV^2/Hz） =====
 [Py,  f_psd] = pwelch(Y,     win, noverlap, nfft, Fs);
 [Pres,~]     = pwelch(y_res, win, noverlap, nfft, Fs);
 
-% Convert from V^2/Hz to mV^2/Hz: multiply by (1e3)^2 = 1e6
 Py_mV   = Py   * 1e6;
 Pres_mV = Pres * 1e6;
 
@@ -234,10 +229,10 @@ legend('Raw ANPS','Denoised ANPS','Location','best');
 
 fprintf('Done.\n');
 
-%% ===== 12) New Figure: Time-domain raw vs denoised =====
+%% ===== 12) 新图：时域对比 =====
 figure('Color','w'); hold on; grid on; box on;
-plot(t, Y*1e3, 'LineWidth',1.2);       % raw Y, convert to mV
-plot(t, y_res*1e3, 'LineWidth',1.2);   % residual (denoised), mV
+plot(t, Y*1e3, 'LineWidth',1.2);
+plot(t, y_res*1e3, 'LineWidth',1.2);
 xlabel('Time [s]');
 ylabel('Amplitude [mV]');
 title('Time-domain Signal Before and After H_{xy} Denoising');

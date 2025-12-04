@@ -1,44 +1,49 @@
 % extracts a specified time range from multiple CSV files
 % saves the extracted data to a new folder named 'rangechange'. 
 % Prompt user for start and end times (seconds)
+% 从多个 CSV 文件中截取指定时间范围的数据
+% 输入开始时间 t0、结束时间 tt，并将结果保存到输入路径下的 rangechange 文件夹中
 
+% === 输入时间范围（单位：秒）===
 t0 = input('Enter the start time in seconds: ');
 tt = input('Enter the end time in seconds: ');
 
-% Select multiple CSV files
+% === 选择多个 CSV 文件 ===
 [filenames, path] = uigetfile('*.csv', 'Select CSV files', 'MultiSelect', 'on');
 if isequal(filenames, 0)
-    return; % Exit if canceled
+    return;     % 若取消选择则退出
 end
 if ~iscell(filenames)
     filenames = {filenames};
 end
 
-% Create output folder inside the input files' folder if it doesn't exist
+% === 创建输出文件夹（在输入路径下）===
 output_folder = fullfile(path, 'rangechange');
 if ~exist(output_folder, 'dir')
     mkdir(output_folder);
 end
 
-% Loop over each file, extract data in specified time range, and save
+% === 遍历每个文件 ===
 for i = 1:length(filenames)
     filename = filenames{i};
     
-    % Read a small sample to calculate sampling frequency
+    % 读取小段数据以计算采样率（根据第 20–22 行）
     fsdata = readmatrix(fullfile(path, filename), 'Range', '20:22');
-    fs = round(1 / (fsdata(2,1) - fsdata(1,1)));
-    
-    % Calculate start and end rows based on time inputs
-    start_row = round(fs * t0) + 1;
-    end_row = round(fs * tt) + 5;
-    
-    % Read data in the specified range
-    data = readmatrix(fullfile(path, filename), 'Range', sprintf('%d:%d', start_row, end_row));
-    
-    % Construct new filename with time range prefix
+    fs = round(1 / (fsdata(2,1) - fsdata(1,1)));   % 推算采样频率
+
+    % === 根据输入时间换算成行号 ===
+    start_row = round(fs * t0) + 1;   % 起始行
+    end_row   = round(fs * tt) + 5;   % 结束行（+4 行表头）
+
+    % === 按行范围读取数据 ===
+    data = readmatrix(fullfile(path, filename), ...
+                      'Range', sprintf('%d:%d', start_row, end_row));
+
+    % === 创建新文件名：前缀为时间范围 ===
     [~, name, ext] = fileparts(filename);
     new_filename = sprintf('%ds_to_%ds_%s%s', t0, tt, name, ext);
-    
-    % Save extracted data to the output folder inside input path
+
+    % === 保存至 rangechange 文件夹 ===
     writematrix(data, fullfile(output_folder, new_filename));
 end
+

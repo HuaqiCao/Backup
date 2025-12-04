@@ -1,16 +1,20 @@
-% loads vibration acceleration data from a CSV file
-% converts it to a timeseries object in the workspace.
-% saves the results in a new CSV file with acceleration data.
+%% ============================================================
+% 1）从 CSV 文件读取振动电压信号；
+% 2）根据增益与灵敏度换算为加速度（g 或 m/s^2）；
+% 3）创建 timeseries 对象写入工作区；
+% 4）将加速度结果另存为新的 CSV 文件。
+%% ============================================================
 
 function load_vibration_accel()
-    % ====== 常量设定 ======
-    sen = 1.026;             % 灵敏度 (V/g)
-    default_gain = 100.003;   % 默认增益
-    default_fs = 100000;      % 默认采样率
-    g_const = 9.80665;       % 重力加速度 (m/s^2 per g)
-    to_SI_unit = true;       % 是否转为 m/s^2
 
-    % ====== 🚀 改动变量名 ======
+    % ====== 常量设定 ======
+    sen = 1.026;              % 传感器灵敏度 (V/g)
+    default_gain = 100.003;   % 默认放大倍数
+    default_fs = 100000;      % 默认采样率
+    g_const = 9.80665;        % g → m/s^2 换算系数
+    to_SI_unit = true;        % 是否转换为 m/s^2 输出
+
+    % ====== 输出变量名 ======
     output_var_name = 'Vibration_Data';
 
     % ====== 选择 CSV 文件 ======
@@ -20,12 +24,12 @@ function load_vibration_accel()
     end
     filepath = fullfile(pathname, filename);
 
-    % ====== 读取数据（跳过前4行）======
+    % ====== 读取 CSV（跳过前 4 行头）======
     data = readmatrix(filepath, 'NumHeaderLines', 4);
-    time = data(:, 1);         % 时间（秒）
-    voltage = data(:, 2);      % 电压（伏特）
+    time = data(:, 1);        % 时间轴 (s)
+    voltage = data(:, 2);     % 电压值 (V)
 
-    % ====== 采样率推断 ======
+    % ====== 根据时间步长自动推断采样率 ======
     try
         dt = mean(diff(time));
         fs = round(1 / dt);
@@ -37,7 +41,7 @@ function load_vibration_accel()
         end
     end
 
-    % ====== 增益识别 ======
+    % ====== 根据文件名自动识别增益 ======
     gain = default_gain;
     if contains(filename, "1gain")
         gain = 1;
@@ -47,12 +51,12 @@ function load_vibration_accel()
         gain = 100.122;
     end
 
-    % ====== 电压 → 加速度（单位 g）======
-    acceleration_g = voltage / (gain * sen);  % 单位 g
+    % ====== 电压转换为加速度（单位 g）======
+    acceleration_g = voltage / (gain * sen);
 
-    % ====== 是否转换为 m/s^2 ======
+    % ====== 根据设置转换为 m/s² 或 g ======
     if to_SI_unit
-        acceleration = acceleration_g * g_const;
+        acceleration = acceleration_g * g_const;   % g → m/s²
         unit_str = 'm/s^2';
         suffix = '_accel_ms2.csv';
     else
@@ -61,21 +65,22 @@ function load_vibration_accel()
         suffix = '_accel_g.csv';
     end
 
-    % ====== 创建 timeseries 对象 ======
+    % ====== 创建 timeseries 对象，并加载到工作区 ======
     ts = timeseries(acceleration, time, 'Name', output_var_name);
     assignin('base', output_var_name, ts);
 
-    % ====== 输出信息 ======
+    % ====== 输出基础信息 ======
     fprintf('变量 "%s" 已加载到工作区\n', output_var_name);
     fprintf('采样率: %d Hz\n', fs);
     fprintf('样本数: %d\n', length(time));
     fprintf('时间范围: %.4f ~ %.4f 秒\n', time(1), time(end));
     fprintf('单位: %s\n', unit_str);
 
-    % ====== 保存结果到 CSV ======
+    % ====== 保存加速度结果为新的 CSV 文件 ======
     out_data = [time, acceleration];
     [~, name, ~] = fileparts(filename);
     out_filename = fullfile(pathname, [name suffix]);
     writematrix(out_data, out_filename);
+
     fprintf('✅ 加速度数据已保存至:\n%s\n', out_filename);
 end
