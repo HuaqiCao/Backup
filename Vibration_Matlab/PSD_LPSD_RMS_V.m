@@ -35,7 +35,7 @@ if ischar(fileNames), fileNames = {fileNames}; end
 numFiles = numel(fileNames);
 
 %% === Sensor params 传感器参数 ===
-sens_V_per_g = 1.026;    % 灵敏度 V/g
+sens_V_per_g = 1.000;    % 灵敏度 V/g
 gain         = 100.0;    % 放大倍数
 g0           = 9.80665;  % m/s^2
 
