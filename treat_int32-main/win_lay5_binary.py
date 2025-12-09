@@ -217,8 +217,8 @@ class _matchedfilter(lay5.Ui_MainWindow):
         self.signaltemplate = np.loadtxt(self.FilePath+'data/signaltemplate.txt',dtype=float)
         #self.filteredtemplate = np.loadtxt(self.FilePath+'data/filteredtemplate_ps.txt',dtype=float)
         self.filteredtemplate = np.loadtxt(self.FilePath+'data/diff_filteredtemplate.txt',dtype=float)
-        peakp_template = np.argmax(self.signaltemplate)    
-        peakp_filtered = np.argmax(self.filteredtemplate)
+        peakPosi_template = np.argmax(self.signaltemplate)    
+        peakPosi_filtered = np.argmax(self.filteredtemplate)
         _ = np.loadtxt(self.FilePath+'data/noiseps.txt',dtype=float)
         _ = np.fft.fft(self.signaltemplate).conjugate()
         diff_template = np.diff(self.signaltemplate)
@@ -234,12 +234,12 @@ class _matchedfilter(lay5.Ui_MainWindow):
         print(hconstant_this)
         ref_dt = 0
         ref_rt = 0
-        for i in reversed(self.signaltemplate[:peakp_template]):
+        for i in reversed(self.signaltemplate[:peakPosi_template]):
             if i < 0.9:
                 if i < 0.1:
                     break
                 ref_rt+=1
-        for i in self.signaltemplate[peakp_template:]:
+        for i in self.signaltemplate[peakPosi_template:]:
             if i < 0.9:
                 if i < 0.3:
                     break
@@ -248,15 +248,15 @@ class _matchedfilter(lay5.Ui_MainWindow):
         print(ref_dt)
         self.wl_2 = (ref_rt+ref_dt)*3//2*2
         print(self.wl_2)
-        print(peakp_filtered)
-        if self.wl_2 > peakp_filtered:
-            self.wl_2 = (peakp_filtered-2)*2
+        print(peakPosi_filtered)
+        if self.wl_2 > peakPosi_filtered:
+            self.wl_2 = (peakPosi_filtered-2)*2
         if self.wl_2//2 < 6*ref_rt:
             self.wl_2 = 14*ref_rt
         print('window length: %d' %self.wl_2)
-        print('peakp: %d' %peakp_filtered)
-        filtered = self.filteredtemplate[peakp_filtered:peakp_filtered+self.wl_2//2]
-        filtered2 = self.filteredtemplate[peakp_filtered-self.wl_2//2:peakp_filtered+self.wl_2//2]
+        print('peakp: %d' %peakPosi_filtered)
+        filtered = self.filteredtemplate[peakPosi_filtered:peakPosi_filtered+self.wl_2//2]
+        filtered2 = self.filteredtemplate[peakPosi_filtered-self.wl_2//2:peakPosi_filtered+self.wl_2//2]
         print(len(filtered2))
         self.filefiltered = open(self.FilePath+"data/diff_filtereddata.BIN2","rb")
         self.filefiltered.seek(0)
@@ -353,10 +353,10 @@ class _matchedfilter(lay5.Ui_MainWindow):
             linearfit_bl = np.polyfit(np.arange(4*ref_rt),arr_x2[self.wl_2//2-6*ref_rt:self.wl_2//2-2*ref_rt],1,full=True)
             bl_slope = linearfit_bl[0][0]
             bl_chi2  = linearfit_bl[1][0]
-            amp_raw = amp_raw-bl
+            amp_raw = amp_raw - bl
             if amp_raw==0:
                     continue
-            linearfit_raw = np.polyfit(self.signaltemplate[peakp_template-self.wl_2//2:peakp_template+self.wl_2//2],arr_x2,1,full=True)
+            linearfit_raw = np.polyfit(self.signaltemplate[peakPosi_template-self.wl_2//2:peakPosi_template+self.wl_2//2],arr_x2,1,full=True)
 
             arr_x2 = (arr_x2-bl)/amp_raw
             dt = 0
@@ -377,7 +377,7 @@ class _matchedfilter(lay5.Ui_MainWindow):
             if rt < 0.2*ref_rt:
                 continue
             '''
-            st = self.signaltemplate[peakp_template-self.wl_2//2:peakp_template+self.wl_2//2]
+            st = self.signaltemplate[peakPosi_template-self.wl_2//2:peakPosi_template+self.wl_2//2]
             chi2raw = math.sqrt(np.sum(np.power(arr_x2-st,2))/self.wl_2)
             tvl = math.sqrt(np.sum(np.power(arr_filtered[:self.wl_2//2]-filtered,2))/self.wl_2)
             tvr = math.sqrt(np.sum(np.power(arr_filtered[-(self.wl_2//2):]-filtered[::-1],2))/self.wl_2)
@@ -419,6 +419,7 @@ class _matchedfilter(lay5.Ui_MainWindow):
             #print(k)
             #print(maxp_filtered+5000)
             '''
+            
         arr_corr = np.array(list_corr)
         arr_bl = np.array(list_bl)
         arr_rt = np.array(list_rt)
