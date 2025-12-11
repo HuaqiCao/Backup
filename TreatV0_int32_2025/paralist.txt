@@ -1,7 +1,7 @@
-/Users/caohuaqi/Desktop/
-DLMO.BIN2
-3000
-10000
-1500
-0
+F:/Data process/2510/CSV/SB2_251020T1900_T8p4_4h/LD/
+LD.BIN2
 1000
+5000
+300
+30
+200

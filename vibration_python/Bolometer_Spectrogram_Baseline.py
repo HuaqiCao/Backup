@@ -1,81 +1,119 @@
 # ============================================================
-#  TDMS/CSV 读取：每个通道绘制
+#  TDMS/CSV 读取：每个通道绘制真实时间
 #     1) 频谱图（Spectrogram）
 #     2) 基线漂移（Baseline Drift）
 # ============================================================
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from scipy import signal
 from nptdms import TdmsFile
 import tkinter as tk
 from tkinter import filedialog
 import pandas as pd
 import os
+import re
+from datetime import datetime, timedelta
 
 plt.rcParams['font.family'] = 'Times New Roman'
 
+
+# -------------------------------
+# 从文件名解析真实起始时间
+# -------------------------------
+def parse_filename_timestamp(fname):
+    """
+    解析文件名中的真实时间，例如：
+    记录-2025-10-20 105823 004.tdms
+    """
+    pattern = r"(\d{4}-\d{2}-\d{2})\s+(\d{6})"
+    m = re.search(pattern, fname)
+    if not m:
+        print("⚠ 警告：未从文件名解析时间，将使用相对秒作为横坐标")
+        return None
+
+    date_str = m.group(1)    # 2025-10-20
+    time_str = m.group(2)    # 105823
+
+    return datetime.strptime(date_str + " " + time_str, "%Y-%m-%d %H%M%S")
+
+
+# -------------------------------
 # 过滤中文
+# -------------------------------
 def ascii_label(s):
     out = ''.join(c for c in s if ord(c) < 128)
     return out if out.strip() else "CH"
 
-# TDMS 读取（限制时长 + 降采样）
-def load_safe_data_tdms(ch, max_sec=600, target_fs=200):
 
+# -------------------------------
+# TDMS 读取：支持 max_sec + 真实时间
+# -------------------------------
+def load_safe_data_tdms(ch, fname, max_sec=600, target_fs=100):
+    """
+    max_sec：限制采样时间（秒）
+    target_fs=None：不降采样（推荐）
+    """
+    # 解析文件名中的起始时间
+    start_time = parse_filename_timestamp(fname)
+
+    # TDMS 相对时间（秒）
     t_full = ch.time_track()
     fs = 1 / (t_full[1] - t_full[0])
 
+    # 限制时长
     max_samples = min(len(ch), int(fs * max_sec))
     data = ch[:max_samples]
-    t = t_full[:max_samples]
+    t_rel = t_full[:max_samples]
 
-    # 降采样
-    factor = max(1, int(fs / target_fs))
-    if factor > 1:
+    # =============== 不降采样（你要求） ===============
+    if target_fs is not None and target_fs < fs:
         from scipy.signal import decimate
+        factor = int(fs / target_fs)
         data = decimate(data, factor, zero_phase=True)
-        t = t[::factor]
+        t_rel = t_rel[::factor]
         fs = fs / factor
 
-    return t, data, fs
+    # =============== 转为真实绝对时间 ===============
+    if start_time is not None:
+        t_abs = np.array([start_time + timedelta(seconds=float(s)) for s in t_rel])
+        t_plot = mdates.date2num(t_abs)  # matplotlib 格式
+    else:
+        t_plot = t_rel  # 用相对秒
 
-# CSV 读取（默认跳过前4行）
+    return t_plot, data, fs
+
+
+# -------------------------------
+# CSV 默认不处理真实时间（保持兼容）
+# -------------------------------
 def load_safe_data_csv(csv_path):
-
     print("读取 CSV:", csv_path)
 
-    df = pd.read_csv(
-        csv_path,
-        skiprows=4,
-        on_bad_lines='skip',
-        engine='python'
-    )
+    df = pd.read_csv(csv_path, skiprows=4,
+                     on_bad_lines='skip', engine='python')
 
-    # 一列 → 自动生成时间
     if df.shape[1] == 1:
         data = df.iloc[:, 0].values
-        N = len(data)
         fs = 200
-        t = np.arange(N) / fs
+        t = np.arange(len(data)) / fs
         return t, data, fs
 
-    # 正常两列：time + value
     t = df.iloc[:, 0].values.astype(float)
     data = df.iloc[:, 1].values.astype(float)
-
-    # 时间异常 → 自动生成
     dt = np.diff(t)
+
     if np.any(dt <= 0) or np.median(dt) == 0:
-        N = len(data)
         fs = 200
-        t = np.arange(N) / fs
+        t = np.arange(len(data)) / fs
         return t, data, fs
 
-    fs = 1.0 / np.median(dt)
+    fs = 1 / np.median(dt)
     return t, data, fs
 
-# 文件选择
+
+# 选择文件
 def select_files():
     root = tk.Tk()
     root.withdraw()
@@ -84,7 +122,8 @@ def select_files():
         filetypes=[("TDMS files", "*.tdms"), ("CSV files", "*.csv")]
     ))
 
-# 加载全部文件，按通道名归类
+
+# 加载全部通道
 def load_all_files_by_channel(file_list):
     channel_dict = {}
 
@@ -92,95 +131,103 @@ def load_all_files_by_channel(file_list):
         fname = os.path.basename(file_path)
         ext = os.path.splitext(file_path)[1].lower()
 
-        # CSV
         if ext == ".csv":
-            print(f"[CSV] {fname}")
             t, data, fs = load_safe_data_csv(file_path)
             cname = ascii_label(fname.replace(".csv", ""))
             channel_dict.setdefault(cname, []).append((t, data, fs, fname))
 
-        # TDMS
         elif ext == ".tdms":
-            print(f"[TDMS] {fname}")
             tdms = TdmsFile.open(file_path)
             for g in tdms.groups():
                 for ch in g.channels():
                     cname = ascii_label(ch.name)
-                    t, data, fs = load_safe_data_tdms(ch)
+                    t, data, fs = load_safe_data_tdms(ch, fname)
                     channel_dict.setdefault(cname, []).append((t, data, fs, fname))
-
-        else:
-            print("未知文件：", fname)
 
     return channel_dict
 
-# 绘制频谱图
-def plot_spectrogram(cname, data_list, fmax=50):
+
+# -------------------------------
+# 绘制频谱图（真实时间）
+# -------------------------------
+def plot_spectrogram(cname, data_list, fmax=1000):
 
     fig, ax = plt.subplots(figsize=(12, 5))
     ax.set_title(f"Spectrogram — {cname}")
 
     for t, data, fs, fname in data_list:
 
-        nper = int(fs * 10)  # 10 秒窗口
+        nper = int(fs * 10)
         f, tt, Sxx = signal.spectrogram(
             data, fs, nperseg=nper,
             noverlap=int(nper * 0.5),
             scaling="density", mode="psd"
         )
 
+        # 绝对时间轴：tt 是相对秒，需要加到起始时间
+        if isinstance(t[0], float) and t[0] > 1e3:  
+            # matplotlib 日期单位是 float 天
+            tt_abs = t[0] + tt / 86400
+        else:
+            tt_abs = tt / 3600  # 回退方案（相对时间）
+
         pcm = ax.pcolormesh(
-            tt/3600, f, 10*np.log10(Sxx + 1e-20),
+            tt_abs, f, 10*np.log10(Sxx + 1e-20),
             shading="auto", cmap="viridis"
         )
 
+    # 格式化时间
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d\n%H:%M:%S"))
+
     ax.set_ylim(0, fmax)
-    ax.set_xlabel("Time (hours)")
+    ax.set_xlabel("Time (Real)")
     ax.set_ylabel("Frequency (Hz)")
     fig.colorbar(pcm, label="PSD (dB)")
     fig.tight_layout()
 
-# 绘制基线漂移
+
+# -------------------------------
+# 绘制基线漂移（真实时间）
+# -------------------------------
 def plot_drift(cname, data_list):
 
     fig, ax = plt.subplots(figsize=(10, 4))
     ax.set_title(f"Baseline Drift — {cname}")
 
     for t, data, fs, fname in data_list:
-        N = int(fs * 60)  # 60秒平均
-        if N <= 1:
-            continue
+        N = int(fs * 60)
         baseline = np.convolve(data, np.ones(N)/N, mode="valid")
-        ax.plot(t[:len(baseline)]/3600, baseline, label=ascii_label(fname))
+        ax.plot(t[:len(baseline)], baseline, label=ascii_label(fname))
 
-    ax.set_xlabel("Time (hours)")
+    # 格式化日期时间
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d\n%H:%M:%S"))
+
+    ax.set_xlabel("Time (Real)")
     ax.set_ylabel("Baseline")
     ax.grid(True)
     ax.legend()
     fig.tight_layout()
 
-# 处理每个通道
+
+# 主流程
 def process_channel(cname, data_list):
     print(f"\n=== 通道: {cname} ===")
     plot_spectrogram(cname, data_list)
     plot_drift(cname, data_list)
 
-# 主程序
+
+# ============================================================
+# 主程序入口
+# ============================================================
 if __name__ == "__main__":
 
     files = select_files()
     if not files:
-        print("用户取消")
         exit()
-
-    print("\n选中文件:")
-    for f in files:
-        print(" -", f)
 
     channel_dict = load_all_files_by_channel(files)
 
     for cname, data_list in channel_dict.items():
         process_channel(cname, data_list)
 
-    print("\n处理完成.")
     plt.show()

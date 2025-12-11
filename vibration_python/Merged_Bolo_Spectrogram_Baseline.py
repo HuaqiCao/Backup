@@ -32,7 +32,7 @@ def ascii_label(s):
 # ============================================================
 # 加载 merged.tdms 的某个 base 通道
 # ============================================================
-def load_merged_tdms_channel(tdms, base_name, target_fs=100):
+def load_merged_tdms_channel(tdms, base_name, target_fs=1000):
 
     t_raw, v_raw = None, None
 
