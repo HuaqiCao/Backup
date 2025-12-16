@@ -339,7 +339,7 @@ voltage = data(:,2);
 
 % 传感器转换到 SI 单位加速度
 gain = 100;
-sens_V_per_g = 1.026;
+sens_V_per_g = 1.0;
 g0 = 9.80665;
 
 acc_base_g = voltage / (gain * sens_V_per_g);

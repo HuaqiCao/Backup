@@ -13,7 +13,7 @@ from tkinter import filedialog
 import matplotlib.pyplot as plt
 from scipy.signal import welch, detrend
 from math import pi, sqrt
-from numpy import trapezoid
+from numpy import trapz
 import os
 
 # ================= 常量设置 =================
@@ -152,12 +152,12 @@ def run_analysis(params):
             idx = (f >= f1) & (f <= f2)
 
         idx &= pos
-        acc_rms = np.sqrt(trapezoid(Sa[idx], f[idx]))
-        disp_rms = np.sqrt(trapezoid(Sd[idx], f[idx]))
+        acc_rms = np.sqrt(trapz(Sa[idx], f[idx]))
+        disp_rms = np.sqrt(trapz(Sd[idx], f[idx]))
 
         rms_rows.append({
             "band": label,
-            "acc_ug": acc_rms / G0 * 1e6,
+            "acc_ug": acc_rms / zG0 * 1e6,
             "disp_nm": disp_rms * 1e9
         })
 
