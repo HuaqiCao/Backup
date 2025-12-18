@@ -293,12 +293,12 @@ class _pulse_inspect(lay1
             self._export_para = 1
             benchmarkfile = open(self.FilePath+"data/benchmark.txt","w")
             print("Hello, benchmark!")
-            benchmarkfile.write(str(int(self._peakpos)))
+            benchmarkfile.write(str(self._peakpos))
             benchmarkfile.write("\n")
             benchmarkfile.close()
         else:
             benchmarkfile = open(self.FilePath+"data/benchmark.txt","a+")
-            benchmarkfile.write(str(int(self._peakpos)))
+            benchmarkfile.write(str(self._peakpos))
             benchmarkfile.write("\n")
             benchmarkfile.close()
         return
