@@ -112,7 +112,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.doubleSpinBox_ampmax = QtWidgets.QDoubleSpinBox(self.gridLayoutWidget)
         self.doubleSpinBox_ampmax.setMinimumSize(QtCore.QSize(80, 0))
         self.doubleSpinBox_ampmax.setDecimals(2)
-        self.doubleSpinBox_ampmax.setMaximum(10000000.0)
+        self.doubleSpinBox_ampmax.setMaximum(100000000000.0)
         self.doubleSpinBox_ampmax.setObjectName("doubleSpinBox_ampmax")
         self.gridLayout_3.addWidget(self.doubleSpinBox_ampmax, 0, 4, 1, 1)
         self.doubleSpinBox_dtmin = QtWidgets.QDoubleSpinBox(self.gridLayoutWidget)

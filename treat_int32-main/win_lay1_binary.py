@@ -69,6 +69,9 @@ class _pulse_inspect(lay1
         self.arr_x = np.frombuffer(txt, '<u4').astype(np.dtype('<i4'))
         self.MplWidget.canvas.axes.clear () 
         self.MplWidget.canvas.axes.plot(self.arr_t, self.arr_x, label='Raw signal')
+        # 在你的绘图逻辑中添加这一行
+        self.MplWidget.canvas.figure.subplots_adjust(left=0.14)
+        self.MplWidget.canvas.draw()
         self.MplWidget.defcanvas()
         self.MplWidget.canvas.draw()
         return

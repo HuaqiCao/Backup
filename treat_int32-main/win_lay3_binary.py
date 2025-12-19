@@ -261,7 +261,29 @@ class _benchmark_corr(lay3.Ui_MainWindow):
         print(arr_dt)
         arr_corrcoef = np.array(a_corrcoef)
         eventfile = uproot.recreate(self.FilePath+"data/SearchSignalEvent.root")
-        eventfile["tree1"] = {"Amplitude": arr_amp, "Baseline":arr_bl, "Bl_RMS":arr_bl_RMS, "Max_position":arr_maxp, "Rise_time":arr_rt, "Decay_time":arr_dt, "Corrcoef":arr_corrcoef,"std_dev1":arr_std_dev[0],"std_dev2":arr_std_dev[1],"std_dev3":arr_std_dev[2],"std_dev4":arr_std_dev[3],"std_dev5":arr_std_dev[4],"std_dev6":arr_std_dev[5],"std_dev7":arr_std_dev[6],"std_dev8":arr_std_dev[7],"std_dev9":arr_std_dev[8],"std_dev10":arr_std_dev[9]}
+        # 1. 准备数据字典
+        data_dict = {
+            "Amplitude": arr_amp, 
+            "Baseline": arr_bl, 
+            "Bl_RMS": arr_bl_RMS, 
+            "Max_position": arr_maxp, 
+            "Rise_time": arr_rt, 
+            "Decay_time": arr_dt, 
+            "Corrcoef": arr_corrcoef,
+            "std_dev1": arr_std_dev[0],
+            "std_dev2": arr_std_dev[1],
+            "std_dev3": arr_std_dev[2],
+            "std_dev4": arr_std_dev[3],
+            "std_dev5": arr_std_dev[4],
+            "std_dev6": arr_std_dev[5],
+            "std_dev7": arr_std_dev[6],
+            "std_dev8": arr_std_dev[7],
+            "std_dev9": arr_std_dev[8],
+            "std_dev10": arr_std_dev[9]
+        }
+        eventfile.mktree("tree1", {name: array.dtype for name, array in data_dict.items()})
+        eventfile["tree1"].extend(data_dict)
+
         bar.close()  # 关闭进度条
         print("Hello\n")
         return
