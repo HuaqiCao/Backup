@@ -21,6 +21,7 @@
 using namespace TMath;
 
 void Ana() {
+
     //========================
     // 1. 弹框选择输入 ROOT 文件
     //========================
@@ -51,6 +52,8 @@ void Ana() {
     } else {
         std::cout << "注意：目录 " << outDir << " 可能已存在或创建失败。(若已存在可忽略)" << std::endl;
     }
+    
+    gROOT->SetBatch(kTRUE);
 
     //========================
     // 2. 打开输入 ROOT 文件
@@ -231,6 +234,10 @@ void Ana() {
     cBaselineVsAmplitude->Update();
     cBaselineVsAmplitude->SaveAs((outDir + "/cBaselineVsAmplitude.png").Data());
 
+    f2->cd();
+    cBaselineVsAmplitude->Write();
+
+
     // 2) Time vs Baseline
     TCanvas *cTimeVsBaseline = new TCanvas("cTimeVsBaseline",
                                            "Time vs Baseline",
@@ -243,6 +250,10 @@ void Ana() {
     cTimeVsBaseline->Update();
     cTimeVsBaseline->SaveAs((outDir + "/cTimeVsBaseline.png").Data());
 
+    f2->cd();
+    cTimeVsBaseline->Write();
+
+
     // 3) RiseTime vs DecayTime
     TCanvas *cRiseTimeVsDecayTime = new TCanvas("cRiseTimeVsDecayTime",
                                                 "RiseTime vs DecayTime",
@@ -254,6 +265,9 @@ void Ana() {
     g3->GetYaxis()->SetTitle("DecayTime");
     cRiseTimeVsDecayTime->Update();
     cRiseTimeVsDecayTime->SaveAs((outDir + "/cRiseTimeVsDecayTime.png").Data());
+
+    f2->cd();
+    cRiseTimeVsDecayTime->Write();
 
     // 4) Lstsq_rawfit vs Lstsq_filterfit（轴标题还是沿用你原来写的 chi2_xxx）
     TCanvas *cLstsqRawfitVsLstsqFilterfit =
@@ -269,6 +283,9 @@ void Ana() {
     cLstsqRawfitVsLstsqFilterfit
         ->SaveAs((outDir + "/cLstsqRawfitVsLstsqFilterfit.png").Data());
 
+    f2->cd();
+    cLstsqRawfitVsLstsqFilterfit->Write();
+
     // 5) Amp_rawfit vs Amp_filterfit
     TCanvas *cAmpRawfitVsAmpFilterfit =
         new TCanvas("cAmpRawfitVsAmpFilterfit",
@@ -283,6 +300,9 @@ void Ana() {
     cAmpRawfitVsAmpFilterfit
         ->SaveAs((outDir + "/cAmpRawfitVsAmpFilterfit.png").Data());
 
+    f2->cd();
+    cAmpRawfitVsAmpFilterfit->Write();
+
     // 6) Chi2filtered vs TVL
     TCanvas *cChi2filteredVsTVL = new TCanvas("cChi2filteredVsTVL",
                                               "Chi2filtered vs TVL",
@@ -295,6 +315,9 @@ void Ana() {
     cChi2filteredVsTVL->Update();
     cChi2filteredVsTVL->SaveAs((outDir + "/cChi2filteredVsTVL.png").Data());
 
+    f2->cd();
+    cChi2filteredVsTVL->Write();
+
     // 7) Chi2filtered vs TVR
     TCanvas *cChi2filteredVsTVR = new TCanvas("cChi2filteredVsTVR",
                                               "Chi2filtered vs TVR",
@@ -306,6 +329,9 @@ void Ana() {
     g7->GetYaxis()->SetTitle("TVR");
     cChi2filteredVsTVR->Update();
     cChi2filteredVsTVR->SaveAs((outDir + "/cChi2filteredVsTVR.png").Data());
+
+    f2->cd();
+    cChi2filteredVsTVR->Write();
 
     // 8) Amplitude vs Chi2filtered
     TCanvas *cAmplitudeVsChi2filtered =
@@ -321,6 +347,9 @@ void Ana() {
     cAmplitudeVsChi2filtered
         ->SaveAs((outDir + "/cAmplitudeVsChi2filtered.png").Data());
 
+    f2->cd();
+    cAmplitudeVsChi2filtered->Write();
+
     // 9) Amplitude vs DecayTime
     TCanvas *cAmplitudeVsDecayTime =
         new TCanvas("cAmplitudeVsDecayTime",
@@ -334,6 +363,9 @@ void Ana() {
     cAmplitudeVsDecayTime->Update();
     cAmplitudeVsDecayTime
         ->SaveAs((outDir + "/cAmplitudeVsDecayTime.png").Data());
+
+    f2->cd();
+    cAmplitudeVsDecayTime->Write();
 
     // 10) Amplitude Spectrum (hamp1, hamp2, hamp3)
     TCanvas *cAmplitudeSpectrum =
