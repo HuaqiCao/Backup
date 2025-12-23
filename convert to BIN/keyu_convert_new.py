@@ -16,7 +16,7 @@ def process_tdms_files(input_path, output_path):
     files = [
     f for f in os.listdir(input_path)
     if f.endswith(".tdms")
-    and "2024" in f
+    and "2025" in f
     and not f.startswith("._")   # ← 跳过以 ._ 开头的假文件
     ]
     for file in files:
@@ -77,8 +77,8 @@ def process_tdms_files(input_path, output_path):
 
         print(f"Finished processing file: {fname}")
 
-input_path = "/Volumes/Expansion/Data process/2410"
-output_path = "/Volumes/Expansion/Data process/2410/CSV"
+input_path = r"F:\Data process\2510"
+output_path = r"F:\Data process\2510\BIN_files"
 
 # 调用函数处理TDMS文件
 process_tdms_files(input_path, output_path)
