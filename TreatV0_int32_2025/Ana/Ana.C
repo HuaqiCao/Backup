@@ -13,7 +13,7 @@
 #include "TLegend.h"
 #include "TSystem.h"
 
-// 需要 ROOT GUI 头文件来弹出文件选择对话框
+// 弹框选择文件
 #include "TGClient.h"
 #include "TGFileDialog.h"
 
@@ -36,23 +36,18 @@ void Ana() {
 
     new TGFileDialog(gClient->GetRoot(), 0, kFDOpen, &fi);
     if (!fi.fFilename) {
-        std::cout << "未选择输入文件，退出。" << std::endl;
+        std::cout << "No input file selected. Exit." << std::endl;
         return;
     }
 
     TString inFileName = fi.fFilename;
-    std::cout << "选择的输入文件: " << inFileName << std::endl;
+    std::cout << "Input file selected: " << inFileName << std::endl;
 
     // 输入文件所在目录
     TString inDir = gSystem->DirName(inFileName);
     // 在该目录下新建 Ana 目录
     TString outDir = inDir + "/Ana";
-    if (gSystem->MakeDirectory(outDir) == 0) {
-        std::cout << "输出目录: " << outDir << std::endl;
-    } else {
-        std::cout << "注意：目录 " << outDir << " 可能已存在或创建失败。(若已存在可忽略)" << std::endl;
-    }
-    
+ 
     gROOT->SetBatch(kTRUE);
 
     //========================
@@ -60,13 +55,13 @@ void Ana() {
     //========================
     TFile *f1 = TFile::Open(inFileName, "READ");
     if (!f1 || f1->IsZombie()) {
-        std::cout << "无法打开输入文件: " << inFileName << std::endl;
+       std::cout << "Cannot open input file: " << inFileName << std::endl;
         return;
     }
 
     TTree *T1 = (TTree*) f1->Get("tree1");
     if (!T1) {
-        std::cout << "在文件中未找到 TTree 'tree1'，退出。" << std::endl;
+        std::cout << "TTree 'tree1' not found in input file. Exit." << std::endl;
         f1->Close();
         return;
     }
@@ -116,7 +111,8 @@ void Ana() {
 
     Long64_t nbytes = T1->GetEntry(0);
     (void)nbytes;
-    std::cout << "第一个事件的Amp_filtered: " << Amp_filtered << std::endl;
+    std::cout << "Amp_filtered of first event: "
+          << Amp_filtered << std::endl;
 
     //========================
     // 4. 输出 ROOT 文件 & 直方图
@@ -408,5 +404,6 @@ void Ana() {
     // 关闭输入文件
     f1->Close();
 
-    std::cout << "所有输出已保存到目录：" << outDir << std::endl;
+    std::cout << "All outputs have been saved to directory: "
+          << outDir << std::endl;
 }
