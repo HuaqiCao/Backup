@@ -47,7 +47,14 @@ void Ana() {
     TString inDir = gSystem->DirName(inFileName);
     // 在该目录下新建 Ana 目录
     TString outDir = inDir + "/Ana";
- 
+    // === 确保输出目录存在 ===
+    if (gSystem->MakeDirectory(outDir) != 0 &&
+        gSystem->AccessPathName(outDir)) {
+        std::cerr << "ERROR: cannot create output directory: "
+                << outDir << std::endl;
+        return;
+    }
+
     gROOT->SetBatch(kTRUE);
 
     //========================
@@ -126,7 +133,22 @@ void Ana() {
     TH1D *hamp4 = new TH1D("hamp4"," ;Amplitude;Counts", 30000,0,300000000);
     TH1D *hamp5 = new TH1D("hamp5"," ;Amplitude;Counts", 30000,0,300000000);
 
-    // ★关键：解绑直方图与当前 TFile，避免 f2->Close() 时被删除
+    TH2D *h2_RiseDecay = new TH2D(
+    "h2_RiseDecay",
+    ";RiseTime;DecayTime",
+    400, 0, 4000,
+    400, 0, 4000
+    );
+    h2_RiseDecay->SetDirectory(nullptr);
+
+    TH2D *h2_RawVsFiltered = new TH2D(
+    "h2_RawVsFiltered",
+    ";Raw Amplitude;Filtered Amplitude",
+    400, 0, 300000000,
+    400, 0, 300000000
+    );
+    h2_RawVsFiltered->SetDirectory(nullptr);
+
     hamp1->SetDirectory(nullptr);
     hamp2->SetDirectory(nullptr);
     hamp3->SetDirectory(nullptr);
@@ -182,6 +204,7 @@ void Ana() {
         g1->SetPoint(k1, Baseline, amp_filterfit*Amp_filtered);
         g2->SetPoint(k1, MaxPos/3600./10000., Baseline);
         g3->SetPoint(k1, RiseTime, DecayTime);
+        h2_RiseDecay->Fill(RiseTime, DecayTime);
         g4->SetPoint(k1, lstsq_rawfit, lstsq_filterfit);
         g5->SetPoint(k1, amp_rawfit, amp_filterfit);
         g6->SetPoint(k1, Chi2filtered, TVL);
@@ -194,6 +217,9 @@ void Ana() {
         hamp3->Fill(Amp_filtered/coeff);
         hamp4->Fill(Amp_filtered*amp_filterfit/coeff);
         hamp5->Fill(amp_rawfit/coeff);
+        h2_RawVsFiltered->Fill(Amp_raw, Amp_filtered);
+
+
 
         tcut->Fill();
 
@@ -264,6 +290,19 @@ void Ana() {
 
     f2->cd();
     cRiseTimeVsDecayTime->Write();
+
+    // ★ 2D: RiseTime vs DecayTime
+    TCanvas *cRiseDecay2D = new TCanvas(
+        "cRiseDecay2D",
+        "RiseTime vs DecayTime (2D)",
+        0, 0, 800, 600
+    );
+    cRiseDecay2D->cd();
+    h2_RiseDecay->Draw("COLZ");
+    cRiseDecay2D->SaveAs((outDir + "/cRiseDecay2D.png").Data());
+
+    f2->cd();
+    cRiseDecay2D->Write();
 
     // 4) Lstsq_rawfit vs Lstsq_filterfit（轴标题还是沿用你原来写的 chi2_xxx）
     TCanvas *cLstsqRawfitVsLstsqFilterfit =
@@ -390,6 +429,19 @@ void Ana() {
     cAmplitudeSpectrum
         ->SaveAs((outDir + "/cAmplitudeSpectrum.png").Data());
 
+    // ★ 2D: Raw amp vs Filtered amp
+    TCanvas *cRawVsFiltered2D = new TCanvas(
+        "cRawVsFiltered2D",
+        "Raw vs Filtered Amplitude",
+        0, 0, 800, 600
+    );
+    cRawVsFiltered2D->cd();
+    h2_RawVsFiltered->Draw("COLZ");
+    cRawVsFiltered2D->SaveAs((outDir + "/cRawVsFiltered2D.png").Data());
+
+    f2->cd();
+    cRawVsFiltered2D->Write();
+
     //========================
     // 9. 写 result.root
     //========================
@@ -399,6 +451,8 @@ void Ana() {
     hamp3->Write();
     hamp4->Write();
     hamp5->Write();
+    h2_RiseDecay->Write();
+    h2_RawVsFiltered->Write();
     f2->Close();
 
     // 关闭输入文件
