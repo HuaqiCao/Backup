@@ -238,7 +238,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.gridLayout_2.addWidget(self.label_19, 1, 0, 1, 1)
         self.spinBox_bls = QtWidgets.QSpinBox(self.layoutWidget2)
         self.spinBox_bls.setMinimum(0)
-        self.spinBox_bls.setMaximum(100000000000000)
+        self.spinBox_bls.setMaximum(1000000000)
         self.spinBox_bls.setSingleStep(10)
         self.spinBox_bls.setProperty("value", 30)
         self.spinBox_bls.setObjectName("spinBox_bls")
