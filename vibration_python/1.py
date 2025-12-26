@@ -1,265 +1,95 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-"""
-GUI-based TDMS slow thermal component extraction for NTD bolometer pulses.
-
-Key features:
-- Tkinter dialog to select one or multiple TDMS files
-- Explicit matplotlib Agg backend (avoids Windows TkAgg deadlock)
-- Baseline subtraction
-- Peak finding
-- Late-tail single exponential fit (thermal slow component)
-- Tail quality metrics (R2, chi2)
-- Save diagnostic PNG plots
-
-Physics motivation:
-- Particle deposition events show a stable exponential thermal tail
-- Vibration/microphonic events typically deviate from this behavior
-"""
-
-# ============================================================
-# !!! CRITICAL FIX !!!
-# Must be before importing matplotlib.pyplot
-# ============================================================
-import matplotlib
-matplotlib.use("Agg")
-
-# ============================================================
-# Standard imports
-# ============================================================
-import os
 import numpy as np
 import matplotlib.pyplot as plt
-
-from nptdms import TdmsFile
+from tkinter import filedialog, Tk
 from scipy.optimize import curve_fit
-from scipy.stats import linregress
+import os
 
-# GUI
-import tkinter as tk
-from tkinter import filedialog, messagebox
+def double_exponential(t, A_f, tau_f, A_s, tau_s, offset):
+    """双指数衰减数学模型"""
+    return A_f * np.exp(-t / tau_f) + A_s * np.exp(-t / tau_s) + offset
 
+def fit_particle_signal(file_path, fs=5000):
+    """对单个文件进行预处理和拟合"""
+    try:
+        raw_data = np.loadtxt(file_path)
+        # 基础预处理：去基线
+        data = raw_data - np.mean(raw_data[:50])
+        # 自动翻转脉冲，确保峰值向上
+        if np.abs(np.min(data)) > np.max(data):
+            data = -data
+            
+        peak_idx = np.argmax(data)
+        fit_data = data[peak_idx:]
+        t_fit = np.arange(len(fit_data)) / fs
+        
+        # 初始参数猜测: [Af, tf, As, ts, offset]
+        p0 = [max(fit_data)*0.6, 0.002, max(fit_data)*0.4, 0.015, 0]
+        bounds = (0, [np.inf, 0.1, np.inf, 1.0, np.inf])
 
-# ============================================================
-# Model: single exponential (slow thermal component)
-# ============================================================
-def exp1(t, A, tau):
-    return A * np.exp(-t / tau)
+        popt, _ = curve_fit(double_exponential, t_fit, fit_data, p0=p0, bounds=bounds, maxfev=10000)
+        
+        return {
+            "file_name": os.path.basename(file_path),
+            "t_full": (np.arange(len(data)) - peak_idx) / fs,
+            "d_full": data,
+            "t_fit": t_fit,
+            "fit_params": popt,
+            "fit_curve": double_exponential(t_fit, *popt)
+        }
+    except Exception as e:
+        print(f"文件 {file_path} 处理失败: {e}")
+        return None
 
-
-# ============================================================
-# TDMS channel detection
-# ============================================================
-def detect_time_voltage_channels(tdms):
-    """
-    Heuristically detect time and voltage channels from TDMS.
-    Assumes:
-      - time channel is mostly increasing
-      - voltage channel has pulse-like structure
-    """
-    channels = []
-    for g in tdms.groups():
-        for ch in g.channels():
-            arr = np.asarray(ch[:])
-            if arr.ndim == 1 and arr.size > 20:
-                channels.append((g.name, ch.name, arr))
-
-    if len(channels) < 2:
-        raise RuntimeError("TDMS does not contain enough 1D channels")
-
-    # ---- find time channel ----
-    scores = []
-    for g, n, arr in channels:
-        diff = np.diff(arr)
-        inc_ratio = np.mean(diff > 0)
-        score = inc_ratio + 0.1 * np.var(arr)
-        scores.append(((g, n, arr), score))
-
-    scores.sort(key=lambda x: x[1], reverse=True)
-    time_arr = scores[0][0][2]
-
-    # ---- find voltage channel ----
-    best = None
-    best_score = -np.inf
-    for g, n, arr in channels:
-        if arr.size != time_arr.size:
-            continue
-        x = arr - np.median(arr)
-        rms = np.sqrt(np.mean(x**2)) + 1e-12
-        score = np.max(np.abs(x)) / rms
-        if score > best_score:
-            best_score = score
-            best = arr
-
-    if best is None:
-        raise RuntimeError("Failed to identify voltage channel")
-
-    return time_arr, best
-
-
-# ============================================================
-# Core analysis: extract slow component
-# ============================================================
-def analyze_pulse(time, voltage,
-                  baseline_frac=0.2,
-                  tail_start_offset=0.002,
-                  tail_end_margin=0.001,
-                  min_positive_points=50):
-
-    time = np.asarray(time)
-    v = np.asarray(voltage)
-
-    # Ensure increasing time
-    if np.any(np.diff(time) <= 0):
-        idx = np.argsort(time)
-        time = time[idx]
-        v = v[idx]
-
-    # ---- baseline ----
-    t0, t1 = time[0], time[-1]
-    bl_mask = time < (t0 + baseline_frac * (t1 - t0))
-    baseline = np.mean(v[bl_mask])
-    v_bl = v - baseline
-
-    # ---- peak ----
-    peak_idx = np.argmax(v_bl)
-    t_peak = time[peak_idx]
-    A_peak = v_bl[peak_idx]
-
-    # ---- tail window ----
-    tail_start = t_peak + tail_start_offset
-    tail_end = time[-1] - tail_end_margin
-
-    if tail_end <= tail_start:
-        raise RuntimeError("Invalid tail window")
-
-    mask = (time >= tail_start) & (time <= tail_end)
-    t_tail = time[mask] - tail_start
-    v_tail = v_bl[mask]
-
-    pos = v_tail > 0
-    t_fit = t_tail[pos]
-    v_fit = v_tail[pos]
-
-    if t_fit.size < min_positive_points:
-        raise RuntimeError("Not enough positive tail points for fit")
-
-    # ---- exponential fit ----
-    A0 = v_fit[0]
-    tau0 = 0.2 * (t_fit[-1] - t_fit[0])
-
-    popt, _ = curve_fit(
-        exp1,
-        t_fit,
-        v_fit,
-        p0=[A0, tau0],
-        bounds=([0.0, 1e-9], [np.inf, np.inf]),
-        maxfev=20000
-    )
-
-    A_s, tau_s = popt
-
-    # ---- tail quality ----
-    logv = np.log(v_fit)
-    slope, intercept, r, _, _ = linregress(t_fit, logv)
-    R2_tail = r**2
-
-    pred = exp1(t_fit, A_s, tau_s)
-    resid = v_fit - pred
-    chi2_tail = np.mean((resid / (np.std(v_fit) + 1e-12))**2)
-
-    # ---- reconstruct slow component ----
-    slow = np.zeros_like(v_bl)
-    t_full = time - tail_start
-    valid = t_full >= 0
-    slow[valid] = exp1(t_full[valid], A_s, tau_s)
-
-    metrics = {
-        "baseline": baseline,
-        "t_peak": t_peak,
-        "A_peak": A_peak,
-        "A_s": A_s,
-        "tau_s": tau_s,
-        "R2_tail": R2_tail,
-        "chi2_tail": chi2_tail,
-        "tail_start": tail_start
-    }
-
-    return metrics, time, v_bl, slow
-
-
-# ============================================================
-# Plot and save
-# ============================================================
-def save_plot(out_png, time, signal, slow, metrics):
-    plt.figure(figsize=(10, 6))
-    plt.plot(time, signal, label="Signal (baseline subtracted)")
-    plt.plot(time, slow, "--", label="Slow thermal component")
-    plt.axvline(metrics["tail_start"], linestyle=":", color="k")
-    plt.xlabel("Time")
-    plt.ylabel("Voltage")
-    plt.title(
-        f"tau_s = {metrics['tau_s']:.4e} s, "
-        f"R2_tail = {metrics['R2_tail']:.4f}"
-    )
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(out_png, dpi=150)
-    plt.close()
-
-
-# ============================================================
-# Main (GUI)
-# ============================================================
 def main():
-    root = tk.Tk()
+    # 1. 初始化文件选择
+    root = Tk()
     root.withdraw()
-
-    messagebox.showinfo(
-        "Select TDMS file(s)",
-        "Select one or more TDMS files\n"
-        "containing time & voltage channels (NTD readout)."
-    )
-
-    files = filedialog.askopenfilenames(
-        title="Select TDMS file(s)",
-        filetypes=[("TDMS files", "*.tdms")]
-    )
-
+    print("请选择粒子信号文件（按住 Ctrl 或 Shift 可多选）...")
+    files = filedialog.askopenfilenames(title="选择粒子信号文件", 
+                                        filetypes=[("Text/Tex files", "*.txt *.tex"), ("All files", "*.*")])
+    
     if not files:
-        messagebox.showwarning("No file selected", "No TDMS file selected.")
+        print("未选择任何文件。")
         return
 
-    outdir = "out_slow"
-    os.makedirs(outdir, exist_ok=True)
+    num_files = len(files)
+    print(f"已选择 {num_files} 个文件。开始分析...")
 
-    for fp in files:
-        name = os.path.splitext(os.path.basename(fp))[0]
-        print(f"\nProcessing {name} ...")
+    # 2. 动态创建画布布局
+    # 计算子图行数，每列放 1 个，或者根据需要调整
+    fig, axes = plt.subplots(num_files, 1, figsize=(10, 4 * num_files), squeeze=False)
+    
+    for i, path in enumerate(files):
+        res = fit_particle_signal(path)
+        ax = axes[i, 0]
+        
+        if res:
+            Af, tf, As, ts, off = res["fit_params"]
+            
+            # 终端输出参数
+            print(f"\n>>> [{res['file_name']}]")
+            print(f"  tau_fast: {tf*1000:.3f} ms | tau_slow: {ts*1000:.3f} ms")
+            print(f"  幅度比 (Af/As): {Af/As:.3f}")
 
-        try:
-            tdms = TdmsFile.read(fp)
-            time, volt = detect_time_voltage_channels(tdms)
+            # 绘图：原始数据与拟合曲线
+            ax.plot(res["t_full"], res["d_full"], 'k.', alpha=0.15, label='Raw Data')
+            ax.plot(res["t_fit"], res["fit_curve"], 'r-', linewidth=2, label='Total Fit')
+            
+            # 绘图：拆解成分
+            ax.plot(res["t_fit"], Af * np.exp(-res["t_fit"]/tf) + off, 'g--', alpha=0.7, label='Fast Comp')
+            ax.plot(res["t_fit"], As * np.exp(-res["t_fit"]/ts) + off, 'b--', alpha=0.7, label='Slow Comp')
+            
+            ax.set_title(f"File: {res['file_name']} (tf={tf*1000:.2f}ms, ts={ts*1000:.2f}ms)")
+            ax.set_ylabel("ADC")
+            ax.legend(loc='upper right', fontsize='small')
+            ax.grid(True, alpha=0.2)
+        else:
+            ax.text(0.5, 0.5, "Fit Failed", ha='center')
 
-            metrics, t, v_bl, slow = analyze_pulse(time, volt)
-
-            out_png = os.path.join(outdir, f"{name}_slow.png")
-            save_plot(out_png, t, v_bl, slow, metrics)
-
-            print(
-                f"  tau_s = {metrics['tau_s']:.4e} s, "
-                f"R2_tail = {metrics['R2_tail']:.4f}"
-            )
-
-        except Exception as e:
-            print(f"  ERROR: {e}")
-
-    messagebox.showinfo(
-        "Done",
-        f"Analysis finished.\nResults saved in:\n{outdir}"
-    )
-
+    plt.xlabel("Time from Peak (s)")
+    plt.tight_layout()
+    print("\n所有文件处理完毕。")
+    plt.show()
 
 if __name__ == "__main__":
     main()
