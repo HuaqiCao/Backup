@@ -199,6 +199,12 @@ void Ana() {
         if (amp_rawfit < 0) continue;
         if (DecayTime < 10) continue;
 
+        if (Chi2filtered >= 1.0) continue;  
+        if (lstsq_filterfit >= 300) continue;            
+        if (DecayTime < 60 || DecayTime >= 300) continue; 
+        if (RiseTime >= 80) continue;          
+        if (lstsq_filterfit >= 1000) continue;  
+
         ene = amp_filterfit * Amp_filtered;
 
         // Fill graphs and histograms
