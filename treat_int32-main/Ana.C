@@ -192,6 +192,8 @@ void Ana() {
     for(int i = 0; i < n; i++) {
         T1->GetEntry(i);
 
+        double timeInHours = (double)MaxPos / 3600.0 / 10000.0;
+
         // Apply filtering conditions
         if (Amp_raw < 0) continue;
         if (Amp_filtered < 0.0) continue;
@@ -200,10 +202,16 @@ void Ana() {
         if (DecayTime < 10) continue;
 
         if (Chi2filtered >= 1.0) continue;  
-        if (lstsq_filterfit >= 300) continue;            
-        if (DecayTime < 60 || DecayTime >= 300) continue; 
-        if (RiseTime >= 80) continue;          
-        if (lstsq_filterfit >= 1000) continue;  
+        //if (lstsq_filterfit >= 300) continue;            
+        //if (DecayTime < 10 || DecayTime >= 300) continue; 
+        //if (RiseTime >= 80) continue;          
+        //if (lstsq_filterfit >= 1000) continue;  
+
+        //if (timeInHours >= 0.25 && timeInHours <= 0.65) continue;
+        //if (timeInHours >= 1.15 && timeInHours <= 1.2) continue;
+        //if (timeInHours >= 1.3 && timeInHours <= 1.35) continue;
+        //if (timeInHours >= 1.4 && timeInHours <= 1.45) continue;
+        //if (timeInHours >= 1.5 && timeInHours <= 1.9) continue;
 
         ene = amp_filterfit * Amp_filtered;
 

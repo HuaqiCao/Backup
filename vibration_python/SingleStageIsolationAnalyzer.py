@@ -157,7 +157,7 @@ def run_analysis(params):
 
         rms_rows.append({
             "band": label,
-            "acc_ug": acc_rms / zG0 * 1e6,
+            "acc_ug": acc_rms / G0 * 1e6,
             "disp_nm": disp_rms * 1e9
         })
 
@@ -165,8 +165,8 @@ def run_analysis(params):
     filename_only = os.path.basename(params["csv_path"])
     print_rms_console_excel_style(rms_rows, filename_only)
 
-    # -------- 保存 RMS 为 Excel --------
-    rms_excel = pd.DataFrame([{
+    # -------- 保存 RMS 为 CSV（避免 openpyxl 依赖）--------
+    rms_df = pd.DataFrame([{
         "File": filename_only,
         "Acc RMS (µg) 1–40": rms_rows[0]["acc_ug"],
         "Acc RMS (µg) 40–1000": rms_rows[1]["acc_ug"],
@@ -177,8 +177,8 @@ def run_analysis(params):
     }])
 
     csv_dir = os.path.dirname(params["csv_path"])
-    save_path = os.path.join(csv_dir, os.path.splitext(filename_only)[0] + "_RMS.xlsx")
-    rms_excel.to_excel(save_path, index=False)
+    save_path = os.path.join(csv_dir, os.path.splitext(filename_only)[0] + "_RMS.csv")
+    rms_df.to_csv(save_path, index=False)
     print(f"RMS 结果已保存至：\n{save_path}\n")
 
     # ======================= 绘图 =======================
@@ -187,57 +187,128 @@ def run_analysis(params):
     mpl.rcParams['mathtext.fontset'] = 'cm'          
     mpl.rcParams['axes.unicode_minus'] = False        
 
-    # ---- LPSD（输入/输出）----
-    plt.figure()
-    plt.loglog(f[pos], LPSD_disp[pos], label="Input")
-    plt.loglog(f[pos], LPSD_disp_out[pos], label="Output")
-    plt.xlabel("Frequency (Hz)")
-    plt.ylabel(r"LPSD [nm/$\sqrt{\mathrm{Hz}}$]")
-    plt.title("Displacement LPSD (Input vs Output)")
-    plt.grid(True, which="both")
-    plt.legend()
+    # ---- 加速度 LPSD（输入/输出）- 单位：g/√Hz ----
+    LPSD_acc_g = np.sqrt(Sa) / G0  # 加速度 LPSD，单位：g/√Hz
+    LPSD_acc_out_g = np.sqrt(Sa_out) / G0  # 输出加速度 LPSD
 
-    # ---- FFT（输入/输出）----
-    plt.figure()
-    plt.plot(f_fft, Amp_in, label="Input FFT")
-    plt.plot(f_fft, Amp_out, label="Output FFT")
-    plt.xlabel("Frequency (Hz)")
-    plt.ylabel("Amplitude")
-    plt.title("FFT Amplitude (Input vs Output)")
-    plt.grid(True)
-    plt.legend()
+    plt.figure(figsize=(10, 6))
+    plt.loglog(f[pos], LPSD_acc_g[pos], label="Input", linewidth=1.5)
+    plt.loglog(f[pos], LPSD_acc_out_g[pos], label="Output", linewidth=1.5)
+    plt.xlabel("Frequency (Hz)", fontsize=12)
+    plt.ylabel(r"LPSD [g/$\sqrt{\mathrm{Hz}}$]", fontsize=12)
+    plt.title("Acceleration LPSD (Input vs Output)", fontsize=14)
+    plt.grid(True, which="both", linestyle='--', alpha=0.6)
+    plt.legend(fontsize=11)
+    plt.xlim(f[pos][0], f[pos][-1])
+    plt.axvline(x=fn, color='r', linestyle=':', alpha=0.7, label=f'fn={fn:.2f} Hz')
+    plt.legend(fontsize=11)
+    plt.tight_layout()
+
+    # ---- 位移 LPSD（输入/输出）----
+    plt.figure(figsize=(10, 6))
+    plt.loglog(f[pos], LPSD_disp[pos], label="Input", linewidth=1.5)
+    plt.loglog(f[pos], LPSD_disp_out[pos], label="Output", linewidth=1.5)
+    plt.xlabel("Frequency (Hz)", fontsize=12)
+    plt.ylabel(r"LPSD [nm/$\sqrt{\mathrm{Hz}}$]", fontsize=12)
+    plt.title("Displacement LPSD (Input vs Output)", fontsize=14)
+    plt.grid(True, which="both", linestyle='--', alpha=0.6)
+    plt.legend(fontsize=11)
+    plt.xlim(f[pos][0], f[pos][-1])
+    plt.axvline(x=fn, color='r', linestyle=':', alpha=0.7, label=f'fn={fn:.2f} Hz')
+    plt.legend(fontsize=11)
+    plt.tight_layout()
+
+    # ---- FFT（输入/输出）- 单位：g ----
+    # 将FFT幅度从m/s²转换为g
+    Amp_in_g = Amp_in / G0
+    Amp_out_g = Amp_out / G0
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(f_fft, Amp_in_g, label="Input FFT", linewidth=1.5)
+    plt.plot(f_fft, Amp_out_g, label="Output FFT", linewidth=1.5)
+    plt.xlabel("Frequency (Hz)", fontsize=12)
+    plt.ylabel("Amplitude (g)", fontsize=12)
+    plt.title("FFT Amplitude (Input vs Output)", fontsize=14)
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.legend(fontsize=11)
     plt.xlim(0, 100)
 
-    ABS_Y_LIMIT = 0.001
-    y_max = max(np.max(Amp_in), np.max(Amp_out))
+    ABS_Y_LIMIT = 0.0001  # 调整y轴限制
+    y_max = max(np.max(Amp_in_g), np.max(Amp_out_g))
     plt.ylim(0, min(y_max * 1.1, ABS_Y_LIMIT) if y_max > 0 else ABS_Y_LIMIT)
+    plt.tight_layout()
 
-    # ---- PSD（输入/输出）----
-    plt.figure()
-    plt.loglog(f[pos], Sa[pos], label="Input PSD")
-    plt.loglog(f[pos], Sa_out[pos], label="Output PSD")
-    plt.xlabel("Frequency (Hz)")
-    plt.ylabel(r"PSD [$(\mathrm{m/s^2})^2$/Hz]")
-    plt.title("Acceleration PSD (Input vs Output)")
-    plt.grid(True, which="both")
-    plt.legend()
+    # ---- PSD（输入/输出）- 单位：g²/Hz ----
+    Sa_g = Sa / (G0**2)  # 转换为g²/Hz
+    Sa_out_g = Sa_out / (G0**2)  # 输出PSD
+    
+    plt.figure(figsize=(10, 6))
+    plt.loglog(f[pos], Sa_g[pos], label="Input PSD", linewidth=1.5)
+    plt.loglog(f[pos], Sa_out_g[pos], label="Output PSD", linewidth=1.5)
+    plt.xlabel("Frequency (Hz)", fontsize=12)
+    plt.ylabel(r"PSD [g$^2$/Hz]", fontsize=12)
+    plt.title("Acceleration PSD (Input vs Output)", fontsize=14)
+    plt.grid(True, which="both", linestyle='--', alpha=0.6)
+    plt.legend(fontsize=11)
+    plt.xlim(f[pos][0], f[pos][-1])
+    plt.tight_layout()
 
-    # ----时域（输入/输出) ----
+    # ---- 时域信号（输入/输出电压对比） ----
+    # 计算输出电压：将输出的加速度转换回电压
+    # 注意：a_ms2_dt 是去趋势后的加速度(m/s²)
+    # 首先恢复完整的输出加速度信号
     A_fft = np.fft.rfft(a_ms2_dt)
     A_out_fft = A_fft * TR_fft
-    a_out_ms2 = np.fft.irfft(A_out_fft, n=N)
+    a_out_ms2_full = np.fft.irfft(A_out_fft, n=N)
+    
+    # 输入电压（原始，不去直流）
+    volt_in = volt  # 已经是电压值
+    
+    # 输出电压：需要将输出的加速度(g)转换回电压
+    # 注意：a_out_ms2_full 是 m/s²，需要先转换为 g
+    a_out_g_full = a_out_ms2_full / G0
+    
+    # 输出电压 = 输出加速度(g) × 增益 × 传感器灵敏度
+    volt_out = a_out_g_full * GAIN * SENS_V_PER_G
+    
     t_show = time[:1000]       
-    a_in_show = a_ms2_dt[:1000]
-    a_out_show = a_out_ms2[:1000]
+    volt_in_show = volt_in[:1000]
+    volt_out_show = volt_out[:1000]
 
-    plt.figure()
-    plt.plot(t_show, a_in_show, label="Input (before isolation)")
-    plt.plot(t_show, a_out_show, label="Output (after isolation)")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Acceleration (m/s²)")
-    plt.title("Time-Domain Signal (Before vs After Isolation)")
-    plt.legend()
-    plt.grid(True)
+    # 打印一些统计信息用于调试
+    print("\n===== 电压信号统计 =====")
+    print(f"输入电压均值: {np.mean(volt_in_show):.6f} V")
+    print(f"输入电压标准差: {np.std(volt_in_show):.6f} V")
+    print(f"输入电压范围: [{np.min(volt_in_show):.6f}, {np.max(volt_in_show):.6f}] V")
+    print(f"输出电压均值: {np.mean(volt_out_show):.6f} V")
+    print(f"输出电压标准差: {np.std(volt_out_show):.6f} V")
+    print(f"输出电压范围: [{np.min(volt_out_show):.6f}, {np.max(volt_out_show):.6f}] V")
+    print("=======================\n")
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(t_show, volt_in_show, label="Input Voltage", linewidth=1.5, color='blue')
+    plt.plot(t_show, volt_out_show, label="Output Voltage", linewidth=1.5, color='red', linestyle='--')
+    plt.xlabel("Time (s)", fontsize=12)
+    plt.ylabel("Voltage (V)", fontsize=12)
+    plt.title("Voltage Signal Comparison (Input vs Output)", fontsize=14)
+    plt.legend(fontsize=11)
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.tight_layout()
+
+    # ---- 时域（输入/输出）- 单位：g ----
+    # 将加速度从m/s²转换为g
+    a_in_g = a_ms2_dt[:1000] / G0
+    a_out_g = a_out_ms2_full[:1000] / G0
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(t_show, a_in_g, label="Input (before isolation)", linewidth=1.5)
+    plt.plot(t_show, a_out_g, label="Output (after isolation)", linewidth=1.5)
+    plt.xlabel("Time (s)", fontsize=12)
+    plt.ylabel("Acceleration (g)", fontsize=12)
+    plt.title("Time-Domain Signal (Before vs After Isolation)", fontsize=14)
+    plt.legend(fontsize=11)
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.tight_layout()
 
     plt.show()
 
@@ -259,7 +330,7 @@ def main():
     win.title("输入弹簧参数与质量")
 
     labels = ["线径 d (mm)", "外径 Dout (mm)", "内径 Din (mm)", "圈数 N", "质量 m (kg)"]
-    defaults = ["1", "11", "9", "100", "1"]
+    defaults = ["1", "11", "9", "100", "1.2"]
 
     entries = {}
     for i, (lab, defval) in enumerate(zip(labels, defaults)):
