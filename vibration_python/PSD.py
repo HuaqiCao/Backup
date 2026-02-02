@@ -1,11 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import get_window, detrend
+from scipy.signal import get_window
 from scipy.fft import fft
 from tkinter import Tk, filedialog
 import os
-import re
-from nptdms import TdmsFile
 import pandas as pd
 
 # ===================== 环境配置：罗马字体与负号修复 =====================
@@ -17,8 +15,8 @@ def process_files():
     root = Tk()
     root.withdraw()
     file_paths = filedialog.askopenfilenames(
-        title="选择数据文件 (可多选 CSV 或 TDMS)",
-        filetypes=[("数据文件", "*.csv *.tdms")]
+        title="选择数据文件 (可多选 TXT 文件)",
+        filetypes=[("文本文件", "*.txt")]
     )
 
     if not file_paths:
@@ -32,45 +30,34 @@ def process_files():
         ext = os.path.splitext(filename)[1].lower()
 
         try:
-            # --- 鲁棒的数据读取 ---
-            if ext == '.csv':
-                df = pd.read_csv(file_path, encoding='latin1')
-                numeric_cols = df.select_dtypes(include=[np.number]).columns
+            # --- 读取 TXT 文件，跳过前两行标题 ---
+            if ext == '.txt':
+                # Read the file, skipping the first row as header
+                df = pd.read_csv(file_path, delimiter='\t', header=0, dtype={0: 'float64', 1: 'float64'})  # Enforce float64 for both columns
 
-                if len(numeric_cols) == 0:
-                    print(f"{filename}: 未找到数值列")
+                # Check if the file has the correct number of columns
+                if df.shape[1] < 2:
+                    print(f"{filename}: 数据格式不正确，必须包含时间和电压值")
                     continue
-                elif len(numeric_cols) >= 2:
-                    data = df[numeric_cols[1]].values
-                else:
-                    data = df[numeric_cols[0]].values
 
-                # 删除 NaN 和 Inf 值
-                data = data[~np.isnan(data)]
-                data = data[~np.isinf(data)]
-                
-                if len(data) == 0:
-                    print(f"{filename}: 数值数据为空")
+                # Extract time and voltage data from the first and second columns
+                time_data = pd.to_numeric(df.iloc[:, 0], errors='coerce').values  # First column as time (in seconds)
+                voltage_data = pd.to_numeric(df.iloc[:, 1], errors='coerce').values  # Second column as voltage (V)
+
+                # Check if time_data is valid
+                if len(time_data) < 2:
+                    print(f"{filename}: 时间数据长度无效")
                     continue
-                
-                # 估算采样率（假设数据均匀采样）
-                if 'time' in df.columns:
-                    time_data = df['time'].values
-                    time_interval = np.mean(np.diff(time_data))  # 获取平均时间间隔
-                    fs = 1 / time_interval  # 计算采样率
-                else:
-                    time_span = len(data) / 1000.0  # 假设数据时间跨度为秒数（根据需要调整）
-                    fs = len(data) / time_span  # 估算采样率
 
-            elif ext == '.tdms':
-                tdms = TdmsFile.read(file_path)
-                data = None
-                for group in tdms.groups():
-                    if len(group.channels()) > 0:
-                        data = group.channels()[0].data
-                        break
-                if data is None: 
-                    print(f"{filename}: 未找到有效数据")
+                # Calculate the time intervals (differences between consecutive time points)
+                time_diff = np.diff(time_data)
+
+                # Ensure the time differences are positive and valid
+                if np.all(time_diff > 0):
+                    fs = 1 / np.mean(time_diff)  # Calculate sampling rate as the inverse of the average time difference
+                    print(f"{filename}: 计算的采样率 = {fs:.2f} Hz")
+                else:
+                    print(f"{filename}: 时间数据无效，无法计算采样率")
                     continue
 
             # --- 2. 参数设置 ---
@@ -86,15 +73,15 @@ def process_files():
                 gain = 100.0
 
             # --- 3. 去除前后30秒数据 ---
-            num_samples_to_remove = int(30 * fs)  # 30秒的样本数
-            if len(data) > 2 * num_samples_to_remove:
-                data = data[num_samples_to_remove:-num_samples_to_remove]  # 去掉前后30秒数据
+            num_samples_to_remove = int(60 * fs)  # 30秒的样本数
+            if len(voltage_data) > 2 * num_samples_to_remove:
+                voltage_data = voltage_data[num_samples_to_remove:-num_samples_to_remove]  # 去掉前后30秒数据
             else:
                 print(f"{filename}: 数据长度不足以去除30秒")
                 continue
 
             # --- 4. 信号预处理 ---
-            acc_data = data / (gain * sen) 
+            acc_data = voltage_data / (gain * sen) 
             acc_data = acc_data - np.mean(acc_data)  # 去除直流分量
 
             if len(acc_data) < fs:
