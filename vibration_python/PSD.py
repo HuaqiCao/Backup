@@ -30,10 +30,21 @@ def process_files():
         ext = os.path.splitext(filename)[1].lower()
 
         try:
-            # --- 读取 TXT 文件，跳过前两行标题 ---
+            # --- 读取 TXT 文件 ---
             if ext == '.txt':
-                # Read the file, skipping the first row as header
-                df = pd.read_csv(file_path, delimiter='\t', header=0, dtype={0: 'float64', 1: 'float64'})  # Enforce float64 for both columns
+                # Read the file assuming it's space or tab-separated
+                df = pd.read_csv(file_path, delimiter=r'\s+', header=None, dtype={0: 'str', 1: 'str'}, skiprows=1)  # Skip the first row (header)
+
+                # Remove any non-numeric characters from the time and voltage columns
+                df[0] = df[0].replace(r'[^\d.]+', '', regex=True)  # Remove non-numeric characters from the time column
+                df[1] = df[1].replace(r'[^\d.-]+', '', regex=True)  # Remove non-numeric characters from the voltage column
+
+                # Convert the columns to numeric, coercing any errors (non-numeric values become NaN)
+                df[0] = pd.to_numeric(df[0], errors='coerce')
+                df[1] = pd.to_numeric(df[1], errors='coerce')
+
+                # --- Remove rows where any column has NaN values (invalid data) ---
+                df = df.dropna(subset=[0, 1])  # Drop rows with NaN values in either column
 
                 # Check if the file has the correct number of columns
                 if df.shape[1] < 2:
@@ -41,24 +52,30 @@ def process_files():
                     continue
 
                 # Extract time and voltage data from the first and second columns
-                time_data = pd.to_numeric(df.iloc[:, 0], errors='coerce').values  # First column as time (in seconds)
-                voltage_data = pd.to_numeric(df.iloc[:, 1], errors='coerce').values  # Second column as voltage (V)
+                time_data = df.iloc[:, 0].values  # First column as time (in seconds)
+                voltage_data = df.iloc[:, 1].values  # Second column as voltage (V)
 
-                # Check if time_data is valid
-                if len(time_data) < 2:
-                    print(f"{filename}: 时间数据长度无效")
-                    continue
+                # Debugging: print the time data to check for invalid entries
+                print(f"Time data after conversion: {time_data[:10]}")  # Print the first 10 values of time data
 
-                # Calculate the time intervals (differences between consecutive time points)
-                time_diff = np.diff(time_data)
-
-                # Ensure the time differences are positive and valid
-                if np.all(time_diff > 0):
-                    fs = 1 / np.mean(time_diff)  # Calculate sampling rate as the inverse of the average time difference
-                    print(f"{filename}: 计算的采样率 = {fs:.2f} Hz")
-                else:
+                # Ensure time_data has enough valid points (must be greater than 2)
+                if len(time_data) < 2 or np.any(np.isnan(time_data)):
                     print(f"{filename}: 时间数据无效，无法计算采样率")
                     continue
+
+                # --- Calculate Time Differences ---
+                time_diff = np.diff(time_data)
+
+                # Debugging: print time differences to check for irregularities
+                print(f"Time differences: {time_diff[:10]}")  # Print the first 10 time differences
+
+                # Directly calculate the sampling rate from the time differences
+                fs = 1 / np.mean(time_diff)  # Calculate sampling rate as the inverse of the average time difference
+                print(f"{filename}: 计算的采样率 = {fs:.2f} Hz")
+
+                # If sampling rate is unusually low, print a warning
+                if fs < 100:
+                    print(f"警告: {filename} 的采样率非常低: {fs:.2f} Hz")
 
             # --- 2. 参数设置 ---
             sen = 0.957
@@ -73,7 +90,7 @@ def process_files():
                 gain = 100.0
 
             # --- 3. 去除前后30秒数据 ---
-            num_samples_to_remove = int(60 * fs)  # 30秒的样本数
+            num_samples_to_remove = int(30 * fs)  # 30秒的样本数
             if len(voltage_data) > 2 * num_samples_to_remove:
                 voltage_data = voltage_data[num_samples_to_remove:-num_samples_to_remove]  # 去掉前后30秒数据
             else:
