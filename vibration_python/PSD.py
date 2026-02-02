@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import get_window
+from scipy.signal import get_window, find_peaks
 from scipy.fft import fft
 from tkinter import Tk, filedialog
 import os
@@ -24,6 +24,8 @@ def process_files():
 
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2']
     plt.figure(figsize=(10, 6))
+
+    peak_data = []  # To store peak data (frequency, peak value, filename)
 
     for idx, file_path in enumerate(file_paths):
         filename = os.path.basename(file_path)
@@ -73,94 +75,110 @@ def process_files():
                 fs = 1 / np.mean(time_diff)  # Calculate sampling rate as the inverse of the average time difference
                 print(f"{filename}: 计算的采样率 = {fs:.2f} Hz")
 
-                # If sampling rate is unusually low, print a warning
-                if fs < 100:
-                    print(f"警告: {filename} 的采样率非常低: {fs:.2f} Hz")
+                # --- Parameters for processing ---
+                sen = 0.957
+                g = 9.81
+                wint = 5
 
-            # --- 2. 参数设置 ---
-            sen = 0.957
-            g = 9.81
-            wint = 5
+                if "gain100" in filename.lower():
+                    gain = 100.122
+                elif "gain10" in filename.lower():
+                    gain = 10.003
+                else:
+                    gain = 100.0
 
-            if "gain100" in filename.lower():
-                gain = 100.122
-            elif "gain10" in filename.lower():
-                gain = 10.003
-            else:
-                gain = 100.0
+                # --- 3. 去除前后30秒数据 ---
+                num_samples_to_remove = int(60 * fs)  # 30秒的样本数
+                if len(voltage_data) > 2 * num_samples_to_remove:
+                    voltage_data = voltage_data[num_samples_to_remove:-num_samples_to_remove]  # 去掉前后30秒数据
+                else:
+                    print(f"{filename}: 数据长度不足以去除30秒")
+                    continue
 
-            # --- 3. 去除前后30秒数据 ---
-            num_samples_to_remove = int(30 * fs)  # 30秒的样本数
-            if len(voltage_data) > 2 * num_samples_to_remove:
-                voltage_data = voltage_data[num_samples_to_remove:-num_samples_to_remove]  # 去掉前后30秒数据
-            else:
-                print(f"{filename}: 数据长度不足以去除30秒")
-                continue
+                # --- 4. 信号预处理 ---
+                acc_data = voltage_data / (gain * sen) 
+                acc_data = acc_data - np.mean(acc_data)  # 去除直流分量
 
-            # --- 4. 信号预处理 ---
-            acc_data = voltage_data / (gain * sen) 
-            acc_data = acc_data - np.mean(acc_data)  # 去除直流分量
+                if len(acc_data) < fs:
+                    print(f"{filename}: 数据长度过短 ({len(acc_data)} points)")
+                    continue
 
-            if len(acc_data) < fs:
-                print(f"{filename}: 数据长度过短 ({len(acc_data)} points)")
-                continue
+                # --- 5. 信号处理 (计算 LPSD) ---
+                n = int(wint * fs)
+                if n > len(acc_data): 
+                    n = len(acc_data) // 2
+                    if n < fs:
+                        n = fs
 
-            # --- 5. 信号处理 (计算 LPSD) ---
-            n = int(wint * fs)
-            if n > len(acc_data): 
-                n = len(acc_data) // 2
-                if n < fs:
-                    n = fs
+                nfft = 2 ** int(np.ceil(np.log2(n)))
+                win = get_window("hann", n)  # 可以更改为其他窗函数，如 'hamming' 或 'blackman'
+                win_power = np.sum(win**2)
 
-            nfft = 2 ** int(np.ceil(np.log2(n)))
-            win = get_window("hann", n)  # 可以更改为其他窗函数，如 'hamming' 或 'blackman'
-            win_power = np.sum(win**2)
+                step = max(n // 2, 1)
+                num_frames = max((len(acc_data) - n) // step + 1, 1)
 
-            step = max(n // 2, 1)
-            num_frames = max((len(acc_data) - n) // step + 1, 1)
+                psd_sum = np.zeros(nfft // 2 + 1)
+                valid_frames = 0
 
-            psd_sum = np.zeros(nfft // 2 + 1)
-            valid_frames = 0
+                for i in range(num_frames):
+                    start = i * step
+                    end = start + n
+                    if end > len(acc_data):
+                        break
 
-            for i in range(num_frames):
-                start = i * step
-                end = start + n
-                if end > len(acc_data):
-                    break
+                    seg = acc_data[start:end].copy()
+                    seg = seg - np.mean(seg)  # 去除每个窗段的直流分量
+                    seg_windowed = seg * win
+                    sig_fft = fft(seg_windowed, nfft)
 
-                seg = acc_data[start:end].copy()
-                seg = seg - np.mean(seg)  # 去除每个窗段的直流分量
-                seg_windowed = seg * win
-                sig_fft = fft(seg_windowed, nfft)
+                    psd_frame = (np.abs(sig_fft[:nfft // 2 + 1])**2) / (fs * win_power)
+                    psd_frame[1:-1] *= 2
 
-                psd_frame = (np.abs(sig_fft[:nfft // 2 + 1])**2) / (fs * win_power)
-                psd_frame[1:-1] *= 2
+                    psd_sum += psd_frame
+                    valid_frames += 1
 
-                psd_sum += psd_frame
-                valid_frames += 1
+                if valid_frames == 0:
+                    print(f"{filename}: 无有效数据帧")
+                    continue
 
-            if valid_frames == 0:
-                print(f"{filename}: 无有效数据帧")
-                continue
+                psd_avg = psd_sum / valid_frames
+                freqs = np.linspace(0, fs / 2, nfft // 2 + 1)
 
-            psd_avg = psd_sum / valid_frames
-            freqs = np.linspace(0, fs / 2, nfft // 2 + 1)
+                # --- 6. 绘图 ---
+                lpsd = np.sqrt(psd_avg)
 
-            # --- 6. 绘图 ---
-            lpsd = np.sqrt(psd_avg)
+                # Find peaks in the LPSD data (with height threshold)
+                height_threshold = np.max(lpsd) * 0.1  # Only consider peaks that are 10% of the maximum peak height
+                peaks, _ = find_peaks(lpsd, height=height_threshold)  # Find peaks with height greater than threshold
 
-            plt.loglog(freqs, lpsd,
-                        label=os.path.splitext(filename)[0], 
-                        color=colors[idx % len(colors)], 
-                        linewidth=1.2)
+                # Record peak data (frequency, peak value, filename)
+                for peak in peaks:
+                    peak_freq = freqs[peak]
+                    peak_value = lpsd[peak]
+                    peak_data.append([peak_freq, peak_value, filename])
 
-            # 输出采样率和时间长度
-            print(f"处理完成: {filename}, 采样率: {fs} Hz, 数据时间长度: {len(acc_data) / fs:.2f} s, 频率分辨率: {fs / nfft:.2f} Hz")
+                # Plot the data with peaks
+                plt.loglog(freqs, lpsd,
+                            label=f"{os.path.splitext(filename)[0]} | Gain: {gain} | Sen: {sen}", 
+                            color=colors[idx % len(colors)], 
+                            linewidth=1.2)
+
+                # 输出采样率和时间长度
+                print(f"处理完成: {filename}, 采样率: {fs} Hz, 数据时间长度: {len(acc_data) / fs:.2f} s, 频率分辨率: {fs / nfft:.2f} Hz")
+                
+                # --- Output last row of data ---
+                last_row = df.iloc[-1]  # Extract the last row
+                print(f"Last row of {filename}: {last_row}")
 
         except Exception as e:
             print(f"处理 {filename} 时出错: {e}")
             import traceback
             traceback.print_exc()
+
+    # --- Output peak data as a DataFrame ---
+    peak_df = pd.DataFrame(peak_data, columns=["Frequency (Hz)", "Peak Value", "File"])
+    print("\nPeak Data Recorded:")
+    print(peak_df)
 
     # --- 7. 图表修饰 ---
     if plt.gca().has_data():
