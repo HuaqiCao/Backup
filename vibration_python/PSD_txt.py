@@ -7,9 +7,11 @@ import os
 import pandas as pd
 
 # ===================== 环境配置：罗马字体与负号修复 =====================
-plt.rcParams['font.family'] = 'serif'
+# Set font to one that supports both Chinese and English characters
+plt.rcParams['font.family'] = 'Arial Unicode MS'  # For MacOS (supports both English and Chinese)
+# If 'Arial Unicode MS' is unavailable, you can use other alternatives like 'STHeiti' (if on macOS) or 'Microsoft YaHei'
 plt.rcParams['font.serif'] = ['Times New Roman']
-plt.rcParams['axes.unicode_minus'] = False
+plt.rcParams['axes.unicode_minus'] = False  # Ensures negative signs are displayed correctly
 
 def process_files():
     root = Tk()
@@ -25,7 +27,10 @@ def process_files():
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2']
     plt.figure(figsize=(10, 6))
 
-    peak_data = []  # To store peak data (frequency, peak value, filename)
+    peak_data = []  # To store peak data (frequency, peak value)
+    gain_value = None  # Variable to store gain value for output
+
+    peak_index = 1  # Start peak numbering from 1
 
     for idx, file_path in enumerate(file_paths):
         filename = os.path.basename(file_path)
@@ -86,14 +91,15 @@ def process_files():
                     gain = 10.003
                 else:
                     gain = 100.0
+                    gain_value = gain  # Store gain value for output
 
                 # --- 3. 去除前后30秒数据 ---
-                num_samples_to_remove = int(60 * fs)  # 30秒的样本数
+                num_samples_to_remove = int(30 * fs)  # 30 seconds of samples
                 if len(voltage_data) > 2 * num_samples_to_remove:
-                    voltage_data = voltage_data[num_samples_to_remove:-num_samples_to_remove]  # 去掉前后30秒数据
+                    voltage_data = voltage_data[num_samples_to_remove:-num_samples_to_remove]  # Remove 30 seconds from both ends
                 else:
                     print(f"{filename}: 数据长度不足以去除30秒")
-                    continue
+                    continue 
 
                 # --- 4. 信号预处理 ---
                 acc_data = voltage_data / (gain * sen) 
@@ -151,11 +157,11 @@ def process_files():
                 height_threshold = np.max(lpsd) * 0.1  # Only consider peaks that are 10% of the maximum peak height
                 peaks, _ = find_peaks(lpsd, height=height_threshold)  # Find peaks with height greater than threshold
 
-                # Record peak data (frequency, peak value, filename)
+                # Record peak data (frequency, peak value)
                 for peak in peaks:
                     peak_freq = freqs[peak]
                     peak_value = lpsd[peak]
-                    peak_data.append([peak_freq, peak_value, filename])
+                    peak_data.append([peak_freq, peak_value])  # Only store frequency and peak value
 
                 # Plot the data with peaks
                 plt.loglog(freqs, lpsd,
@@ -176,22 +182,25 @@ def process_files():
             traceback.print_exc()
 
     # --- Output peak data as a DataFrame ---
-    peak_df = pd.DataFrame(peak_data, columns=["Frequency (Hz)", "Peak Value", "File"])
-    print("\nPeak Data Recorded:")
-    print(peak_df)
+    peak_df = pd.DataFrame(peak_data, columns=["Frequency (Hz)", "Peak Value"])
+    # Sort peak data by peak value in descending order
+    peak_df_sorted = peak_df.sort_values(by="Peak Value", ascending=False).reset_index(drop=True)
+    
+    # Print the top 20 peaks (sorted by peak value)
+    print("\nTop 20 Peak Data Recorded (sorted by peak value):")
+    print(peak_df_sorted.head(20))
 
     # --- 7. 图表修饰 ---
     if plt.gca().has_data():
-        plt.xlabel("Frequency (Hz)", fontsize=12, fontname="Times New Roman")
-        plt.ylabel(r"LPSD ($g/\sqrt{Hz}$)", fontsize=12, fontname="Times New Roman")
-        plt.title("Vibration Acceleration Spectrum", fontsize=14, fontname="Times New Roman", fontweight='bold')
+        plt.xlabel("Frequency (Hz)", fontsize=12, fontname="Arial Unicode MS")
+        plt.ylabel(r"LPSD ($g/\sqrt{Hz}$)", fontsize=12, fontname="Arial Unicode MS")
+        plt.title("Vibration Acceleration Spectrum", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
 
         plt.grid(True, which="both", ls="-", alpha=0.3)
         plt.grid(True, which="minor", ls=":", alpha=0.1)
 
-        plt.xlim(0.1, None)
-        plt.legend(prop={'family': 'Times New Roman', 'size': 9}, framealpha=0.8)
-
+        plt.xlim(1, None)
+        plt.legend(prop={'family': 'Arial Unicode MS', 'size': 9}, framealpha=0.8)
         plt.tight_layout()
         plt.show()
     else:
