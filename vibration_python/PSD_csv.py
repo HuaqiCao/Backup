@@ -100,7 +100,7 @@ def process_files():
             gain_used.append(gain)  # Store the gain used for this file
 
             # --- 3. 去除前后30秒数据 ---
-            num_samples_to_remove = int(60 * fs)  # 60秒的样本数
+            num_samples_to_remove = int(0.5 * fs)  # 60秒的样本数
             if len(voltage_data) > 2 * num_samples_to_remove:
                 voltage_data = voltage_data[num_samples_to_remove:-num_samples_to_remove]  # 去掉前后30秒数据
             else:
@@ -170,7 +170,7 @@ def process_files():
     # --- Plot all PSDs in one figure ---
     plt.xlabel("Frequency (Hz)", fontsize=12, fontname="STHeiti")  # Use STHeiti for macOS
     plt.ylabel(r"PSD ($g^2/Hz$)", fontsize=12, fontname="STHeiti")
-    plt.title("All Files: PSD Comparison", fontsize=14, fontname="STHeiti", fontweight='bold')
+    plt.title("PSD Comparison", fontsize=14, fontname="STHeiti", fontweight='bold')
     plt.grid(True, which="both", ls="-", alpha=0.3)
     plt.grid(True, which="minor", ls=":", alpha=0.1)
     plt.xlim(1, None)
