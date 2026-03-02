@@ -50,10 +50,6 @@ def process_files():
                 df[0] = pd.to_numeric(df[0], errors='coerce')
                 df[1] = pd.to_numeric(df[1], errors='coerce')
 
-                # --- Detect unit and convert voltage data if needed ---
-                if "mv" in df.iloc[0, 1].lower():  # Check if the unit is in mV (lowercase)
-                    df[1] = df[1] / 1000  # Convert mV to V (divide by 1000)
-
                 # --- Remove rows where any column has NaN values (invalid data) ---
                 df = df.dropna(subset=[0, 1])  # Drop rows with NaN values in either column
 
@@ -66,6 +62,12 @@ def process_files():
                 time_data = df.iloc[:, 0].values  # First column as time (in seconds)
                 voltage_data = df.iloc[:, 1].values  # Second column as voltage (V)
 
+                # Check the units of the second column (voltage)
+                # Assuming the user mentions "mV" or "milliVolt" as part of the filename for mV data
+                if 'mv' in filename.lower():  # If the filename contains 'mv' (case insensitive)
+                    print(f"{filename}: 发现单位为毫伏 (mV)，正在转换为伏特 (V)")
+                    voltage_data /= 1000  # Convert mV to V
+                    
                 # Debugging: print the time data to check for invalid entries
                 print(f"Time data after conversion: {time_data[:10]}")  # Print the first 10 values of time data
 
@@ -186,4 +188,29 @@ def process_files():
             traceback.print_exc()
 
     # --- Output peak data as a DataFrame ---
-    peak
+    peak_df = pd.DataFrame(peak_data, columns=["Frequency (Hz)", "Peak Value"])
+    # Sort peak data by peak value in descending order
+    peak_df_sorted = peak_df.sort_values(by="Peak Value", ascending=False).reset_index(drop=True)
+    
+    # Print the top 20 peaks (sorted by peak value)
+    print("\nTop 20 Peak Data Recorded (sorted by peak value):")
+    print(peak_df_sorted.head(20))
+
+    # --- 7. 图表修饰 ---
+    if plt.gca().has_data():
+        plt.xlabel("Frequency (Hz)", fontsize=12, fontname="Arial Unicode MS")
+        plt.ylabel(r"LPSD ($g/\sqrt{Hz}$)", fontsize=12, fontname="Arial Unicode MS")
+        plt.title("Vibration Acceleration Spectrum", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
+
+        plt.grid(True, which="both", ls="-", alpha=0.3)
+        plt.grid(True, which="minor", ls=":", alpha=0.1)
+
+        plt.xlim(1, None)
+        plt.legend(prop={'family': 'Arial Unicode MS', 'size': 9}, framealpha=0.8)
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("没有有效数据被绘制")
+
+if __name__ == "__main__":
+    process_files()
