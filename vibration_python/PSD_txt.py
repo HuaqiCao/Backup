@@ -230,14 +230,14 @@ def process_files():
     print("\nTop 20 Peak Data Recorded (sorted by peak value):")
     print(peak_df_sorted.head(20))
 
-    # --- 绘制m值与1-40Hz平均LPSD的关系图（双y轴，但不绘制relative ratio曲线）---
+    # --- 绘制m值与1-40Hz平均LPSD的关系图（双y轴，38m归一化为1）---
     if m_value_data:
-        plt.figure(fig2.number)
-        m_value_data.sort(key=lambda x: x[0])  # 按m值排序
+        # 按m值排序
+        m_value_data.sort(key=lambda x: x[0])
         m_values = [item[0] for item in m_value_data]
         lpsd_avg_values = [item[1] for item in m_value_data]
         
-        # 找到38m对应的平均值（用于显示信息）
+        # 找到38m对应的平均值（作为基准值）
         ref_index = None
         for i, m in enumerate(m_values):
             if abs(m - 38.0) < 0.1:  # 允许0.1的误差
@@ -246,44 +246,73 @@ def process_files():
         
         if ref_index is not None:
             ref_value = lpsd_avg_values[ref_index]
-            print(f"\n以38m ({ref_value:.6f} g/√Hz) 为基准，计算各距离的相对倍数（仅用于信息显示）：")
-            for m, val in zip(m_values, lpsd_avg_values):
-                rel = val / ref_value
-                print(f"{m}m: {val:.6f} g/√Hz, 相对倍数: {rel:.3f}")
+            print(f"\n以38m ({ref_value:.6f} g/√Hz) 为基准，计算相对比值：")
+            
+            # 计算相对比值（38m的比值为1）
+            relative_ratios = [val / ref_value for val in lpsd_avg_values]
+            
+            # 创建双y轴图
+            fig2, ax1 = plt.subplots(figsize=(8, 6))
+            
+            # 左y轴：原始LPSD平均值
+            color1 = '#1f77b4'
+            ax1.set_xlabel("Distance (m)", fontsize=12, fontname="Arial Unicode MS")
+            ax1.set_ylabel(r"Average LPSD (1-40 Hz) ($g/\sqrt{Hz}$)", fontsize=12, fontname="Arial Unicode MS", color=color1)
+            line1 = ax1.plot(m_values, lpsd_avg_values, 'o-', color=color1, linewidth=2, markersize=8, markerfacecolor='white', markeredgewidth=2, label='LPSD Average')
+            ax1.tick_params(axis='y', labelcolor=color1)
+            ax1.grid(True, alpha=0.3)
+            
+            # 右y轴：相对比值（38m归一化为1）
+            color2 = '#d62728'
+            ax2 = ax1.twinx()
+            ax2.set_ylabel(r"Relative Ratio (38m = 1)", fontsize=12, fontname="Arial Unicode MS", color=color2)
+            
+            # 绘制相对比值曲线（在右y轴上）
+            line2 = ax2.plot(m_values, relative_ratios, 's--', color=color2, linewidth=1.5, markersize=6, markerfacecolor='white', markeredgewidth=1.5, label='Relative Ratio')
+            ax2.tick_params(axis='y', labelcolor=color2)
+            
+            # 添加水平参考线（y=1）- 对应38m
+            ax2.axhline(y=1, color=color2, linestyle=':', linewidth=1, alpha=0.5)
+            
+            # 标记38m点的位置
+            ax2.plot(38, 1, 'o', color=color2, markersize=8, markerfacecolor='white', markeredgewidth=2)
+            
+            # 添加标题
+            plt.title("Average Vibration Level vs. Distance", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
+            
+            # 为每个点添加标注（只标注m值）
+            for i, m in enumerate(m_values):
+                ax1.annotate(f'{m}m', (m, lpsd_avg_values[i]), textcoords="offset points", xytext=(0,10), ha='center', fontsize=9)
+            
+            # 合并图例
+            lines = line1 + line2
+            labels = [l.get_label() for l in lines]
+            ax1.legend(lines, labels, loc='upper right', fontsize=10)
+            
+            # 打印相对比值信息
+            print(f"\n各距离点的相对比值（以38m=1为基准）：")
+            for m, rel in zip(m_values, relative_ratios):
+                print(f"{m}m: {rel:.3f}")
+                
         else:
-            print(f"\n未找到38m数据")
-        
-        # 创建双y轴图
-        fig2, ax1 = plt.subplots(figsize=(8, 6))
-        
-        # 左y轴：原始LPSD平均值
-        color1 = '#1f77b4'
-        ax1.set_xlabel("Distance (m)", fontsize=12, fontname="Arial Unicode MS")
-        ax1.set_ylabel(r"Average LPSD (1-40 Hz) ($g/\sqrt{Hz}$)", fontsize=12, fontname="Arial Unicode MS", color=color1)
-        line1 = ax1.plot(m_values, lpsd_avg_values, 'o-', color=color1, linewidth=2, markersize=8, markerfacecolor='white', markeredgewidth=2, label='LPSD Average')
-        ax1.tick_params(axis='y', labelcolor=color1)
-        ax1.grid(True, alpha=0.3)
-        
-        # 右y轴：只保留坐标轴，但不绘制曲线
-        color2 = '#d62728'
-        ax2 = ax1.twinx()
-        ax2.set_ylabel(r"Relative Ratio (relative to 38m)", fontsize=12, fontname="Arial Unicode MS", color=color2)
-        # 不绘制任何曲线，只保留坐标轴
-        ax2.tick_params(axis='y', labelcolor=color2)
-        
-        # 添加水平参考线（y=1）- 可选，如果不想显示也可以注释掉
-        if ref_index is not None:
-            ax2.axhline(y=1, color=color2, linestyle='--', linewidth=1, alpha=0.3)
-        
-        # 添加标题
-        plt.title("Average Vibration Level vs. Distance", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
-        
-        # 为每个点添加标注（只标注m值）
-        for i, m in enumerate(m_values):
-            ax1.annotate(f'{m}m', (m, lpsd_avg_values[i]), textcoords="offset points", xytext=(0,10), ha='center', fontsize=9)
-        
-        # 添加图例（只显示LPSD曲线）
-        ax1.legend([line1[0]], ['LPSD Average'], loc='upper right', fontsize=10)
+            print(f"\n未找到38m数据，无法进行归一化。将使用原始数据绘制。")
+            
+            # 如果没有38m数据，只绘制左y轴的原始数据
+            fig2, ax1 = plt.subplots(figsize=(8, 6))
+            
+            color1 = '#1f77b4'
+            ax1.set_xlabel("Distance (m)", fontsize=12, fontname="Arial Unicode MS")
+            ax1.set_ylabel(r"Average LPSD (1-40 Hz) ($g/\sqrt{Hz}$)", fontsize=12, fontname="Arial Unicode MS", color=color1)
+            line1 = ax1.plot(m_values, lpsd_avg_values, 'o-', color=color1, linewidth=2, markersize=8, markerfacecolor='white', markeredgewidth=2, label='LPSD Average')
+            ax1.tick_params(axis='y', labelcolor=color1)
+            ax1.grid(True, alpha=0.3)
+            
+            # 为每个点添加标注
+            for i, m in enumerate(m_values):
+                ax1.annotate(f'{m}m', (m, lpsd_avg_values[i]), textcoords="offset points", xytext=(0,10), ha='center', fontsize=9)
+            
+            plt.title("Average Vibration Level vs. Distance", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
+            ax1.legend(loc='upper right', fontsize=10)
         
         plt.tight_layout()
     else:
