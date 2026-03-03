@@ -14,6 +14,18 @@ plt.rcParams['font.family'] = 'Arial Unicode MS'  # For MacOS (supports both Eng
 plt.rcParams['font.serif'] = ['Times New Roman']
 plt.rcParams['axes.unicode_minus'] = False  # Ensures negative signs are displayed correctly
 
+def extract_m_value(filename):
+    """
+    从文件名中提取m值（例如：文件名中的"0.5m"、"1m"等）
+    返回提取到的m值（浮点数），如果没有找到则返回None
+    """
+    # 匹配模式：数字后跟m（如：0.5m, 1m, 2.5m等）
+    pattern = r'(\d+(?:\.\d+)?)m'
+    match = re.search(pattern, filename, re.IGNORECASE)
+    if match:
+        return float(match.group(1))
+    return None
+
 def process_files():
     root = Tk()
     root.withdraw()
@@ -25,16 +37,29 @@ def process_files():
     if not file_paths:
         return
 
-    peak_data = []  # To store peak data (frequency, peak value)
-    position_values = []  # List to store position values extracted from the filename
-    lpsd_1_40Hz_values = []  # To store average LPSD values between 1-40Hz for each file
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2']
+    
+    # 创建两个图形：一个用于频谱图，一个用于m值关系图
+    fig1 = plt.figure(figsize=(10, 6))
+    fig2 = plt.figure(figsize=(8, 6))
 
-    # Processing each file
+    peak_data = []  # To store peak data (frequency, peak value)
+    m_value_data = []  # To store m value and corresponding average LPSD (1-40Hz)
+    gain_value = None  # Variable to store gain value for output
+
+    peak_index = 1  # Start peak numbering from 1
+
     for idx, file_path in enumerate(file_paths):
         filename = os.path.basename(file_path)
         ext = os.path.splitext(filename)[1].lower()
 
         try:
+            # 从文件名中提取m值
+            m_value = extract_m_value(filename)
+            if m_value is None:
+                print(f"{filename}: 未找到m值，跳过该文件")
+                continue
+
             # --- 读取 TXT 文件 ---
             if ext == '.txt':
                 # Read the file assuming it's space or tab-separated
@@ -51,15 +76,24 @@ def process_files():
                 # --- Remove rows where any column has NaN values (invalid data) ---
                 df = df.dropna(subset=[0, 1])  # Drop rows with NaN values in either column
 
+                # Check if the file has the correct number of columns
+                if df.shape[1] < 2:
+                    print(f"{filename}: 数据格式不正确，必须包含时间和电压值")
+                    continue
+
                 # Extract time and voltage data from the first and second columns
                 time_data = df.iloc[:, 0].values  # First column as time (in seconds)
                 voltage_data = df.iloc[:, 1].values  # Second column as voltage (V)
 
                 # Check the units of the second column (voltage)
+                # Assuming the user mentions "mV" or "milliVolt" as part of the filename for mV data
                 if 'mv' in filename.lower():  # If the filename contains 'mv' (case insensitive)
                     print(f"{filename}: 发现单位为毫伏 (mV)，正在转换为伏特 (V)")
                     voltage_data /= 1000  # Convert mV to V
                     
+                # Debugging: print the time data to check for invalid entries
+                print(f"Time data after conversion: {time_data[:10]}")  # Print the first 10 values of time data
+
                 # Ensure time_data has enough valid points (must be greater than 2)
                 if len(time_data) < 2 or np.any(np.isnan(time_data)):
                     print(f"{filename}: 时间数据无效，无法计算采样率")
@@ -67,6 +101,9 @@ def process_files():
 
                 # --- Calculate Time Differences ---
                 time_diff = np.diff(time_data)
+
+                # Debugging: print time differences to check for irregularities
+                print(f"Time differences: {time_diff[:10]}")  # Print the first 10 time differences
 
                 # Directly calculate the sampling rate from the time differences
                 fs = 1 / np.mean(time_diff)  # Calculate sampling rate as the inverse of the average time difference
@@ -77,13 +114,13 @@ def process_files():
                 g = 9.81
                 wint = 5
 
-                # --- 解析文件名中的位置（单位m） ---
-                position_match = re.search(r'(\d+)(?=m)', filename.lower())  # 例如：提取"10m"中的"10"
-                if position_match:
-                    position = float(position_match.group(1))  # 提取并转换为浮动数
+                if "gain100" in filename.lower():
+                    gain = 100.122
+                elif "gain10" in filename.lower():
+                    gain = 10.003
                 else:
-                    position = np.nan  # 如果没有找到，标记为NaN
-                position_values.append(position)
+                    gain = 100.0
+                    gain_value = gain  # Store gain value for output
 
                 # --- 3. 去除前后30秒数据 ---
                 num_samples_to_remove = int(30 * fs)  # 30 seconds of samples
@@ -142,32 +179,96 @@ def process_files():
                 psd_avg = psd_sum / valid_frames
                 freqs = np.linspace(0, fs / 2, nfft // 2 + 1)
 
-                # --- 6. 计算 1-40 Hz 区间的 LPSD 平均值 ---
-                freq_range = (freqs >= 1) & (freqs <= 40)
-                avg_lpsd_1_40Hz = np.mean(np.sqrt(psd_avg[freq_range]))  # 平均值计算
-                lpsd_1_40Hz_values.append(avg_lpsd_1_40Hz)
+                # --- 6. 计算LPSD ---
+                lpsd = np.sqrt(psd_avg)
+
+                # --- 7. 计算1-40Hz的平均值 ---
+                # 找到1-40Hz频率范围的索引
+                freq_mask = (freqs >= 1) & (freqs <= 40)
+                if np.any(freq_mask):
+                    lpsd_avg_1_40 = np.mean(lpsd[freq_mask])
+                    m_value_data.append([m_value, lpsd_avg_1_40])
+                    print(f"{filename}: m={m_value}m, 1-40Hz平均LPSD={lpsd_avg_1_40:.6f} g/√Hz")
+                else:
+                    print(f"{filename}: 频率范围不足1-40Hz")
+
+                # Find peaks in the LPSD data (with height threshold)
+                height_threshold = np.max(lpsd) * 0.1  # Only consider peaks that are 10% of the maximum peak height
+                peaks, _ = find_peaks(lpsd, height=height_threshold)  # Find peaks with height greater than threshold
+
+                # Record peak data (frequency, peak value)
+                for peak in peaks:
+                    peak_freq = freqs[peak]
+                    peak_value = lpsd[peak]
+                    peak_data.append([peak_freq, peak_value])  # Only store frequency and peak value
+
+                # Plot the data with peaks on the first figure
+                plt.figure(fig1.number)
+                plt.loglog(freqs, lpsd,
+                            label=f"{os.path.splitext(filename)[0]} | Gain: {gain} | Sen: {sen}", 
+                            color=colors[idx % len(colors)], 
+                            linewidth=1.2)
 
                 # 输出采样率和时间长度
                 print(f"处理完成: {filename}, 采样率: {fs} Hz, 数据时间长度: {len(acc_data) / fs:.2f} s, 频率分辨率: {fs / nfft:.2f} Hz")
                 
+                # --- Output last row of data ---
+                last_row = df.iloc[-1]  # Extract the last row
+                print(f"Last row of {filename}: {last_row}")
+
         except Exception as e:
             print(f"处理 {filename} 时出错: {e}")
             import traceback
             traceback.print_exc()
 
-    # --- 绘制图表 ---
-    if lpsd_1_40Hz_values and position_values:
-        # 画LPSD曲线图 (1-40Hz的平均值 vs 位置)
-        plt.figure(figsize=(10, 6))
-        plt.plot(position_values, lpsd_1_40Hz_values, marker='o', linestyle='-', color='b')
-        plt.xlabel("Position (m)", fontsize=12, fontname="Arial Unicode MS")
-        plt.ylabel("Average LPSD (1-40 Hz)", fontsize=12, fontname="Arial Unicode MS")
-        plt.title("LPSD Average (1-40 Hz) vs Position", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
-        plt.grid(True, which="both", ls="-", alpha=0.3)
+    # --- Output peak data as a DataFrame ---
+    peak_df = pd.DataFrame(peak_data, columns=["Frequency (Hz)", "Peak Value"])
+    # Sort peak data by peak value in descending order
+    peak_df_sorted = peak_df.sort_values(by="Peak Value", ascending=False).reset_index(drop=True)
+    
+    # Print the top 20 peaks (sorted by peak value)
+    print("\nTop 20 Peak Data Recorded (sorted by peak value):")
+    print(peak_df_sorted.head(20))
+
+    # --- 绘制m值与1-40Hz平均LPSD的关系图 ---
+    if m_value_data:
+        plt.figure(fig2.number)
+        m_value_data.sort(key=lambda x: x[0])  # 按m值排序
+        m_values = [item[0] for item in m_value_data]
+        lpsd_avg_values = [item[1] for item in m_value_data]
+        
+        plt.plot(m_values, lpsd_avg_values, 'o-', color='#1f77b4', linewidth=2, markersize=8, markerfacecolor='white', markeredgewidth=2)
+        plt.xlabel("Distance (m)", fontsize=12, fontname="Arial Unicode MS")
+        plt.ylabel(r"Average LPSD (1-40 Hz) ($g/\sqrt{Hz}$)", fontsize=12, fontname="Arial Unicode MS")
+        plt.title("Average Vibration Level vs. Distance", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
+        plt.grid(True, alpha=0.3)
+        
+        # 为每个点添加标注
+        for i, (m, lpsd_avg) in enumerate(zip(m_values, lpsd_avg_values)):
+            plt.annotate(f'{m}m', (m, lpsd_avg), textcoords="offset points", xytext=(0,10), ha='center', fontsize=9)
+        
         plt.tight_layout()
-        plt.show()
     else:
-        print("没有有效数据可用于绘制图表")
+        print("没有有效的m值数据用于绘制关系图")
+
+    # --- 7. 图表修饰 (第一个图) ---
+    plt.figure(fig1.number)
+    if plt.gca().has_data():
+        plt.xlabel("Frequency (Hz)", fontsize=12, fontname="Arial Unicode MS")
+        plt.ylabel(r"LPSD ($g/\sqrt{Hz}$)", fontsize=12, fontname="Arial Unicode MS")
+        plt.title("Vibration Acceleration Spectrum", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
+
+        plt.grid(True, which="both", ls="-", alpha=0.3)
+        plt.grid(True, which="minor", ls=":", alpha=0.1)
+
+        plt.xlim(1, None)
+        plt.legend(prop={'family': 'Arial Unicode MS', 'size': 9}, framealpha=0.8)
+        plt.tight_layout()
+    else:
+        print("没有有效数据被绘制")
+    
+    # 显示两个图形
+    plt.show()
 
 if __name__ == "__main__":
     process_files()
