@@ -230,22 +230,66 @@ def process_files():
     print("\nTop 20 Peak Data Recorded (sorted by peak value):")
     print(peak_df_sorted.head(20))
 
-    # --- 绘制m值与1-40Hz平均LPSD的关系图 ---
+    # --- 绘制m值与1-40Hz平均LPSD的关系图（双y轴）---
     if m_value_data:
         plt.figure(fig2.number)
         m_value_data.sort(key=lambda x: x[0])  # 按m值排序
         m_values = [item[0] for item in m_value_data]
         lpsd_avg_values = [item[1] for item in m_value_data]
         
-        plt.plot(m_values, lpsd_avg_values, 'o-', color='#1f77b4', linewidth=2, markersize=8, markerfacecolor='white', markeredgewidth=2)
-        plt.xlabel("Distance (m)", fontsize=12, fontname="Arial Unicode MS")
-        plt.ylabel(r"Average LPSD (1-40 Hz) ($g/\sqrt{Hz}$)", fontsize=12, fontname="Arial Unicode MS")
-        plt.title("Average Vibration Level vs. Distance", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
-        plt.grid(True, alpha=0.3)
+        # 找到38m对应的平均值（如果存在）
+        ref_index = None
+        for i, m in enumerate(m_values):
+            if abs(m - 38.0) < 0.1:  # 允许0.1的误差
+                ref_index = i
+                break
         
-        # 为每个点添加标注
-        for i, (m, lpsd_avg) in enumerate(zip(m_values, lpsd_avg_values)):
-            plt.annotate(f'{m}m', (m, lpsd_avg), textcoords="offset points", xytext=(0,10), ha='center', fontsize=9)
+        if ref_index is not None:
+            ref_value = lpsd_avg_values[ref_index]
+            # 计算相对倍数
+            relative_values = [val / ref_value for val in lpsd_avg_values]
+            print(f"\n以38m ({ref_value:.6f} g/√Hz) 为基准，计算各距离的相对倍数：")
+            for m, val, rel in zip(m_values, lpsd_avg_values, relative_values):
+                print(f"{m}m: {val:.6f} g/√Hz, 相对倍数: {rel:.3f}")
+        else:
+            # 如果没有38m的数据，使用最大值作为基准
+            ref_index = np.argmax(lpsd_avg_values)
+            ref_value = lpsd_avg_values[ref_index]
+            relative_values = [val / ref_value for val in lpsd_avg_values]
+            print(f"\n未找到38m数据，使用最大值 ({ref_value:.6f} g/√Hz) 作为基准")
+        
+        # 创建双y轴图
+        fig2, ax1 = plt.subplots(figsize=(8, 6))
+        
+        # 左y轴：原始LPSD平均值
+        color1 = '#1f77b4'
+        ax1.set_xlabel("Distance (m)", fontsize=12, fontname="Arial Unicode MS")
+        ax1.set_ylabel(r"Average LPSD (1-40 Hz) ($g/\sqrt{Hz}$)", fontsize=12, fontname="Arial Unicode MS", color=color1)
+        line1 = ax1.plot(m_values, lpsd_avg_values, 'o-', color=color1, linewidth=2, markersize=8, markerfacecolor='white', markeredgewidth=2, label='LPSD Average')
+        ax1.tick_params(axis='y', labelcolor=color1)
+        ax1.grid(True, alpha=0.3)
+        
+        # 右y轴：相对倍数
+        color2 = '#d62728'
+        ax2 = ax1.twinx()
+        ax2.set_ylabel(r"Relative Ratio (relative to 38m)", fontsize=12, fontname="Arial Unicode MS", color=color2)
+        line2 = ax2.plot(m_values, relative_values, 's-', color=color2, linewidth=1.5, markersize=6, markerfacecolor='white', markeredgewidth=1.5, label='Relative Ratio')
+        ax2.tick_params(axis='y', labelcolor=color2)
+        
+        # 添加水平参考线（y=1）
+        ax2.axhline(y=1, color=color2, linestyle='--', linewidth=1, alpha=0.5)
+        
+        # 添加标题
+        plt.title("Average Vibration Level vs. Distance", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
+        
+        # 为每个点添加标注（只标注m值）
+        for i, m in enumerate(m_values):
+            ax1.annotate(f'{m}m', (m, lpsd_avg_values[i]), textcoords="offset points", xytext=(0,10), ha='center', fontsize=9)
+        
+        # 添加图例
+        lines = [line1[0], line2[0]]
+        labels = [l.get_label() for l in lines]
+        ax1.legend(lines, labels, loc='upper right', fontsize=10)
         
         plt.tight_layout()
     else:
