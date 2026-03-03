@@ -26,7 +26,7 @@ def process_files():
         return
 
     peak_data = []  # To store peak data (frequency, peak value)
-    gain_values = []  # List to store gain values
+    position_values = []  # List to store position values extracted from the filename
     lpsd_1_40Hz_values = []  # To store average LPSD values between 1-40Hz for each file
 
     # Processing each file
@@ -77,13 +77,13 @@ def process_files():
                 g = 9.81
                 wint = 5
 
-                # Extract gain value from the filename
-                gain_match = re.search(r'gain(\d+)', filename.lower())
-                if gain_match:
-                    gain = float(gain_match.group(1))
+                # --- 解析文件名中的位置（单位m） ---
+                position_match = re.search(r'(\d+)(?=m)', filename.lower())  # 例如：提取"10m"中的"10"
+                if position_match:
+                    position = float(position_match.group(1))  # 提取并转换为浮动数
                 else:
-                    gain = 100.0  # Default value if not found
-                gain_values.append(gain)
+                    position = np.nan  # 如果没有找到，标记为NaN
+                position_values.append(position)
 
                 # --- 3. 去除前后30秒数据 ---
                 num_samples_to_remove = int(30 * fs)  # 30 seconds of samples
@@ -156,12 +156,13 @@ def process_files():
             traceback.print_exc()
 
     # --- 绘制图表 ---
-    if lpsd_1_40Hz_values and gain_values:
+    if lpsd_1_40Hz_values and position_values:
+        # 画LPSD曲线图 (1-40Hz的平均值 vs 位置)
         plt.figure(figsize=(10, 6))
-        plt.plot(gain_values, lpsd_1_40Hz_values, marker='o', linestyle='-', color='b')
-        plt.xlabel("Gain (m)", fontsize=12, fontname="Arial Unicode MS")
+        plt.plot(position_values, lpsd_1_40Hz_values, marker='o', linestyle='-', color='b')
+        plt.xlabel("Position (m)", fontsize=12, fontname="Arial Unicode MS")
         plt.ylabel("Average LPSD (1-40 Hz)", fontsize=12, fontname="Arial Unicode MS")
-        plt.title("LPSD Average (1-40 Hz) vs Gain", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
+        plt.title("LPSD Average (1-40 Hz) vs Position", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
         plt.grid(True, which="both", ls="-", alpha=0.3)
         plt.tight_layout()
         plt.show()
