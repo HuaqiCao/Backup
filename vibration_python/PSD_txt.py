@@ -5,6 +5,7 @@ from scipy.fft import fft
 from tkinter import Tk, filedialog
 import os
 import pandas as pd
+import re
 
 # ===================== 环境配置：罗马字体与负号修复 =====================
 # Set font to one that supports both Chinese and English characters
@@ -24,14 +25,11 @@ def process_files():
     if not file_paths:
         return
 
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2']
-    plt.figure(figsize=(10, 6))
-
     peak_data = []  # To store peak data (frequency, peak value)
-    gain_value = None  # Variable to store gain value for output
+    gain_values = []  # List to store gain values
+    lpsd_1_40Hz_values = []  # To store average LPSD values between 1-40Hz for each file
 
-    peak_index = 1  # Start peak numbering from 1
-
+    # Processing each file
     for idx, file_path in enumerate(file_paths):
         filename = os.path.basename(file_path)
         ext = os.path.splitext(filename)[1].lower()
@@ -53,24 +51,15 @@ def process_files():
                 # --- Remove rows where any column has NaN values (invalid data) ---
                 df = df.dropna(subset=[0, 1])  # Drop rows with NaN values in either column
 
-                # Check if the file has the correct number of columns
-                if df.shape[1] < 2:
-                    print(f"{filename}: 数据格式不正确，必须包含时间和电压值")
-                    continue
-
                 # Extract time and voltage data from the first and second columns
                 time_data = df.iloc[:, 0].values  # First column as time (in seconds)
                 voltage_data = df.iloc[:, 1].values  # Second column as voltage (V)
 
                 # Check the units of the second column (voltage)
-                # Assuming the user mentions "mV" or "milliVolt" as part of the filename for mV data
                 if 'mv' in filename.lower():  # If the filename contains 'mv' (case insensitive)
                     print(f"{filename}: 发现单位为毫伏 (mV)，正在转换为伏特 (V)")
                     voltage_data /= 1000  # Convert mV to V
                     
-                # Debugging: print the time data to check for invalid entries
-                print(f"Time data after conversion: {time_data[:10]}")  # Print the first 10 values of time data
-
                 # Ensure time_data has enough valid points (must be greater than 2)
                 if len(time_data) < 2 or np.any(np.isnan(time_data)):
                     print(f"{filename}: 时间数据无效，无法计算采样率")
@@ -78,9 +67,6 @@ def process_files():
 
                 # --- Calculate Time Differences ---
                 time_diff = np.diff(time_data)
-
-                # Debugging: print time differences to check for irregularities
-                print(f"Time differences: {time_diff[:10]}")  # Print the first 10 time differences
 
                 # Directly calculate the sampling rate from the time differences
                 fs = 1 / np.mean(time_diff)  # Calculate sampling rate as the inverse of the average time difference
@@ -91,13 +77,13 @@ def process_files():
                 g = 9.81
                 wint = 5
 
-                if "gain100" in filename.lower():
-                    gain = 100.122
-                elif "gain10" in filename.lower():
-                    gain = 10.003
+                # Extract gain value from the filename
+                gain_match = re.search(r'gain(\d+)', filename.lower())
+                if gain_match:
+                    gain = float(gain_match.group(1))
                 else:
-                    gain = 100.0
-                    gain_value = gain  # Store gain value for output
+                    gain = 100.0  # Default value if not found
+                gain_values.append(gain)
 
                 # --- 3. 去除前后30秒数据 ---
                 num_samples_to_remove = int(30 * fs)  # 30 seconds of samples
@@ -156,61 +142,31 @@ def process_files():
                 psd_avg = psd_sum / valid_frames
                 freqs = np.linspace(0, fs / 2, nfft // 2 + 1)
 
-                # --- 6. 绘图 ---
-                lpsd = np.sqrt(psd_avg)
-
-                # Find peaks in the LPSD data (with height threshold)
-                height_threshold = np.max(lpsd) * 0.1  # Only consider peaks that are 10% of the maximum peak height
-                peaks, _ = find_peaks(lpsd, height=height_threshold)  # Find peaks with height greater than threshold
-
-                # Record peak data (frequency, peak value)
-                for peak in peaks:
-                    peak_freq = freqs[peak]
-                    peak_value = lpsd[peak]
-                    peak_data.append([peak_freq, peak_value])  # Only store frequency and peak value
-
-                # Plot the data with peaks
-                plt.loglog(freqs, lpsd,
-                            label=f"{os.path.splitext(filename)[0]} | Gain: {gain} | Sen: {sen}", 
-                            color=colors[idx % len(colors)], 
-                            linewidth=1.2)
+                # --- 6. 计算 1-40 Hz 区间的 LPSD 平均值 ---
+                freq_range = (freqs >= 1) & (freqs <= 40)
+                avg_lpsd_1_40Hz = np.mean(np.sqrt(psd_avg[freq_range]))  # 平均值计算
+                lpsd_1_40Hz_values.append(avg_lpsd_1_40Hz)
 
                 # 输出采样率和时间长度
                 print(f"处理完成: {filename}, 采样率: {fs} Hz, 数据时间长度: {len(acc_data) / fs:.2f} s, 频率分辨率: {fs / nfft:.2f} Hz")
                 
-                # --- Output last row of data ---
-                last_row = df.iloc[-1]  # Extract the last row
-                print(f"Last row of {filename}: {last_row}")
-
         except Exception as e:
             print(f"处理 {filename} 时出错: {e}")
             import traceback
             traceback.print_exc()
 
-    # --- Output peak data as a DataFrame ---
-    peak_df = pd.DataFrame(peak_data, columns=["Frequency (Hz)", "Peak Value"])
-    # Sort peak data by peak value in descending order
-    peak_df_sorted = peak_df.sort_values(by="Peak Value", ascending=False).reset_index(drop=True)
-    
-    # Print the top 20 peaks (sorted by peak value)
-    print("\nTop 20 Peak Data Recorded (sorted by peak value):")
-    print(peak_df_sorted.head(20))
-
-    # --- 7. 图表修饰 ---
-    if plt.gca().has_data():
-        plt.xlabel("Frequency (Hz)", fontsize=12, fontname="Arial Unicode MS")
-        plt.ylabel(r"LPSD ($g/\sqrt{Hz}$)", fontsize=12, fontname="Arial Unicode MS")
-        plt.title("Vibration Acceleration Spectrum", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
-
+    # --- 绘制图表 ---
+    if lpsd_1_40Hz_values and gain_values:
+        plt.figure(figsize=(10, 6))
+        plt.plot(gain_values, lpsd_1_40Hz_values, marker='o', linestyle='-', color='b')
+        plt.xlabel("Gain (m)", fontsize=12, fontname="Arial Unicode MS")
+        plt.ylabel("Average LPSD (1-40 Hz)", fontsize=12, fontname="Arial Unicode MS")
+        plt.title("LPSD Average (1-40 Hz) vs Gain", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
         plt.grid(True, which="both", ls="-", alpha=0.3)
-        plt.grid(True, which="minor", ls=":", alpha=0.1)
-
-        plt.xlim(1, None)
-        plt.legend(prop={'family': 'Arial Unicode MS', 'size': 9}, framealpha=0.8)
         plt.tight_layout()
         plt.show()
     else:
-        print("没有有效数据被绘制")
+        print("没有有效数据可用于绘制图表")
 
 if __name__ == "__main__":
     process_files()
