@@ -305,7 +305,6 @@ def process_files():
     else:
         print("没有有效数据被绘制")
     
-    # 显示两个图形
     plt.show()
 
 if __name__ == "__main__":
