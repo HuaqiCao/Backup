@@ -26,6 +26,13 @@ def extract_m_value(filename):
         return float(match.group(1))
     return None
 
+def get_display_name(filename):
+    """
+    从完整文件名中提取显示名称（去除扩展名）
+    例如：'5m_L.txt' -> '5m_L'
+    """
+    return os.path.splitext(os.path.basename(filename))[0]
+
 def process_files():
     root = Tk()
     root.withdraw()
@@ -39,18 +46,17 @@ def process_files():
 
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2']
     
-    # 创建两个图形：一个用于频谱图，一个用于文件名关系图
+    # 创建两个图形：一个用于频谱图，一个用于m值关系图
     fig1 = plt.figure(figsize=(10, 6))
-    fig2 = plt.figure(figsize=(12, 6))
+    fig2 = plt.figure(figsize=(10, 6))
 
     peak_data = []  # To store peak data (frequency, peak value)
-    m_value_data = []  # To store [filename, m value, average LPSD (1-40Hz)]
+    m_value_data = []  # To store [display_name, m value, average LPSD (1-40Hz)]
     gain_value = None  # Variable to store gain value for output
-
-    peak_index = 1  # Start peak numbering from 1
 
     for idx, file_path in enumerate(file_paths):
         filename = os.path.basename(file_path)
+        display_name = get_display_name(filename)  # 获取显示名称（如"5m_L"）
         ext = os.path.splitext(filename)[1].lower()
 
         try:
@@ -187,11 +193,11 @@ def process_files():
                 freq_mask = (freqs >= 1) & (freqs <= 40)
                 if np.any(freq_mask):
                     lpsd_avg_1_40 = np.mean(lpsd[freq_mask])
-                    # 存储文件名、m值、LPSD平均值
-                    m_value_data.append([filename, m_value, lpsd_avg_1_40])
-                    print(f"{filename}: m={m_value}m, 1-40Hz平均LPSD={lpsd_avg_1_40:.6f} g/√Hz")
+                    # 存储显示名称、m值、LPSD平均值
+                    m_value_data.append([display_name, m_value, lpsd_avg_1_40])
+                    print(f"{display_name}: m={m_value}m, 1-40Hz平均LPSD={lpsd_avg_1_40:.6f} g/√Hz")
                 else:
-                    print(f"{filename}: 频率范围不足1-40Hz")
+                    print(f"{display_name}: 频率范围不足1-40Hz")
 
                 # Find peaks in the LPSD data (with height threshold)
                 height_threshold = np.max(lpsd) * 0.1  # Only consider peaks that are 10% of the maximum peak height
@@ -206,16 +212,16 @@ def process_files():
                 # Plot the data with peaks on the first figure
                 plt.figure(fig1.number)
                 plt.loglog(freqs, lpsd,
-                            label=f"{os.path.splitext(filename)[0]} | Gain: {gain} | Sen: {sen}", 
+                            label=f"{display_name} | Gain: {gain} | Sen: {sen}", 
                             color=colors[idx % len(colors)], 
                             linewidth=1.2)
 
                 # 输出采样率和时间长度
-                print(f"处理完成: {filename}, 采样率: {fs} Hz, 数据时间长度: {len(acc_data) / fs:.2f} s, 频率分辨率: {fs / nfft:.2f} Hz")
+                print(f"处理完成: {display_name}, 采样率: {fs} Hz, 数据时间长度: {len(acc_data) / fs:.2f} s, 频率分辨率: {fs / nfft:.2f} Hz")
                 
                 # --- Output last row of data ---
                 last_row = df.iloc[-1]  # Extract the last row
-                print(f"Last row of {filename}: {last_row}")
+                print(f"Last row of {display_name}: {last_row}")
 
         except Exception as e:
             print(f"处理 {filename} 时出错: {e}")
@@ -231,15 +237,12 @@ def process_files():
     print("\nTop 20 Peak Data Recorded (sorted by peak value):")
     print(peak_df_sorted.head(20))
 
-    # --- 绘制文件名与1-40Hz平均LPSD的关系图（双y轴，38m归一化为1）---
+    # --- 绘制m值与1-40Hz平均LPSD的关系图（双y轴，38m归一化为1）---
     if m_value_data:
-        # 提取数据 - 现在每个item是 [filename, m_value, lpsd_value]
-        filenames = [item[0] for item in m_value_data]
+        # 提取数据 - 现在每个item是 [display_name, m_value, lpsd_value]
+        display_names = [item[0] for item in m_value_data]
         m_values = [item[1] for item in m_value_data]
         lpsd_avg_values = [item[2] for item in m_value_data]
-        
-        # 创建简化的文件名标签（去除路径和扩展名）
-        simplified_names = [os.path.splitext(os.path.basename(f))[0] for f in filenames]
         
         # 找到38m对应的平均值（作为基准值）
         ref_index = None
@@ -256,25 +259,18 @@ def process_files():
             relative_ratios = [val / ref_value for val in lpsd_avg_values]
             
             # 创建双y轴图
-            fig2, ax1 = plt.subplots(figsize=(14, 6))  # 增加宽度以适应更多文件名
-            
-            # 设置x轴为文件名，使用数字索引
-            x_positions = np.arange(len(simplified_names))
+            fig2, ax1 = plt.subplots(figsize=(10, 6))
             
             # 左y轴：原始LPSD平均值
             color1 = '#1f77b4'
-            ax1.set_xlabel("File Name", fontsize=12, fontname="Arial Unicode MS")
+            ax1.set_xlabel("Distance (m)", fontsize=12, fontname="Arial Unicode MS")
             ax1.set_ylabel(r"Average LPSD (1-40 Hz) ($g/\sqrt{Hz}$)", fontsize=12, fontname="Arial Unicode MS", color=color1)
             
             # 使用折线图连接点
-            line1 = ax1.plot(x_positions, lpsd_avg_values, 'o-', color=color1, linewidth=2, markersize=8, 
+            line1 = ax1.plot(m_values, lpsd_avg_values, 'o-', color=color1, linewidth=2, markersize=8, 
                              markerfacecolor='white', markeredgewidth=2, label='LPSD Average')
             ax1.tick_params(axis='y', labelcolor=color1)
             ax1.grid(True, alpha=0.3)
-            
-            # 设置x轴刻度为文件名
-            ax1.set_xticks(x_positions)
-            ax1.set_xticklabels(simplified_names, rotation=45, ha='right', fontsize=9)  # 旋转45度避免重叠
             
             # 右y轴：相对比值（38m归一化为1）
             color2 = '#d62728'
@@ -282,7 +278,7 @@ def process_files():
             ax2.set_ylabel(r"Relative Ratio (38m = 1)", fontsize=12, fontname="Arial Unicode MS", color=color2)
             
             # 绘制相对比值曲线（在右y轴上）
-            line2 = ax2.plot(x_positions, relative_ratios, 's--', color=color2, linewidth=1.5, markersize=6, 
+            line2 = ax2.plot(m_values, relative_ratios, 's--', color=color2, linewidth=1.5, markersize=6, 
                              markerfacecolor='white', markeredgewidth=1.5, label='Relative Ratio')
             ax2.tick_params(axis='y', labelcolor=color2)
             
@@ -291,59 +287,48 @@ def process_files():
             
             # 标记38m点的位置
             if ref_index is not None:
-                ax2.plot(x_positions[ref_index], 1, 'o', color=color2, markersize=8, 
+                ax2.plot(m_values[ref_index], 1, 'o', color=color2, markersize=8, 
                          markerfacecolor='white', markeredgewidth=2)
             
             # 添加标题
-            plt.title("Average Vibration Level vs. File Name", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
+            plt.title("Average Vibration Level vs. Distance", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
             
-            # 为每个点添加标注（显示m值作为标签）
-            for i, (x, y, m) in enumerate(zip(x_positions, lpsd_avg_values, m_values)):
-                ax1.annotate(f'{m}m', (x, y), textcoords="offset points", xytext=(0,10), 
-                             ha='center', fontsize=9, rotation=0)
+            # 为每个点添加标注（显示完整显示名称，如"5m_L"）
+            for i, (m, y, name) in enumerate(zip(m_values, lpsd_avg_values, display_names)):
+                ax1.annotate(name, (m, y), textcoords="offset points", xytext=(0,10), 
+                             ha='center', fontsize=8, rotation=0, bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.7))
             
             # 合并图例
             lines = line1 + line2
             labels = [l.get_label() for l in lines]
             ax1.legend(lines, labels, loc='upper right', fontsize=10)
             
-            # 调整底部边距以适应旋转的x轴标签
-            plt.subplots_adjust(bottom=0.2)
-            
             # 打印相对比值信息
             print(f"\n各文件的相对比值（以38m=1为基准）：")
-            for name, m, rel in zip(simplified_names, m_values, relative_ratios):
+            for name, m, rel in zip(display_names, m_values, relative_ratios):
                 print(f"{name} (距离{m}m): {rel:.3f}")
                 
         else:
             print(f"\n未找到38m数据，无法进行归一化。将使用原始数据绘制。")
             
             # 如果没有38m数据，只绘制左y轴的原始数据
-            fig2, ax1 = plt.subplots(figsize=(14, 6))
-            
-            # 设置x轴为文件名，使用数字索引
-            x_positions = np.arange(len(simplified_names))
+            fig2, ax1 = plt.subplots(figsize=(10, 6))
             
             color1 = '#1f77b4'
-            ax1.set_xlabel("File Name", fontsize=12, fontname="Arial Unicode MS")
+            ax1.set_xlabel("Distance (m)", fontsize=12, fontname="Arial Unicode MS")
             ax1.set_ylabel(r"Average LPSD (1-40 Hz) ($g/\sqrt{Hz}$)", fontsize=12, fontname="Arial Unicode MS", color=color1)
-            line1 = ax1.plot(x_positions, lpsd_avg_values, 'o-', color=color1, linewidth=2, markersize=8, 
+            line1 = ax1.plot(m_values, lpsd_avg_values, 'o-', color=color1, linewidth=2, markersize=8, 
                              markerfacecolor='white', markeredgewidth=2, label='LPSD Average')
             ax1.tick_params(axis='y', labelcolor=color1)
             ax1.grid(True, alpha=0.3)
             
-            # 设置x轴刻度为文件名
-            ax1.set_xticks(x_positions)
-            ax1.set_xticklabels(simplified_names, rotation=45, ha='right', fontsize=9)
+            # 为每个点添加标注（显示完整显示名称，如"5m_L"）
+            for i, (m, y, name) in enumerate(zip(m_values, lpsd_avg_values, display_names)):
+                ax1.annotate(name, (m, y), textcoords="offset points", xytext=(0,10), 
+                             ha='center', fontsize=8, rotation=0, bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.7))
             
-            # 为每个点添加标注（显示m值）
-            for i, (x, y, m) in enumerate(zip(x_positions, lpsd_avg_values, m_values)):
-                ax1.annotate(f'{m}m', (x, y), textcoords="offset points", xytext=(0,10), 
-                             ha='center', fontsize=9, rotation=0)
-            
-            plt.title("Average Vibration Level vs. File Name", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
+            plt.title("Average Vibration Level vs. Distance", fontsize=14, fontname="Arial Unicode MS", fontweight='bold')
             ax1.legend(loc='upper right', fontsize=10)
-            plt.subplots_adjust(bottom=0.2)
         
         plt.tight_layout()
     else:
