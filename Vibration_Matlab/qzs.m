@@ -436,7 +436,7 @@ ylabel('Transmissibility $T_a$', 'Interpreter', 'latex', 'FontSize', 22, 'FontWe
 title(['Displacement Transmissibility ($\zeta = $', num2str(zeta), ', $Z_e = $', num2str(Ze_mm), 'mm)'], ...
     'Interpreter', 'latex', 'FontSize', 24, 'FontWeight', 'bold');
 
-xlim([0, 1000]); ylim([0, 12]);
+xlim([0, 10]); ylim([0, 12]);
 set(gca, 'XTick', 0:2:10, 'YTick', 0:2:12);
 
 legend({sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_one_paper, mu3_one_paper), ...
@@ -479,338 +479,144 @@ function [f_peak, Ta_peak, f_iso] = calc_metrics(f_vec, Ta)
 end
 
 
-
-
-
-
-
 %% ==================== 5. 读取CSV文件并计算传递后响应 ====================
-
-% 弹框选择CSV文件
 [filename, filepath] = uigetfile('*.csv', '请选择包含振动数据的CSV文件');
 if isequal(filename, 0)
     disp('用户取消选择文件');
     return;
 end
-
 fullpath = fullfile(filepath, filename);
 fprintf('\n正在读取文件: %s\n', filename);
-
-% 读取CSV文件（前三行为标题）
+% 读取数据（跳过前3行表头）
 data = readmatrix(fullpath, 'NumHeaderLines', 3);
-t = data(:, 1);          % 第一列：时间
-v_in = data(:, 2);       % 第二列：电压值（输入信号）
-
-% 假设电压值与位移成线性关系，这里需要根据实际传感器标定进行转换
-% 如果没有标定，可以假设比例系数为1
-sensitivity = 1.0;  % 灵敏度，单位：V/mm（需要根据实际情况修改）
-x_in = v_in * sensitivity;  % 输入位移
-
-% 去除直流分量
-x_in = x_in - mean(x_in);
-
-% 采样频率
+t = data(:, 1);          
+v_raw = data(:, 2);       % 原始采集的电压信号（含增益）
+% ---------- 修改部分：去除100倍增益 ----------
+gain = 100;
+v_in = v_raw / gain;      % 去除增益后的实际电压值
+v_in = v_in - mean(v_in); % 去除直流分量（去中心化）
+% -------------------------------------------
 dt = t(2) - t(1);
 fs = 1 / dt;
 fprintf('采样频率: %.2f Hz\n', fs);
-
-% 对输入信号进行FFT分析
-N = length(x_in);
-fprintf('信号长度 N = %d\n', N);
+N = length(v_in);
 freq = (0:N-1) * fs / N;
-X_in = fft(x_in);
-X_in_mag = abs(X_in) / N * 2;
-X_in_mag(1) = X_in_mag(1) / 2;  % 修正直流分量
-
-% 找到主激励频率（取幅值最大的频率，排除直流分量）
-[~, idx_max] = max(X_in_mag(2:floor(N/2)));
+V_in_fft = fft(v_in);
+V_in_mag = abs(V_in_fft) / N * 2;
+V_in_mag(1) = V_in_mag(1) / 2;
+[~, idx_max] = max(V_in_mag(2:floor(N/2)));
 f_excitation = freq(idx_max + 1);
 fprintf('主激励频率: %.2f Hz\n', f_excitation);
-
-% ========== 计算完整传递率曲线（频率响应函数）==========
-% 只计算正频率部分（包括直流）
+% ========== 计算完整传递率曲线 ==========
 n_pos = floor(N/2);
-freq_range = freq(1:n_pos);  % 正频率
-Omega_range = freq_range / f0;  % 无量纲频率
-
-fprintf('正频率点数 n_pos = %d\n', n_pos);
-
-% 为每个参数组计算完整的传递率曲线
+freq_range = freq(1:n_pos);  
+Omega_range = freq_range / f0;  
 Ta_curve_all = zeros(5, n_pos);
 fprintf('\n正在计算各参数组的频率响应函数...\n');
-
-% 参数组1: One-paper
 for j = 1:n_pos
     Ta_curve_all(1, j) = compute_transmissibility(mu1_one_paper, mu3_one_paper, Omega_range(j), Ze_hat, zeta);
-end
-
-% 参数组2: Three-paper
-for j = 1:n_pos
     Ta_curve_all(2, j) = compute_transmissibility(mu1_three_paper, mu3_three_paper, Omega_range(j), Ze_hat, zeta);
-end
-
-% 参数组3: Opt1 (您的目标参数)
-for j = 1:n_pos
     Ta_curve_all(3, j) = compute_transmissibility(mu1_opt1, mu3_opt1, Omega_range(j), Ze_hat, zeta);
-end
-
-% 参数组4: Opt2
-for j = 1:n_pos
     Ta_curve_all(4, j) = compute_transmissibility(mu1_opt2, mu3_opt2, Omega_range(j), Ze_hat, zeta);
-end
-
-% 参数组5: Opt3
-for j = 1:n_pos
     Ta_curve_all(5, j) = compute_transmissibility(mu1_opt3, mu3_opt3, Omega_range(j), Ze_hat, zeta);
 end
-
-fprintf('频率响应函数计算完成\n');
-
 % ========== 在频域应用传递率曲线 ==========
-x_out_all = zeros(N, 5);
-
+v_out_all = zeros(N, 5);
 for i = 1:5
-    % 创建频率响应函数向量
     H_full = ones(1, N);
-    
-    % 设置正频率部分的传递率
     H_full(1:n_pos) = Ta_curve_all(i, :);
-    
-    % 设置负频率部分（共轭对称）
     if mod(N, 2) == 0
-        % N为偶数
-        H_full(n_pos+1) = Ta_curve_all(i, n_pos);  % 奈奎斯特频率
-        for k = 2:n_pos
-            H_full(N - k + 2) = conj(Ta_curve_all(i, k));
-        end
+        H_full(n_pos+1) = Ta_curve_all(i, n_pos); 
+        for k = 2:n_pos, H_full(N - k + 2) = conj(Ta_curve_all(i, k)); end
     else
-        % N为奇数
-        for k = 2:n_pos
-            H_full(N - k + 2) = conj(Ta_curve_all(i, k));
-        end
+        for k = 2:n_pos, H_full(N - k + 2) = conj(Ta_curve_all(i, k)); end
     end
     
-    % 确保都是列向量
-    if size(X_in, 2) > 1
-        X_in = X_in(:);
-    end
-    if size(H_full, 2) > 1
-        H_full = H_full(:);
-    end
-    
-    % 频域滤波
-    X_out_freq = X_in .* H_full;
-    
-    % IFFT得到时域输出
-    x_out_all(:, i) = real(ifft(X_out_freq));
+    if size(V_in_fft, 2) > 1, V_in_fft = V_in_fft(:); end
+    V_out_freq = V_in_fft .* H_full(:);
+    v_out_all(:, i) = real(ifft(V_out_freq));
 end
-
-% 计算各个参数组在主激励频率处的传递率（用于参考）
-Ta_at_excitation = zeros(1, 5);
-for i = 1:5
-    % 找到最接近激励频率的频率点
-    [~, idx] = min(abs(freq_range - f_excitation));
-    Ta_at_excitation(i) = Ta_curve_all(i, idx);
-end
-
-fprintf('\n各参数组在主激励频率 %.2f Hz 处的传递率:\n', f_excitation);
-fprintf('  One-paper:   %.4f (%.1f dB)\n', Ta_at_excitation(1), 20*log10(Ta_at_excitation(1)));
-fprintf('  Three-paper: %.4f (%.1f dB)\n', Ta_at_excitation(2), 20*log10(Ta_at_excitation(2)));
-fprintf('  Opt1:        %.4f (%.1f dB)\n', Ta_at_excitation(3), 20*log10(Ta_at_excitation(3)));
-fprintf('  Opt2:        %.4f (%.1f dB)\n', Ta_at_excitation(4), 20*log10(Ta_at_excitation(4)));
-fprintf('  Opt3:        %.4f (%.1f dB)\n', Ta_at_excitation(5), 20*log10(Ta_at_excitation(5)));
-
 %% ==================== 6. 绘制输入输出对比图 ====================
+% 定义颜色方案（确保时频域一一对应）
+colors_map = {[0 0.4470 0.7410], [0.8500 0.3250 0.0980], [0.4660 0.6740 0.1880], [0.4940 0.1840 0.5560], [0.3010 0.7450 0.9330]};
 
-% 定义统一的参数名称（用于图例）
+% 修改后的图例名称：显示五个无量纲参数
 param_names_legend = { ...
-    sprintf('One-paper: $\\delta=0.4089,\\ \\alpha=0.9218,\\ \\hat{a}=0.9791$'), ...
-    sprintf('Three-paper: $\\delta=0.4706,\\ \\hat{a}=0.9999,\\ \\alpha=0.4793,\\ \\alpha_1=0.1786$'), ...
-    sprintf('Opt1: $\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
-        configs(1,1), configs(1,2), configs(1,3), configs(1,4), configs(1,5)), ...
-    sprintf('Opt2: $\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
-        configs(2,1), configs(2,2), configs(2,3), final_params(2,4), final_params(2,5)), ...
-    sprintf('Opt3: $\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
-        configs(3,1), configs(3,2), configs(3,3), final_params(3,4), final_params(3,5))};
+    sprintf('One-paper: $\\hat{\\delta}=0.409, \\hat{a}=0.979, \\gamma=0.000, \\alpha=0.922, \\alpha_1=0.000$'), ...
+    sprintf('Three-paper: $\\hat{\\delta}=0.471, \\hat{a}=1.000, \\gamma=0.000, \\alpha=0.479, \\alpha_1=0.179$'), ...
+    sprintf('Opt1: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', configs(1,1), configs(1,2), configs(1,3), configs(1,4), configs(1,5)), ...
+    sprintf('Opt2: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', configs(2,1), configs(2,2), configs(2,3), final_params(2,4), final_params(2,5)), ...
+    sprintf('Opt3: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', configs(3,1), configs(3,2), configs(3,3), final_params(3,4), final_params(3,5))};
 
-% 图3：时域对比（显示前2秒或更短时间）
+% --- 图3：时域对比 ---
 time_show = min(2, t(end));
 idx_show = t <= time_show;
-
-figure('Color', 'w', 'Position', [100, 100, 1200, 800]);
-
-% 子图1：输入信号
+figure('Color', 'w', 'Position', [100, 100, 950, 650]);
+% 输入信号子图
 subplot(3, 2, 1);
-plot(t(idx_show), x_in(idx_show), 'b-', 'LineWidth', 1.5);
-xlabel('Time (s)', 'FontSize', 14);
-ylabel('Displacement (mm)', 'FontSize', 14);
-title(sprintf('Input Signal (RMS: %.3f mm)', sqrt(mean(x_in.^2))), 'FontSize', 14, 'FontWeight', 'bold');
-grid on; box on;
-xlim([0, time_show]);
-
-% 子图2-6：各参数组的输出信号
+plot(t(idx_show), v_in(idx_show), '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 2);
+xlabel('Time (s)', 'Interpreter', 'latex', 'FontSize', 22);
+ylabel('Voltage (V)', 'Interpreter', 'latex', 'FontSize', 22);
+title('Input Signal', 'FontSize', 18, 'Interpreter', 'latex');
+set(gca, 'FontSize', 12); grid on; box on; xlim([0, time_show]);
+% 输出信号子图 (1-5)
 for i = 1:5
     subplot(3, 2, i+1);
-    x_out_rms = sqrt(mean(x_out_all(:, i).^2));
-    plot(t(idx_show), x_out_all(idx_show, i), 'LineWidth', 1.5);
-    xlabel('Time (s)', 'FontSize', 14);
-    ylabel('Displacement (mm)', 'FontSize', 14);
-    title(sprintf('Output %d (RMS: %.3f mm, Reduction: %.1f dB)', ...
-        i, x_out_rms, 20*log10(x_out_rms/sqrt(mean(x_in.^2)))), ...
-        'FontSize', 11);
-    grid on; box on;
-    xlim([0, time_show]);
+    plot(t(idx_show), v_out_all(idx_show, i), 'Color', colors_map{i}, 'LineWidth', 1.5);
+    xlabel('Time (s)', 'Interpreter', 'latex', 'FontSize', 22);
+    ylabel('Voltage (V)', 'Interpreter', 'latex', 'FontSize', 22);
+    title(sprintf('Output %d', i), 'FontSize', 18, 'Interpreter', 'latex');
+    set(gca, 'FontSize', 12); grid on; box on; xlim([0, time_show]);
 end
+sgtitle('Voltage Response (Time Domain)', 'FontSize', 28, 'FontWeight', 'bold');
 
-sgtitle('Input and Output Responses Comparison (Time Domain)', 'FontSize', 18, 'FontWeight', 'bold');
-
-% 图4：频域对比 - 所有PSD曲线画在一张图上（参考您提供的代码）
-figure('Color', 'w', 'Position', [100, 100, 1000, 700]);
-
-% 定义窗口参数（用于PSD计算）
-window_time = 1;  % 窗口时长 1秒
-window_size = window_time * fs;
+% --- 图4：频域对比 ---
+figure('Color', 'w', 'Position', [100, 100, 950, 650]);
+window_size = min(length(v_in), 1 * fs);
 nfft = 2^nextpow2(window_size);
-overlap = nfft/2;  % 50%重叠
+overlap = nfft/2;
 f_psd = (0:nfft/2-1)*fs/nfft;
-
-% 计算输入信号的PSD
-fprintf('\n正在计算PSD...\n');
-
-% Hanning窗（能量归一化）
 window = hann(window_size);
 window = window ./ sqrt(mean(window.^2));
-
-% 输入信号PSD
-x_in_psd = compute_psd(x_in, window_size, overlap, nfft, fs, window);
-loglog(f_psd, sqrt(x_in_psd), 'k-', 'LineWidth', 2, 'DisplayName', 'Input Signal');
+% 输入信号 PSD (灰色虚线)
+v_in_psd = compute_psd(v_in, window_size, overlap, nfft, fs, window);
+h_in = loglog(f_psd, sqrt(v_in_psd), '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 2.5, 'DisplayName', 'Input Signal');
 hold on;
-
-% 颜色定义
-colors_plot = {'b-', 'r-', 'g-', 'm-', 'c-'};
-
-% 计算各参数组输出信号的PSD
+% 各组输出 PSD
+h_outs = zeros(1, 5);
 for i = 1:5
-    x_out_psd = compute_psd(x_out_all(:, i), window_size, overlap, nfft, fs, window);
-    loglog(f_psd, sqrt(x_out_psd), colors_plot{i}, 'LineWidth', 1.5, ...
-        'DisplayName', sprintf('Group %d: %s', i, param_names_legend{i}));
+    v_out_psd = compute_psd(v_out_all(:, i), window_size, overlap, nfft, fs, window);
+    h_outs(i) = loglog(f_psd, sqrt(v_out_psd), 'Color', colors_map{i}, 'LineWidth', 2, ...
+        'DisplayName', param_names_legend{i});
 end
+% 坐标轴与标签设置
+set(gca, 'FontSize', 16);
+xlabel('Frequency (Hz)', 'Interpreter', 'latex', 'FontSize', 22);
+ylabel('PSD $[V/\sqrt{Hz}]$', 'Interpreter', 'latex', 'FontSize', 22);
+% 保持加粗标题
+title('\textbf{Power Spectrum Density Comparison}', 'FontSize', 26, 'Interpreter', 'latex');
+% 图例设置
+lgd = legend([h_in, h_outs], [{'Input Signal'}, param_names_legend], ...
+    'Interpreter', 'latex', 'Location', 'northeast', 'FontSize', 12);
+set(lgd, 'Position', [0.32, 0.22, 0.2, 0.1]); 
+grid on; box on; xlim([0.5, fs/2]); hold off;
 
-% 设置图形属性
-xlabel('Frequency (Hz)', 'FontSize', 16, 'FontWeight', 'bold');
-ylabel('PSD [mm/√Hz]', 'FontSize', 16, 'FontWeight', 'bold');
-title('Power Spectrum Density Comparison', 'FontSize', 18, 'FontWeight', 'bold');
-legend('Location', 'best', 'Interpreter', 'latex', 'FontSize', 8);
-grid on; box on;
-xlim([0.1, fs/2]);  % 从0.1Hz开始，避免直流分量
-ylim auto;
-
-hold off;
-
-% 图5：所有输出叠加对比（时域）
-figure('Color', 'w', 'Position', [100, 100, 1000, 600]);
-
-for i = 1:5
-    x_out_rms = sqrt(mean(x_out_all(:, i).^2));
-    plot(t(idx_show), x_out_all(idx_show, i), colors_plot{i}, 'LineWidth', 1.5, ...
-        'DisplayName', sprintf('Group %d: %s (RMS: %.3f mm)', i, param_names_legend{i}, x_out_rms));
-    hold on;
-end
-plot(t(idx_show), x_in(idx_show), 'k--', 'LineWidth', 2, ...
-    'DisplayName', sprintf('Input (RMS: %.3f mm)', sqrt(mean(x_in.^2))));
-xlabel('Time (s)', 'FontSize', 14);
-ylabel('Displacement (mm)', 'FontSize', 14);
-title('All Output Responses Comparison', 'FontSize', 16, 'FontWeight', 'bold');
-legend('Location', 'best', 'Interpreter', 'latex', 'FontSize', 8);
-grid on; box on;
-xlim([0, time_show]);
-
-%% ==================== 7. 计算并输出性能指标 ====================
-
-fprintf('\n========== 各参数组性能指标 ==========\n');
-fprintf('%-20s %-12s %-12s %-12s %-15s %-12s\n', ...
-    'Parameter', 'Ta@f_ex', 'Ta_peak', 'f_iso(Hz)', 'RMS_ratio', 'Reduction(dB)');
-fprintf('%-20s %-12s %-12s %-12s %-15s %-12s\n', ...
-    '--------------------', '------------', '------------', '------------', '---------------', '------------');
-
-% 计算输入信号的RMS
-x_in_rms = sqrt(mean(x_in.^2));
-
-% 重新计算传递率曲线用于性能指标
-f_plot = linspace(0.1, 10, 500);
-Omega_plot = f_plot / f0;
-Ta_plot = zeros(5, length(f_plot));
-
-for j = 1:length(f_plot)
-    Ta_plot(1, j) = compute_transmissibility(mu1_one_paper, mu3_one_paper, Omega_plot(j), Ze_hat, zeta);
-    Ta_plot(2, j) = compute_transmissibility(mu1_three_paper, mu3_three_paper, Omega_plot(j), Ze_hat, zeta);
-    Ta_plot(3, j) = compute_transmissibility(mu1_opt1, mu3_opt1, Omega_plot(j), Ze_hat, zeta);
-    Ta_plot(4, j) = compute_transmissibility(mu1_opt2, mu3_opt2, Omega_plot(j), Ze_hat, zeta);
-    Ta_plot(5, j) = compute_transmissibility(mu1_opt3, mu3_opt3, Omega_plot(j), Ze_hat, zeta);
-end
-
-for i = 1:5
-    % 计算输出RMS
-    x_out_rms = sqrt(mean(x_out_all(:, i).^2));
-    rms_ratio = x_out_rms / x_in_rms;
-    
-    % 计算总衰减（dB）
-    total_reduction = 20 * log10(rms_ratio);
-    
-    % 获取传递率峰值和隔离频率
-    Ta_curve = Ta_plot(i, :);
-    [Ta_peak, idx_peak] = max(Ta_curve(2:end));
-    f_peak = f_plot(idx_peak + 1);
-    idx_iso = find(Ta_curve < 1, 1);
-    if isempty(idx_iso)
-        f_iso = NaN;
-    else
-        f_iso = f_plot(idx_iso);
-    end
-    
-    % 获取激励频率处的传递率
-    [~, idx_ex] = min(abs(f_plot - f_excitation));
-    Ta_at_fex = Ta_curve(idx_ex);
-    
-    param_names_perf = {'One-paper', 'Three-paper', 'Opt1', 'Opt2', 'Opt3'};
-    fprintf('%-20s %-12.4f %-12.4f %-12.2f %-15.4f %-12.2f\n', ...
-        param_names_perf{i}, Ta_at_fex, Ta_peak, f_iso, rms_ratio, total_reduction);
-end
-
-fprintf('\n========== 隔振效果评估 ==========\n');
-fprintf('注：\n');
-fprintf('  - RMS比值 < 1 表示有隔振效果\n');
-fprintf('  - 衰减值负值越大，隔振效果越好\n');
-fprintf('  - 传递率 < 1 的频率范围即为隔振频带\n');
-
-% 保存输出数据
-output_filename = strrep(filename, '.csv', '_isolated_output.mat');
-save(fullfile(filepath, output_filename), 't', 'x_in', 'x_out_all', 'param_names_legend', ...
-    'Ta_curve_all', 'Ta_plot', 'f_plot', 'f_excitation', 'Ta_at_excitation', 'f_psd', 'x_in_psd');
-fprintf('\n输出数据已保存至: %s\n', output_filename);
-fprintf('程序运行完成！\n');
-
+%% ==================== 保存并结束 ====================
+output_filename = strrep(filename, '.csv', '_voltage_output.mat');
+save(fullfile(filepath, output_filename), 't', 'v_in', 'v_out_all', 'Ta_curve_all', 'f_excitation');
 %% ==================== PSD计算辅助函数 ====================
 function psd = compute_psd(signal, window_size, overlap, nfft, fs, window)
-    % 分帧
+    signal = signal(:);
     data_windowed = buffer(signal, window_size, overlap, 'nodelay');
-    
-    % 去除最后一帧如果长度不足
     if size(data_windowed, 2) > 0 && size(data_windowed, 1) < window_size
         data_windowed(:, end) = [];
     end
-    
-    % 加窗
     data_windowed = data_windowed .* window;
-    
-    % 计算PSD
-    psd = zeros(nfft/2, size(data_windowed, 2));
+    psd_matrix = zeros(nfft/2, size(data_windowed, 2));
     for j = 1:size(data_windowed, 2)
         fft_data = fft(data_windowed(:,j), nfft);
-        psd(:,j) = abs(fft_data(1:nfft/2)).^2 / (fs * nfft);
-        psd(2:end-1,j) = 2 * psd(2:end-1,j);  % 单边谱修正
+        psd_matrix(:,j) = abs(fft_data(1:nfft/2)).^2 / (fs * nfft);
+        psd_matrix(2:end-1,j) = 2 * psd_matrix(2:end-1,j);
     end
-    
-    % 平均
-    psd = mean(psd, 2);
+    psd = mean(psd_matrix, 2);
 end
