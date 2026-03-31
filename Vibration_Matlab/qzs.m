@@ -14,11 +14,6 @@ fprintf('  δ̂ = %.3f, â = %.3f, α = %.3f, α₁ = %.3f, γ = %.3f\n\n', ...
 k1_range = 100:200:900;      % 上斜弹簧刚度 N/m
 h_range  = 0.10:0.05:0.30;   % 中间斜弹簧高度 m
 h1_range = 0.14:0.05:0.40;   % 上斜弹簧高度 m
-fprintf('总组合数: %d\n\n', length(k1_range) * length(h_range) * length(h1_range));
-fprintf('遍历结果（物理量已转换为 mm）:\n');
-fprintf('========================================================================================================================================================\n');
-fprintf(' k1(N/m) | h(mm) | h1(mm) | k2(N/m) | k3(N/m) | a(mm) | d(mm) | delta(mm) | ρ | â实际 | â误差 %% | γ实际 | γ误差 %% | α实际 | α₁实际 | δ̂实际 | δ̂误差 %%\n');
-fprintf('--------------------------------------------------------------------------------------------------------------------------------------------------------\n');
 
 figure('Color', 'w', 'Position', [100, 100, 950, 650]);
 colors = lines(length(k1_range));
@@ -27,24 +22,44 @@ h_iterated = [];
 iter_legend_str = ''; 
 y_hat = linspace(-10, 10, 1000); 
 
+fprintf('遍历结果 (包含水平间距 d 及详尽中间变量):\n');
+fprintf('============================================================================================================================================================================================================\n');
+% 表头：去掉了 h2，保留了 d(mm) 和各项关键中间系数
+fprintf(' k1  | h(mm)| h1(mm)| d(mm) | k2  | k3  | a(mm)|delta |  rho  | Delta | Delta1| Delta2| C1_den |   C1   | â实际 | γ实际 | α实际 | α₁实际| δ̂实际 | δ̂误差%%\n');
+fprintf('------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n');
+
 for k1 = k1_range
     for h = h_range
         for h1 = h1_range
-            % 用目标无量纲参数计算具体的初始条件
-            d = h / gamma_target;                          
-            a = (a_hat_target / sqrt(1 - a_hat_target^2)) * h1;  
-            delta = delta_hat_target * sqrt(a^2 + h1^2);             
+  
+            d = h / gamma_target;                 
+            a = (a_hat_target / sqrt(1 - a_hat_target^2)) * h1; 
+            delta = delta_hat_target * sqrt(a^2 + h1^2);  
+            
             k2 = k1 / alpha_target;                        
             k3 = alpha1_target * k2;    
+       
+            rho = (1 - a_hat_target^2) / (gamma_target - 1)^2;
+            Delta = sqrt(1 + a_hat_target^2 * gamma_target^2 - 2 * a_hat_target^2 * gamma_target); 
+            Delta1 = (1 + delta_hat_target) * (gamma_target - 1);
+            Delta2 = (1 + delta_hat_target) * (gamma_target - 1)^3;
+            
+            C1_den = -12*Delta2/Delta^3 + 72*Delta2*(1-a_hat_target^2)/Delta^5 - 60*Delta2*(1-a_hat_target^2)^2/Delta^7;
+            C1 = 6*(1 + delta_hat_target) * a_hat_target^(-3) / C1_den;
 
-            % 参数误差
             alpha_actual    = k1 / k2;                      
             alpha1_actual   = k3 / k2;                      
             a_hat_actual    = a / sqrt(a^2 + h1^2);         
             gamma_actual    = h / d;                        
             delta_hat_actual = delta / sqrt(a^2 + h1^2);    
-            rho = (1 - a_hat_actual^2) / (gamma_actual - 1)^2;
+            err_delta = abs(delta_hat_actual - delta_hat_target) / delta_hat_target * 100;
             
+            % 5. 格式化输出 (d 转换为 mm 输出)
+            fprintf('%4.0f |%5.1f |%5.1f |%6.2f |%4.0f |%4.0f |%5.1f |%5.2f | %.4f | %.4f | %.4f | %.4f | %.2e | %7.3f | %.3f | %.3f | %.3f | %.3f | %.3f | %.2f\n', ...
+                k1, h*1000, h1*1000, d*1000, k2, k3, a*1000, delta*1000, rho, Delta, Delta1, Delta2, C1_den, C1, a_hat_actual, gamma_actual, alpha_actual, alpha1_actual, delta_hat_actual, err_delta);
+            
+
+            x_e_hat = sqrt(1 - a_hat_actual^2) + sqrt(rho);
             delta_hat1 = 1 - sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) + rho) + delta_hat_actual;
             delta_hat2 = 1 - sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho) + delta_hat_actual;
             
@@ -173,6 +188,7 @@ for j = 1:size(test_params, 1)
 
     fprintf('    %d    |      %.3f      |     %.3f     |     %.3f     |     %.3f     |     %.3f\n', j, d_hat, a_hat, g, alpha_calc, alpha1_calc);
 end
+
 
 %% 全参数组泰勒展开计算
 fprintf('所有无量纲参数组的泰勒展开结果 (y=0 处):\n');
@@ -591,7 +607,7 @@ ylabel('PSD $[V/\sqrt{Hz}]$', 'Interpreter', 'latex', 'FontSize', 22);
 title('\textbf{Power Spectrum Density Comparison}', 'FontSize', 26, 'Interpreter', 'latex');
 
 lgd = legend([h_in, h_outs], [{'Input Signal'}, param_names_legend], ...
-    'Interpreter', 'latex', 'Location', 'northeast', 'FontSize', 12);
+    'Interpreter', 'latex', 'Location', 'northeast', 'FontSize', 13);
 set(lgd, 'Position', [0.32, 0.22, 0.2, 0.1]); 
 grid on; box on; xlim([0.5, fs/2]); hold off;
 

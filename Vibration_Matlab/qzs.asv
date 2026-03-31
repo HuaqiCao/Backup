@@ -14,11 +14,6 @@ fprintf('  δ̂ = %.3f, â = %.3f, α = %.3f, α₁ = %.3f, γ = %.3f\n\n', ...
 k1_range = 100:200:900;      % 上斜弹簧刚度 N/m
 h_range  = 0.10:0.05:0.30;   % 中间斜弹簧高度 m
 h1_range = 0.14:0.05:0.40;   % 上斜弹簧高度 m
-fprintf('总组合数: %d\n\n', length(k1_range) * length(h_range) * length(h1_range));
-fprintf('遍历结果（物理量已转换为 mm）:\n');
-fprintf('========================================================================================================================================================\n');
-fprintf(' k1(N/m) | h(mm) | h1(mm) | k2(N/m) | k3(N/m) | a(mm) | d(mm) | delta(mm) | ρ | â实际 | â误差 %% | γ实际 | γ误差 %% | α实际 | α₁实际 | δ̂实际 | δ̂误差 %%\n');
-fprintf('--------------------------------------------------------------------------------------------------------------------------------------------------------\n');
 
 figure('Color', 'w', 'Position', [100, 100, 950, 650]);
 colors = lines(length(k1_range));
@@ -27,23 +22,43 @@ h_iterated = [];
 iter_legend_str = ''; 
 y_hat = linspace(-10, 10, 1000); 
 
+fprintf('遍历结果 (详尽中间变量版):\n');
+fprintf('========================================================================================================================================================================================================\n');
+fprintf(' k1  | h(mm)| h1(mm)| k2  | k3  | a(mm)| d(mm)|delta |  rho  | Delta | Delta1| Delta2| C1_den |   C1   | â实际 | γ实际 | α实际 | α₁实际| δ̂实际 | δ̂误差%%\n');
+fprintf('--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n');
+
 for k1 = k1_range
     for h = h_range
         for h1 = h1_range
-            % 用目标无量纲参数计算具体的初始条件
+            % 1. 基础物理量计算
             d = h / gamma_target;                          
             a = (a_hat_target / sqrt(1 - a_hat_target^2)) * h1;  
             delta = delta_hat_target * sqrt(a^2 + h1^2);             
             k2 = k1 / alpha_target;                        
             k3 = alpha1_target * k2;    
+            
+            % 2. 关键中间无量纲参数 (对应泰勒展开各项)
+            rho = (1 - a_hat_target^2) / (gamma_target - 1)^2;
+            % Delta 相关项常用于计算高阶刚度系数
+            Delta = sqrt(1 + a_hat_target^2 * gamma_target^2 - 2 * a_hat_target^2 * gamma_target); 
+            Delta1 = (1 + delta_hat_target) * (gamma_target - 1);
+            Delta2 = (1 + delta_hat_target) * (gamma_target - 1)^3;
+            
+            % 3. 刚度配比分母项 (衡量系统是否接近理想QZS点)
+            C1_den = -12*Delta2/Delta^3 + 72*Delta2*(1-a_hat_target^2)/Delta^5 - 60*Delta2*(1-a_hat_target^2)^2/Delta^7;
+            C1 = 6*(1 + delta_hat_target) * a_hat_target^(-3) / C1_den;
 
-            % 参数误差
+            % 4. 实际值与误差
             alpha_actual    = k1 / k2;                      
             alpha1_actual   = k3 / k2;                      
             a_hat_actual    = a / sqrt(a^2 + h1^2);         
             gamma_actual    = h / d;                        
             delta_hat_actual = delta / sqrt(a^2 + h1^2);    
-            rho = (1 - a_hat_actual^2) / (gamma_actual - 1)^2;
+            err_delta = abs(delta_hat_actual - delta_hat_target) / delta_hat_target * 100;
+            
+            % 5. 格式化输出 (使用科学计数法处理极小值 C1_den)
+            fprintf('%4.0f |%5.1f |%5.1f |%4.0f |%4.0f |%5.1f |%5.1f |%5.2f | %.4f | %.4f | %.4f | %.4f | %.2e | %7.3f | %.3f | %.3f | %.3f | %.3f | %.3f | %.2f\n', ...
+                k1, h*1000, h1*1000, k2, k3, a*1000, d*1000, delta*1000, rho, Delta, Delta1, Delta2, C1_den, C1, a_hat_actual, gamma_actual, alpha_actual, alpha1_actual, delta_hat_actual, err_delta);
             
             delta_hat1 = 1 - sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) + rho) + delta_hat_actual;
             delta_hat2 = 1 - sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho) + delta_hat_actual;
@@ -173,6 +188,7 @@ for j = 1:size(test_params, 1)
 
     fprintf('    %d    |      %.3f      |     %.3f     |     %.3f     |     %.3f     |     %.3f\n', j, d_hat, a_hat, g, alpha_calc, alpha1_calc);
 end
+
 
 %% 全参数组泰勒展开计算
 fprintf('所有无量纲参数组的泰勒展开结果 (y=0 处):\n');
@@ -505,7 +521,7 @@ V_in_mag(1) = V_in_mag(1) / 2;
 f_excitation = freq(idx_max + 1);
 fprintf('主激励频率: %.2f Hz\n', f_excitation);
 
-% 计算完整传递率曲线 ==========
+% 计算完整传递率曲线 
 n_pos = floor(N/2);
 freq_range = freq(1:n_pos);  
 Omega_range = freq_range / f0;  
@@ -518,7 +534,7 @@ for j = 1:n_pos
     Ta_curve_all(4, j) = compute_transmissibility(mu1_opt2, mu3_opt2, Omega_range(j), Ze_hat, zeta);
     Ta_curve_all(5, j) = compute_transmissibility(mu1_opt3, mu3_opt3, Omega_range(j), Ze_hat, zeta);
 end
-% ========== 在频域应用传递率曲线 ==========
+% 在频域应用传递率曲线 
 v_out_all = zeros(N, 5);
 for i = 1:5
     H_full = ones(1, N);
@@ -534,30 +550,28 @@ for i = 1:5
     V_out_freq = V_in_fft .* H_full(:);
     v_out_all(:, i) = real(ifft(V_out_freq));
 end
-%% ==================== 6. 绘制输入输出对比图 ====================
-% 定义颜色方案（确保时频域一一对应）
+%% 绘制输入输出对比图
+% 定义颜色
 colors_map = {[0 0.4470 0.7410], [0.8500 0.3250 0.0980], [0.4660 0.6740 0.1880], [0.4940 0.1840 0.5560], [0.3010 0.7450 0.9330]};
 
-% 修改后的图例名称：显示五个无量纲参数
 param_names_legend = { ...
-    sprintf('One-paper: $\\hat{\\delta}=0.409, \\hat{a}=0.979, \\gamma=0.000, \\alpha=0.922, \\alpha_1=0.000$'), ...
-    sprintf('Three-paper: $\\hat{\\delta}=0.471, \\hat{a}=1.000, \\gamma=0.000, \\alpha=0.479, \\alpha_1=0.179$'), ...
+    sprintf('One-paper: $\\hat{\\delta}=0.409, \\hat{a}=0.979,  \\alpha=0.922$'), ...
+    sprintf('Three-paper: $\\hat{\\delta}=0.471, \\hat{a}=1.000 \\alpha=0.479, \\alpha_1=0.179$'), ...
     sprintf('Opt1: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', configs(1,1), configs(1,2), configs(1,3), configs(1,4), configs(1,5)), ...
     sprintf('Opt2: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', configs(2,1), configs(2,2), configs(2,3), final_params(2,4), final_params(2,5)), ...
     sprintf('Opt3: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', configs(3,1), configs(3,2), configs(3,3), final_params(3,4), final_params(3,5))};
 
-% --- 图3：时域对比 ---
 time_show = min(2, t(end));
 idx_show = t <= time_show;
 figure('Color', 'w', 'Position', [100, 100, 950, 650]);
-% 输入信号子图
+
 subplot(3, 2, 1);
 plot(t(idx_show), v_in(idx_show), '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 2);
 xlabel('Time (s)', 'Interpreter', 'latex', 'FontSize', 22);
 ylabel('Voltage (V)', 'Interpreter', 'latex', 'FontSize', 22);
 title('Input Signal', 'FontSize', 18, 'Interpreter', 'latex');
 set(gca, 'FontSize', 12); grid on; box on; xlim([0, time_show]);
-% 输出信号子图 (1-5)
+
 for i = 1:5
     subplot(3, 2, i+1);
     plot(t(idx_show), v_out_all(idx_show, i), 'Color', colors_map{i}, 'LineWidth', 1.5);
@@ -568,7 +582,6 @@ for i = 1:5
 end
 sgtitle('Voltage Response (Time Domain)', 'FontSize', 28, 'FontWeight', 'bold');
 
-% --- 图4：频域对比 ---
 figure('Color', 'w', 'Position', [100, 100, 950, 650]);
 window_size = min(length(v_in), 1 * fs);
 nfft = 2^nextpow2(window_size);
@@ -576,33 +589,33 @@ overlap = nfft/2;
 f_psd = (0:nfft/2-1)*fs/nfft;
 window = hann(window_size);
 window = window ./ sqrt(mean(window.^2));
-% 输入信号 PSD (灰色虚线)
+
 v_in_psd = compute_psd(v_in, window_size, overlap, nfft, fs, window);
 h_in = loglog(f_psd, sqrt(v_in_psd), '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 2.5, 'DisplayName', 'Input Signal');
 hold on;
-% 各组输出 PSD
+
 h_outs = zeros(1, 5);
 for i = 1:5
     v_out_psd = compute_psd(v_out_all(:, i), window_size, overlap, nfft, fs, window);
     h_outs(i) = loglog(f_psd, sqrt(v_out_psd), 'Color', colors_map{i}, 'LineWidth', 2, ...
         'DisplayName', param_names_legend{i});
 end
-% 坐标轴与标签设置
+
 set(gca, 'FontSize', 16);
 xlabel('Frequency (Hz)', 'Interpreter', 'latex', 'FontSize', 22);
 ylabel('PSD $[V/\sqrt{Hz}]$', 'Interpreter', 'latex', 'FontSize', 22);
-% 保持加粗标题
 title('\textbf{Power Spectrum Density Comparison}', 'FontSize', 26, 'Interpreter', 'latex');
-% 图例设置
+
 lgd = legend([h_in, h_outs], [{'Input Signal'}, param_names_legend], ...
     'Interpreter', 'latex', 'Location', 'northeast', 'FontSize', 12);
 set(lgd, 'Position', [0.32, 0.22, 0.2, 0.1]); 
 grid on; box on; xlim([0.5, fs/2]); hold off;
 
-%% ==================== 保存并结束 ====================
+%% 保存并结束
 output_filename = strrep(filename, '.csv', '_voltage_output.mat');
 save(fullfile(filepath, output_filename), 't', 'v_in', 'v_out_all', 'Ta_curve_all', 'f_excitation');
-%% ==================== PSD计算辅助函数 ====================
+
+%% PSD计算辅助函数
 function psd = compute_psd(signal, window_size, overlap, nfft, fs, window)
     signal = signal(:);
     data_windowed = buffer(signal, window_size, overlap, 'nodelay');
