@@ -170,7 +170,7 @@ xlabel('$\hat{y}$', 'Interpreter', 'latex', 'FontSize', 22);
 ylabel('$\hat{K}$', 'Interpreter', 'latex', 'FontSize', 22);
 xticks([-0.8, -0.5, -0.3, 0, 0.3, 0.5, 0.8]);
 
-title('Stiffness curves comparison of QZS', 'FontSize', 26, 'Interpreter', 'latex');
+title('\textbf{Stiffness curves comparison of QZS}', 'FontSize', 26, 'Interpreter', 'latex');
 grid on; box on; xlim([-0.8, 0.8]); ylim([-0, 1.5]);
 
 for j = 1:size(test_params, 1)
@@ -384,10 +384,10 @@ yline(1, 'k:', 'LineWidth', 0.8);
 
 grid on; box on;
 set(gca, 'FontSize', 14, 'FontName', 'Times New Roman');
-xlabel('Frequency (Hz)', 'FontSize', 22, 'FontWeight', 'bold');
+xlabel('Frequency (Hz)', 'FontSize', 22);
 ylabel('Transmissibility $T_a$', 'Interpreter', 'latex', 'FontSize', 22, 'FontWeight', 'bold');
-title(['Displacement Transmissibility ($\zeta = $', num2str(zeta), ', $Z_e = $', num2str(Ze_mm), 'mm)'], ...
-    'Interpreter', 'latex', 'FontSize', 24, 'FontWeight', 'bold');
+title(['\textbf{Displacement Transmissibility ($\zeta = $', num2str(zeta), ', $Z_e = $', num2str(Ze_mm), 'mm)}'], ...
+    'Interpreter', 'latex', 'FontSize', 24);
 
 xlim([0, 10]); ylim([0, 12]);
 set(gca, 'XTick', 0:2:10, 'YTick', 0:2:12);
@@ -446,10 +446,10 @@ yline(1, 'k:', 'LineWidth', 0.8);
 
 grid on; box on;
 set(gca, 'FontSize', 14, 'FontName', 'Times New Roman');
-xlabel('Frequency (Hz)', 'FontSize', 22, 'FontWeight', 'bold');
+xlabel('Frequency (Hz)', 'FontSize', 22);
 ylabel('Transmissibility $T_a$', 'Interpreter', 'latex', 'FontSize', 22, 'FontWeight', 'bold');
-title(['Displacement Transmissibility ($\zeta = $', num2str(zeta), ', $Z_e = $', num2str(Ze_mm), 'mm)'], ...
-    'Interpreter', 'latex', 'FontSize', 24, 'FontWeight', 'bold');
+title(['\textbf{Displacement Transmissibility ($\zeta = $', num2str(zeta), ', $Z_e = $', num2str(Ze_mm), 'mm)}'], ...
+    'Interpreter', 'latex', 'FontSize', 24);
 
 xlim([0, 10]); ylim([0, 12]);
 set(gca, 'XTick', 0:2:10, 'YTick', 0:2:12);

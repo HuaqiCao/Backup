@@ -22,33 +22,31 @@ h_iterated = [];
 iter_legend_str = ''; 
 y_hat = linspace(-10, 10, 1000); 
 
-fprintf('遍历结果 (详尽中间变量版):\n');
-fprintf('========================================================================================================================================================================================================\n');
-fprintf(' k1  | h(mm)| h1(mm)| k2  | k3  | a(mm)| d(mm)|delta |  rho  | Delta | Delta1| Delta2| C1_den |   C1   | â实际 | γ实际 | α实际 | α₁实际| δ̂实际 | δ̂误差%%\n');
-fprintf('--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n');
+fprintf('遍历结果 (包含水平间距 d 及详尽中间变量):\n');
+fprintf('============================================================================================================================================================================================================\n');
+% 表头：去掉了 h2，保留了 d(mm) 和各项关键中间系数
+fprintf(' k1  | h(mm)| h1(mm)| d(mm) | k2  | k3  | a(mm)|delta |  rho  | Delta | Delta1| Delta2| C1_den |   C1   | â实际 | γ实际 | α实际 | α₁实际| δ̂实际 | δ̂误差%%\n');
+fprintf('------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n');
 
 for k1 = k1_range
     for h = h_range
         for h1 = h1_range
-            % 1. 基础物理量计算
-            d = h / gamma_target;                          
-            a = (a_hat_target / sqrt(1 - a_hat_target^2)) * h1;  
-            delta = delta_hat_target * sqrt(a^2 + h1^2);             
+  
+            d = h / gamma_target;                 
+            a = (a_hat_target / sqrt(1 - a_hat_target^2)) * h1; 
+            delta = delta_hat_target * sqrt(a^2 + h1^2);  
+            
             k2 = k1 / alpha_target;                        
             k3 = alpha1_target * k2;    
-            
-            % 2. 关键中间无量纲参数 (对应泰勒展开各项)
+       
             rho = (1 - a_hat_target^2) / (gamma_target - 1)^2;
-            % Delta 相关项常用于计算高阶刚度系数
             Delta = sqrt(1 + a_hat_target^2 * gamma_target^2 - 2 * a_hat_target^2 * gamma_target); 
             Delta1 = (1 + delta_hat_target) * (gamma_target - 1);
             Delta2 = (1 + delta_hat_target) * (gamma_target - 1)^3;
             
-            % 3. 刚度配比分母项 (衡量系统是否接近理想QZS点)
             C1_den = -12*Delta2/Delta^3 + 72*Delta2*(1-a_hat_target^2)/Delta^5 - 60*Delta2*(1-a_hat_target^2)^2/Delta^7;
             C1 = 6*(1 + delta_hat_target) * a_hat_target^(-3) / C1_den;
 
-            % 4. 实际值与误差
             alpha_actual    = k1 / k2;                      
             alpha1_actual   = k3 / k2;                      
             a_hat_actual    = a / sqrt(a^2 + h1^2);         
@@ -56,10 +54,12 @@ for k1 = k1_range
             delta_hat_actual = delta / sqrt(a^2 + h1^2);    
             err_delta = abs(delta_hat_actual - delta_hat_target) / delta_hat_target * 100;
             
-            % 5. 格式化输出 (使用科学计数法处理极小值 C1_den)
-            fprintf('%4.0f |%5.1f |%5.1f |%4.0f |%4.0f |%5.1f |%5.1f |%5.2f | %.4f | %.4f | %.4f | %.4f | %.2e | %7.3f | %.3f | %.3f | %.3f | %.3f | %.3f | %.2f\n', ...
-                k1, h*1000, h1*1000, k2, k3, a*1000, d*1000, delta*1000, rho, Delta, Delta1, Delta2, C1_den, C1, a_hat_actual, gamma_actual, alpha_actual, alpha1_actual, delta_hat_actual, err_delta);
+            % 5. 格式化输出 (d 转换为 mm 输出)
+            fprintf('%4.0f |%5.1f |%5.1f |%6.2f |%4.0f |%4.0f |%5.1f |%5.2f | %.4f | %.4f | %.4f | %.4f | %.2e | %7.3f | %.3f | %.3f | %.3f | %.3f | %.3f | %.2f\n', ...
+                k1, h*1000, h1*1000, d*1000, k2, k3, a*1000, delta*1000, rho, Delta, Delta1, Delta2, C1_den, C1, a_hat_actual, gamma_actual, alpha_actual, alpha1_actual, delta_hat_actual, err_delta);
             
+
+            x_e_hat = sqrt(1 - a_hat_actual^2) + sqrt(rho);
             delta_hat1 = 1 - sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) + rho) + delta_hat_actual;
             delta_hat2 = 1 - sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho) + delta_hat_actual;
             
@@ -170,7 +170,7 @@ xlabel('$\hat{y}$', 'Interpreter', 'latex', 'FontSize', 22);
 ylabel('$\hat{K}$', 'Interpreter', 'latex', 'FontSize', 22);
 xticks([-0.8, -0.5, -0.3, 0, 0.3, 0.5, 0.8]);
 
-title('Stiffness curves comparison of QZS', 'FontSize', 26, 'Interpreter', 'latex');
+title('\textbf{Stiffness curves comparison of QZS}', 'FontSize', 26, 'Interpreter', 'latex');
 grid on; box on; xlim([-0.8, 0.8]); ylim([-0, 1.5]);
 
 for j = 1:size(test_params, 1)
@@ -384,7 +384,7 @@ yline(1, 'k:', 'LineWidth', 0.8);
 
 grid on; box on;
 set(gca, 'FontSize', 14, 'FontName', 'Times New Roman');
-xlabel('Frequency (Hz)', 'FontSize', 22, 'FontWeight', 'bold');
+xlabel('Frequency (Hz)', 'FontSize', 22);
 ylabel('Transmissibility $T_a$', 'Interpreter', 'latex', 'FontSize', 22, 'FontWeight', 'bold');
 title(['Displacement Transmissibility ($\zeta = $', num2str(zeta), ', $Z_e = $', num2str(Ze_mm), 'mm)'], ...
     'Interpreter', 'latex', 'FontSize', 24, 'FontWeight', 'bold');
@@ -446,7 +446,7 @@ yline(1, 'k:', 'LineWidth', 0.8);
 
 grid on; box on;
 set(gca, 'FontSize', 14, 'FontName', 'Times New Roman');
-xlabel('Frequency (Hz)', 'FontSize', 22, 'FontWeight', 'bold');
+xlabel('Frequency (Hz)', 'FontSize', 22);
 ylabel('Transmissibility $T_a$', 'Interpreter', 'latex', 'FontSize', 22, 'FontWeight', 'bold');
 title(['Displacement Transmissibility ($\zeta = $', num2str(zeta), ', $Z_e = $', num2str(Ze_mm), 'mm)'], ...
     'Interpreter', 'latex', 'FontSize', 24, 'FontWeight', 'bold');
@@ -607,7 +607,7 @@ ylabel('PSD $[V/\sqrt{Hz}]$', 'Interpreter', 'latex', 'FontSize', 22);
 title('\textbf{Power Spectrum Density Comparison}', 'FontSize', 26, 'Interpreter', 'latex');
 
 lgd = legend([h_in, h_outs], [{'Input Signal'}, param_names_legend], ...
-    'Interpreter', 'latex', 'Location', 'northeast', 'FontSize', 12);
+    'Interpreter', 'latex', 'Location', 'northeast', 'FontSize', 13);
 set(lgd, 'Position', [0.32, 0.22, 0.2, 0.1]); 
 grid on; box on; xlim([0.5, fs/2]); hold off;
 
