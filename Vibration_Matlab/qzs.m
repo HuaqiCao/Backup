@@ -288,15 +288,23 @@ end
 
 
 %% 传递率曲线计算
-L_ref = sqrt(1^2 + 40^2);  
-Ze_mm = 3;                   % 激励幅值 3 mm
-Ze_hat = Ze_mm / L_ref;      % 无量纲激励幅值 ≈ 0.03194
+% L_ref = sqrt(1^2 + 40^2);  
+% Ze_mm = 3;                   % 激励幅值 3 mm
+% Ze_hat = Ze_mm / L_ref;      % 无量纲激励幅值 ≈ 0.03194
+m = 3;              % 实际负载质量 3 kg
+g_acc = 9.81;       % 重力加速度 m/s^2
 
 % 阻尼比
-zeta = 0.15;
+%zeta = 0.15;
+L_ref = sqrt(a^2 + h1^2); % 建议使用代码中计算出的几何参考值
+Ze_hat = Ze_mm / (L_ref * 1000); % 确保单位统一（mm/mm）
 
 % 线性系统固有频率
-f0 = 1.5;  % Hz
+% f0 = 3.5;  % Hz
+k2_actual = k1_actual / alpha_target; 
+K_eq = k2_actual * mu1_opt1; 
+f0 = (1/(2*pi)) * sqrt(K_eq / m); 
+fprintf('基于3kg负载计算得到的固有频率 f0 = %.2f Hz\n', f0);
 
 %% 所有隔离器的无量纲参数
 mu1_one_paper = 0.1907;
