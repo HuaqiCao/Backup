@@ -11,9 +11,9 @@ fprintf('  δ̂ = %.3f, â = %.3f, α = %.3f, α₁ = %.3f, γ = %.3f\n\n', ...
     delta_hat_target, a_hat_target, alpha_target, alpha1_target, gamma_target);
 
 %% 物理参数限制（补充实际的一些空间限制）
-k1_range = 100:200:900;      % 上斜弹簧刚度 N/m
-h_range  = 0.10:0.05:0.30;   % 中间斜弹簧高度 m
-h1_range = 0.14:0.05:0.40;   % 上斜弹簧高度 m
+k1_range = 100:100:600;      % 上斜弹簧刚度 N/m
+h_range  = 0.10:0.01:0.30;   % 中间斜弹簧高度 m
+h1_range = 0.14:0.01:0.40;   % 上斜弹簧高度 m
 
 figure('Color', 'w', 'Position', [100, 100, 950, 650]);
 colors = lines(length(k1_range));
@@ -24,9 +24,8 @@ y_hat = linspace(-10, 10, 1000);
 
 fprintf('遍历结果 (包含水平间距 d 及详尽中间变量):\n');
 fprintf('============================================================================================================================================================================================================\n');
-% 表头：去掉了 h2，保留了 d(mm) 和各项关键中间系数
-fprintf(' k1  | h(mm)| h1(mm)| d(mm) | k2  | k3  | a(mm)|delta |  rho  | Delta | Delta1| Delta2| C1_den |   C1   | â实际 | γ实际 | α实际 | α₁实际| δ̂实际 | δ̂误差%%\n');
-fprintf('------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n');
+fprintf(' k1(N/m) | h(mm) | h1(mm) | d(mm) | k2(N/m) | k3(N/m) | a(mm) | delta(mm) |  rho  | Delta | Delta1 | Delta2 | C1_den |   C1   | â实际 | γ实际 | α实际 | α₁实际| δ̂实际 | δ̂误差%%\n');
+fprintf('--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n');
 
 for k1 = k1_range
     for h = h_range
@@ -34,6 +33,11 @@ for k1 = k1_range
   
             d = h / gamma_target;                 
             a = (a_hat_target / sqrt(1 - a_hat_target^2)) * h1; 
+            % a < 0.6m (600mm) 且 d < 0.5m (500mm)
+            if a >= 0.6 || d >= 0.5
+                continue; 
+            end
+
             delta = delta_hat_target * sqrt(a^2 + h1^2);  
             
             k2 = k1 / alpha_target;                        
@@ -59,7 +63,6 @@ for k1 = k1_range
                 k1, h*1000, h1*1000, d*1000, k2, k3, a*1000, delta*1000, rho, Delta, Delta1, Delta2, C1_den, C1, a_hat_actual, gamma_actual, alpha_actual, alpha1_actual, delta_hat_actual, err_delta);
             
 
-            x_e_hat = sqrt(1 - a_hat_actual^2) + sqrt(rho);
             delta_hat1 = 1 - sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) + rho) + delta_hat_actual;
             delta_hat2 = 1 - sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho) + delta_hat_actual;
             
@@ -117,10 +120,6 @@ fprintf('\n目标曲线的五个无量纲参数计算结果:\n');
 fprintf('-------------------------------------------------------------------------------------------\n');
 fprintf('  Index  |   delta_hat (δ̂) |   a_hat (â)   |   gamma (γ)   |   alpha (α)   |   alpha1 (α1)\n');
 fprintf('-------------------------------------------------------------------------------------------\n');
-
-h_targets = [];
-target_legends = {};
-test_colors = {'b--', 'r--'}; 
 
 for j = 1:size(test_params, 1)
     d_hat = test_params(j,1); a_hat = test_params(j,2); g = test_params(j,3);
@@ -191,7 +190,7 @@ end
 
 
 %% 全参数组泰勒展开计算
-fprintf('所有无量纲参数组的泰勒展开结果 (y=0 处):\n');
+fprintf('\n所有无量纲参数组的泰勒展开结果 (y=0 处):\n');
 % 汇总所有待计算的参数组 [delta_hat, a_hat, gamma, alpha, alpha1]
 all_configs = [delta_hat_target, a_hat_target, gamma_target, alpha_target, alpha1_target; 
                test_params(1,1), test_params(1,2), test_params(1,3), 0, 0;              
@@ -297,7 +296,7 @@ Ze_hat = Ze_mm / L_ref;      % 无量纲激励幅值 ≈ 0.03194
 zeta = 0.15;
 
 % 线性系统固有频率
-f0 = 3.5;  % Hz
+f0 = 1.5;  % Hz
 
 %% 所有隔离器的无量纲参数
 mu1_one_paper = 0.1907;
