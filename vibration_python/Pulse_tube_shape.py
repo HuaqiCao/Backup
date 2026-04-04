@@ -19,7 +19,7 @@ fs = 10000                      # 采样率
 f0 = 1.4                        # 基波频率
 T0 = 1 / f0                     # 一个周期时间
 N0 = int(fs * T0)               # 每周期采样点数
-gain = 100                      # 放大倍数
+gain = 1                        # 放大倍数
 
 # ===================== 读取 CSV 文件 =====================
 root = Tk(); root.withdraw()
@@ -43,9 +43,19 @@ assert num_cycles >= 6                        # 至少需要 6 周期
 segments = np.array([x_raw_v[i*N0:(i+1)*N0] for i in range(num_cycles)])
 segments6 = segments[:6]                      # 前 6 周期
 
-# ===================== 单周期平均 =====================
+# ===================== 单周期平均与平滑 =====================
 avg_cycle = np.mean(segments, axis=0)         # 所有周期平均
 avg_cycle_smooth = savgol_filter(avg_cycle, 151, 3)  # Savitzky–Golay 平滑
+
+# ===================== 保存数据为 .npy 格式 =====================
+# 保存平均后的数据
+np.save("single_cycle_averaged.npy", avg_cycle)
+# 保存平滑后的数据（这是你需要的）
+np.save(r"D:\Backup\single_cycle_smoothed.npy", avg_cycle_smooth)
+
+print("数据已保存：")
+print("- 平均波形: single_cycle_averaged.npy")
+print("- 平滑波形: single_cycle_smoothed.npy")
 
 # ===================== FFT 函数 =====================
 def fft_amp(sig, fs):
@@ -101,9 +111,9 @@ peaks_avg = top_k_peaks(f4_avg, A4_avg)
 peaks_smooth = top_k_peaks(f4_smooth, A4_smooth)
 
 print("============= 图4：4周期 FFT 前 5 个主峰 =============")
-print("Raw：     ", np.round(np.sort(peaks_raw), 6))
-print("Avg：     ", np.round(np.sort(peaks_avg), 6))
-print("Smooth：  ", np.round(np.sort(peaks_smooth), 6))
+print("Raw：      ", np.round(np.sort(peaks_raw), 6))
+print("Avg：      ", np.round(np.sort(peaks_avg), 6))
+print("Smooth：   ", np.round(np.sort(peaks_smooth), 6))
 print("======================================================\n")
 
 # ===================== 开始绘图 =====================
@@ -148,12 +158,14 @@ plt.legend(["Raw", "Averaged", "Smoothed"])
 
 # ---- 图5：单周期时域 ----
 plt.figure(figsize=(10,4))
-t_cycle = np.arange(N0) / fs
-plt.plot(t_cycle, avg_cycle, color="#2ca02c", linewidth=2.5)
-plt.plot(t_cycle, avg_cycle_smooth, color="#ff7f0e")
-plt.title("Figure 5: Single Cycle (Averaged vs Smoothed)")
+# 横轴除以 5000
+x_axis_5000 = np.arange(N0) / 5000
+plt.plot(x_axis_5000, sig4_raw, color="#1f77b4", alpha=0.5, label="Raw Cycle")
+plt.plot(x_axis_5000, avg_cycle, color="#2ca02c", linewidth=2.5, label="Averaged Cycle")
+plt.plot(x_axis_5000, avg_cycle_smooth, color="#ff7f0e", label="Smoothed Cycle")
+plt.title("Figure 5: Single Cycle Comparison (Raw vs Avg vs Smooth)")
 plt.xlabel("Time (s)"); plt.ylabel("Voltage (V)")
-plt.grid(True); plt.legend(["Averaged Cycle", "Smoothed Cycle"])
+plt.grid(True); plt.legend()
 
 plt.tight_layout()
 plt.show()

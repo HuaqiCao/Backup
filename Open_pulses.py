@@ -1,18 +1,12 @@
 import numpy as np
-
-waveforms = np.load(r"D:\Backup\noise_waveforms.npy")
-
-#print(waveforms.shape)        # (872, 3000)  →  872 noise waveforms, 3000 samples each
-
-# Access a single waveform
-waveforms[0]                  # first noise waveform
-waveforms[43]                 # 43rd noise waveform
-
-# Loop over all
-for i, wf in enumerate(waveforms):
-    print(i, wf.shape)        # (3000,)
-
-# Plot one
 import matplotlib.pyplot as plt
-plt.plot(np.arange(3000) / 5000, waveforms[42])
+
+# 1. 加载数据
+waveform = np.load(r"D:\Backup\single_cycle_smoothed.npy")
+
+# 2. 自动获取点数，防止长度对不上报错
+n = len(waveform) 
+
+# 3. 绘图：横轴除以 5000，纵轴直接用 waveform
+plt.plot(np.arange(n) / 5000, waveform)
 plt.show()
