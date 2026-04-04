@@ -26,7 +26,7 @@ root = Tk(); root.withdraw()
 file_path = filedialog.askopenfilename(title="Select CSV File")
 print("Selected:", file_path)
 
-df = pd.read_csv(file_path, skiprows=4, header=None, encoding="gbk")
+df = pd.read_csv(file_path, skiprows=4, header=None, encoding="utf-8-sig")
 t = df.iloc[:, 0].astype(float).values        # 时间
 x_raw = df.iloc[:, 1].astype(float).values    # 原始电压
 

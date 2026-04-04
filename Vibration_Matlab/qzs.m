@@ -6,114 +6,126 @@ a_hat_target     = 0.755;    % â = a / sqrt(a^2 + h1^2)
 alpha_target     = 0.942;    % α = k1/k2
 alpha1_target    = 0.501;    % α₁ = k3/k2
 gamma_target     = 2.143;    % γ = h/d
+
 fprintf('目标无量纲参数:\n');
 fprintf('  δ̂ = %.3f, â = %.3f, α = %.3f, α₁ = %.3f, γ = %.3f\n\n', ...
     delta_hat_target, a_hat_target, alpha_target, alpha1_target, gamma_target);
 
-%% 物理参数限制（补充实际的一些空间限制）
-k1_range = 100:10:1000;      % 上斜弹簧刚度 N/m
-h_range  = 0.01:0.01:0.04;   % 中间斜弹簧高度 m
-h1_range = 0.01:0.01:0.02;   % 上斜弹簧高度 m
+a = 0.06;                   
+
+%% 根据 â = a / sqrt(a^2 + h1^2) 反求 h1
+% â^2 = a^2 / (a^2 + h1^2)
+% a^2 + h1^2 = a^2 / â^2
+% h1^2 = a^2/â^2 - a^2 = a^2*(1/â^2 - 1)
+h1 = sqrt(a^2 * (1/a_hat_target^2 - 1));
+
+fprintf('根据 â = %.3f 和 a = %.1f mm 计算得到 h1 = %.1f mm\n\n', ...
+    a_hat_target, a*1000, h1*1000);
+
+%% 根据 δ̂ = δ / sqrt(a^2 + h1^2) 求 δ
+delta = delta_hat_target * sqrt(a^2 + h1^2);
+
+%% 参数范围
+k1_range = 100:1:1000;        % 上斜弹簧刚度 N/m
+h_range  = 0.01:0.01:0.05;    % 中间斜弹簧高度 m 
+
+fprintf('============================================================================================================================================\n');
+fprintf(' k1(N/m) | h(mm) | h1(mm) | d(mm) | k2(N/m) | k3(N/m) | a(mm) | delta(mm) | â实际 | γ实际 | α实际 | α₁实际| δ̂实际\n');
+fprintf('--------------------------------------------------------------------------------------------------------------------------------------------\n');
 
 figure('Color', 'w', 'Position', [100, 100, 950, 650]);
 colors = lines(length(k1_range));
-color_idx = 1;
-h_iterated = []; 
-iter_legend_str = ''; 
-y_hat = linspace(-10, 10, 1000); 
-
-% 修改表头，去掉 C1_den 和 C1
-fprintf('============================================================================================================================================\n');
-fprintf(' k1(N/m) | h(mm) | h1(mm) | d(mm) | k2(N/m) | k3(N/m) | a(mm) | delta(mm) |  rho  | Delta | Delta1 | Delta2 | â实际 | γ实际 | α实际 | α₁实际| δ̂实际\n');
-fprintf('--------------------------------------------------------------------------------------------------------------------------------------------\n');
-
-found_count = 0; 
+found_count = 0;
+y_hat = linspace(-10, 10, 1000);
+h_iterated = [];
+iter_legend_str = '';
 
 for k1 = k1_range
     for h = h_range
-        for h1 = h1_range
-    
-            d = h / gamma_target;                 
-            a = (a_hat_target / sqrt(1 - a_hat_target^2)) * h1; 
+        % 根据 γ 计算 d
+        d = h / gamma_target;
+        
+        if d <= 0.01 || d >= 0.03  
+            continue;
+        end
+        
+        % 根据 α 和 α₁ 计算 k2, k3
+        k2 = k1 / alpha_target;
+        k3 = alpha1_target * k2;
+        
+        % 计算实际无量纲参数
+        a_hat_actual    = a / sqrt(a^2 + h1^2);
+        gamma_actual    = h / d;
+        delta_hat_actual = delta / sqrt(a^2 + h1^2);
+        alpha_actual    = k1 / k2;
+        alpha1_actual   = k3 / k2;
+        
+        % 计算误差（由于 a, h1, delta 是精确计算的，这些参数应该精确匹配）
+        err_a_hat = abs(a_hat_actual - a_hat_target);
+        err_delta = abs(delta_hat_actual - delta_hat_target);
+        err_gamma = abs(gamma_actual - gamma_target);
+        err_alpha = abs(alpha_actual - alpha_target);
+        err_alpha1 = abs(alpha1_actual - alpha1_target);
+        
+        tolerance = 1e-10;
+        if err_a_hat < tolerance && err_delta < tolerance && ...
+           err_gamma < tolerance && err_alpha < tolerance && ...
+           err_alpha1 < tolerance
             
-            if a >= 0.06 || d >= 0.035
-                continue; 
+            found_count = found_count + 1;
+            
+            fprintf('%4.0f |%6.2f |%6.2f |%6.2f |%7.2f |%7.2f |%6.2f |%7.4f | %.3f | %.3f | %.3f | %.3f | %.3f\n', ...
+                k1, h*1000, h1*1000, d*1000, k2, k3, a*1000, delta*1000, ...
+                a_hat_actual, gamma_actual, alpha_actual, alpha1_actual, delta_hat_actual);
+            
+            %% 计算中间参数用于刚度曲线
+            rho = (1 - a_hat_actual^2) / (gamma_actual - 1)^2;
+            Delta = sqrt(1 + a_hat_actual^2 * gamma_actual^2 - 2 * a_hat_actual^2 * gamma_actual);
+            Delta1 = (1 + delta_hat_actual) * (gamma_actual - 1);
+            Delta2 = (1 + delta_hat_actual) * (gamma_actual - 1)^3;
+            
+            C1_den = -12*Delta2/Delta^3 + 72*Delta2*(1-a_hat_actual^2)/Delta^5 - 60*Delta2*(1-a_hat_actual^2)^2/Delta^7;
+            C1 = 6*(1 + delta_hat_actual) * a_hat_actual^(-3) / C1_den;
+            
+            % 计算无量纲恢复力曲线
+            delta_hat1 = 1 - sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) + rho) + delta_hat_actual;
+            delta_hat2 = 1 - sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho) + delta_hat_actual;
+            
+            x_e_hat = sqrt(1 - a_hat_actual^2) + sqrt(rho);
+            K_hat = zeros(size(y_hat));
+            
+            for i = 1:length(y_hat)
+                xi = x_e_hat + y_hat(i);
+                P1 = sqrt(1 - a_hat_actual^2) - xi;
+                P2 = 1 - 2*sqrt(1 - a_hat_actual^2)*xi + xi^2;
+                P3 = 1 + delta_hat_actual;
+                P4 = sqrt(1 - a_hat_actual^2 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho)) - xi;
+                P5 = 1 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) - 2*sqrt(1 - a_hat_actual^2 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho))*xi + xi^2;
+                P6 = sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) + rho) + delta_hat1;
+                P7 = sqrt(1 - a_hat_actual^2) + 2*sqrt(rho) - xi;
+                P8 = 1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho - 2*(sqrt(1 - a_hat_actual^2) + 2*sqrt(rho))*xi + xi^2;
+                P9 = sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho) + delta_hat2;
+                dP1 = -1; dP4 = -1; dP7 = -1;
+                dP2 = -2*sqrt(1 - a_hat_actual^2) + 2*xi;
+                dP5 = -2*sqrt(1 - a_hat_actual^2 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho)) + 2*xi;
+                dP8 = -2*(sqrt(1 - a_hat_actual^2) + 2*sqrt(rho)) + 2*xi;
+                dN1 = -2 * alpha_actual * (1 - P3 * P2^(-0.5)) * dP1 - alpha_actual * P1 * P2^(-1.5) * P3 * dP2;
+                dN3 = -2 * alpha1_actual * (1 - P6 * P5^(-0.5)) * dP4 - alpha1_actual * P4 * P5^(-1.5) * P6 * dP5;
+                dN5 = -2 * alpha_actual * (1 - P9 * P8^(-0.5)) * dP7 - alpha_actual * P7 * P8^(-1.5) * P9 * dP8;
+                K_hat(i) = 1 + dN1 + dN3 + dN5;
             end
-
-            delta = delta_hat_target * sqrt(a^2 + h1^2);  
             
-            k2 = k1 / alpha_target;                        
-            k3 = alpha1_target * k2;    
-       
-            rho = (1 - a_hat_target^2) / (gamma_target - 1)^2;
-            Delta = sqrt(1 + a_hat_target^2 * gamma_target^2 - 2 * a_hat_target^2 * gamma_target); 
-            Delta1 = (1 + delta_hat_target) * (gamma_target - 1);
-            Delta2 = (1 + delta_hat_target) * (gamma_target - 1)^3;
+            % 绘图
+            h_line = plot(y_hat, K_hat, 'LineWidth', 1.5);
+            hold on;
             
-            C1_den = -12*Delta2/Delta^3 + 72*Delta2*(1-a_hat_target^2)/Delta^5 - 60*Delta2*(1-a_hat_target^2)^2/Delta^7;
-            C1 = 6*(1 + delta_hat_target) * a_hat_target^(-3) / C1_den;
-
-            alpha_actual    = k1 / k2;                      
-            alpha1_actual   = k3 / k2;                      
-            a_hat_actual    = a / sqrt(a^2 + h1^2);         
-            gamma_actual    = h / d;                        
-            delta_hat_actual = delta / sqrt(a^2 + h1^2);    
-            
-            err_a_hat = abs(a_hat_actual - a_hat_target);
-            err_delta = abs(delta_hat_actual - delta_hat_target);
-            err_gamma = abs(gamma_actual - gamma_target);
-            err_alpha = abs(alpha_actual - alpha_target);
-            err_alpha1 = abs(alpha1_actual - alpha1_target);
-            
-            tolerance = 1e-10;
-            if err_a_hat < tolerance && err_delta < tolerance && ...
-               err_gamma < tolerance && err_alpha < tolerance && ...
-               err_alpha1 < tolerance
-                
-                found_count = found_count + 1;
-               
-                fprintf('%4.0f |%5.1f |%5.1f |%6.2f |%4.0f |%4.0f |%5.1f |%5.2f | %.4f | %.4f | %.4f | %.4f | %.3f | %.3f | %.3f | %.3f | %.3f\n', ...
-                    k1, h*1000, h1*1000, d*1000, k2, k3, a*1000, delta*1000, rho, Delta, Delta1, Delta2, a_hat_actual, gamma_actual, alpha_actual, alpha1_actual, delta_hat_actual);
-                
-                delta_hat1 = 1 - sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) + rho) + delta_hat_actual;
-                delta_hat2 = 1 - sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho) + delta_hat_actual;
-                
-                x_e_hat = sqrt(1 - a_hat_actual^2) + sqrt(rho);
-                K_hat = zeros(size(y_hat));
-                
-                for i = 1:length(y_hat)
-                    xi = x_e_hat + y_hat(i);
-                    P1 = sqrt(1 - a_hat_actual^2) - xi;
-                    P2 = 1 - 2*sqrt(1 - a_hat_actual^2)*xi + xi^2;
-                    P3 = 1 + delta_hat_actual;
-                    P4 = sqrt(1 - a_hat_actual^2 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho)) - xi;
-                    P5 = 1 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) - 2*sqrt(1 - a_hat_actual^2 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho))*xi + xi^2;
-                    P6 = sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) + rho) + delta_hat1;
-                    P7 = sqrt(1 - a_hat_actual^2) + 2*sqrt(rho) - xi;
-                    P8 = 1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho - 2*(sqrt(1 - a_hat_actual^2) + 2*sqrt(rho))*xi + xi^2;
-                    P9 = sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho) + delta_hat2;
-                    dP1 = -1; dP4 = -1; dP7 = -1;
-                    dP2 = -2*sqrt(1 - a_hat_actual^2) + 2*xi;
-                    dP5 = -2*sqrt(1 - a_hat_actual^2 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho)) + 2*xi;
-                    dP8 = -2*(sqrt(1 - a_hat_actual^2) + 2*sqrt(rho)) + 2*xi;
-                    dN1 = -2 * alpha_actual * (1 - P3 * P2^(-0.5)) * dP1 - alpha_actual * P1 * P2^(-1.5) * P3 * dP2;
-                    dN3 = -2 * alpha1_actual * (1 - P6 * P5^(-0.5)) * dP4 - alpha1_actual * P4 * P5^(-1.5) * P6 * dP5;
-                    dN5 = -2 * alpha_actual * (1 - P9 * P8^(-0.5)) * dP7 - alpha_actual * P7 * P8^(-1.5) * P9 * dP8;
-                    K_hat(i) = 1 + dN1 + dN3 + dN5;
-                end
-                
-                h_line = plot(y_hat, K_hat, 'Color', colors(color_idx,:), 'LineWidth', 3);
-                hold on;
-                
-                if isempty(h_iterated)
-                    h_iterated = h_line;
-                    iter_legend_str = sprintf('$\\hat{a}=%.3f, \\hat{\\delta}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', ...
-                        a_hat_target, delta_hat_target, gamma_target, alpha_target, alpha1_target);
-                end
+            if isempty(h_iterated)
+                h_iterated = h_line;
+                iter_legend_str = sprintf('$\\hat{a}=%.3f, \\hat{\\delta}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', ...
+                    a_hat_target, delta_hat_target, gamma_target, alpha_target, alpha1_target);
             end
         end
     end
-    color_idx = color_idx + 1;
 end
 
 % 添加图例和标签
@@ -121,15 +133,21 @@ if found_count > 0
     legend(h_iterated, iter_legend_str, 'Interpreter', 'latex', 'Location', 'best');
     xlabel('$\hat{y}$', 'Interpreter', 'latex', 'FontSize', 14);
     ylabel('$\hat{K}$', 'Interpreter', 'latex', 'FontSize', 14);
-    title(sprintf('符合条件的组合曲线 (共找到 %d 组)', found_count), 'FontSize', 12);
+    title(sprintf('无量纲刚度曲线 (a=%.1f mm, h1=%.1f mm, δ=%.3f mm)', a*1000, h1*1000, delta*1000), 'FontSize', 12);
     grid on;
 else
     fprintf('\n未找到严格满足所有无量纲参数（误差为0）的组合。\n');
-    fprintf('建议放宽容差或调整参数范围。\n');
+    fprintf('由于 a 和 h1 已经精确满足 â，且 δ 精确满足 δ̂，\n');
+    fprintf('实际上只需要遍历 h 使得 γ 精确匹配即可。\n');
+    fprintf('建议检查 h 的范围是否包含 h = γ * d 的精确解。\n');
 end
 
 fprintf('============================================================================================================================================\n');
 fprintf('共找到 %d 组严格满足所有无量纲参数的组合。\n', found_count);
+fprintf('\n关键几何参数:\n');
+fprintf('  a = %.1f mm\n', a*1000);
+fprintf('  h1 = %.1f mm\n', h1*1000);
+fprintf('  δ = %.3f mm\n', delta*1000);
 
 %% 计算总刚度曲线 
 test_params = [0.700, 0.875, 1.728;
