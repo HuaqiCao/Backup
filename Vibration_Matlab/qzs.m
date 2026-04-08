@@ -34,15 +34,9 @@ fprintf('根据 δ̂ = %.3f, a = %.1f mm, h1 = %.1f mm 计算得到: L0 = sqrt(a
 %% 参数范围
 k1_range = 1:100:2000;        % 上斜弹簧刚度 N/m
 
-
-
 y_hat_all = {};
 f_hat_all = {};
 k1_record = [];
-
-
-
-
 
 fprintf('============================================================================================================================================\n');
 fprintf(' k₁(N/m) | h(mm) | h₁(mm) | d(mm) | k₂(N/m) | k₃(N/m) | â_act | γ_act | α_act | α₁_act | δ̂_act | a(mm) | h₁(mm) | δ(mm) | L₀(mm) | d(mm)\n');
@@ -142,7 +136,7 @@ for k1 = k1_range
             P8 = 1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho - 2*(sqrt(1 - a_hat_actual^2) + 2*sqrt(rho))*xi_hat(i) + xi_hat(i)^2;
             % P₉ = √(1+4√(1−â²)√ρ+4ρ) + δ̂₂
             P9 = sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho) + delta_hat2;
-            % dP₁ = dP₄ = dP₇ = -1 (常数导数)
+            % dP₁ = dP₄ = dP₇ = -1 
             dP1 = -1; dP4 = -1; dP7 = -1;
             % dP₂ = −2√(1−â²) + 2xi_hat
             dP2 = -2*sqrt(1 - a_hat_actual^2) + 2*xi_hat(i);
@@ -162,8 +156,8 @@ for k1 = k1_range
             y_hat_curve(i) = xi_hat(i) - x_e_hat;
         end
 
-        y_hat_all{end+1} = y_hat_curve;  % 修正
-        f_hat_all{end+1} = f_hat_curve;  % 修正
+        y_hat_all{end+1} = y_hat_curve;  
+        f_hat_all{end+1} = f_hat_curve;  
         k1_record(end+1) = k1;
 
     end
@@ -176,10 +170,9 @@ else
 end
 
 
-
 % 绘制所有恢复力曲线
 if found_count > 0
-    figure('Color', 'w', 'Position', [100, 100, 620, 450]);
+
     colors = lines(found_count);
     for i = 1:found_count
         plot(y_hat_all{i}, f_hat_all{i}, 'Color', colors(i,:), 'LineWidth', 1.5, ...
@@ -188,8 +181,8 @@ if found_count > 0
     end
     xlabel('$\hat{y}$', 'Interpreter', 'latex', 'FontSize', 22);
     ylabel('$\hat{f}$', 'Interpreter', 'latex', 'FontSize', 22);
-    title('无量纲恢复力曲线对比', 'FontSize', 14);
-    hold on;
+    title('$\hat{f}$ versus $\hat{y}$', 'Interpreter', 'latex', 'FontSize', 22);
+
 
     figure('Color', 'w', 'Position', [100, 100, 620, 450]);
     % 画零线
