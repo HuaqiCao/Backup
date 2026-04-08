@@ -12,7 +12,7 @@ fprintf('  δ̂ = %.3f, â = %.3f, α = %.3f, α₁ = %.3f, γ = %.3f\n\n', ...
     delta_hat_target, a_hat_target, alpha_target, alpha1_target, gamma_target);
 
 %% 铜屏蔽内径 12cm
-a = 0.06;     %m
+a = 0.06;     %m            
 
 %% 根据 â = a / sqrt(a^2 + h1^2) 反求 h1
 % â^2 = a^2 / (a^2 + h1^2)
@@ -39,125 +39,125 @@ fprintf(' k1(N/m) | h(mm) | h1(mm) | d(mm) | k2(N/m) | k3(N/m) | a(mm) | delta(m
 fprintf('--------------------------------------------------------------------------------------------------------------------------------------------\n');
 
 figure('Color', 'w', 'Position', [100, 100, 620, 450]);
-colors = lines(length(k1_range));
+colors = lines(length(k1_range)); 
 found_count = 0;
 y_hat = linspace(-10, 10, 1000);
 h_iterated = [];
 iter_legend_str = '';
 
 for k1 = k1_range
-    %% 根据 γ 计算 d
-    % h = h1 + d
-    % d = h / γ_target
-    d = h1 / (gamma_target-1);
-    h = h1 + d;
+        %% 根据 γ 计算 d
+        % h = h1 + d
+        % d = h / γ_target 
+        d = h1 / (gamma_target-1);
+        h = h1 + d;
+        
+        %% 根据 α 和 α₁ 计算 k2, k3
+        % k₂ = k₁ / α_target
+        k2 = k1 / alpha_target;
+        % k₃ = α₁_target · k₂
+        k3 = alpha1_target * k2;
+        
+        % 计算实际无量纲参数
+        a_hat_actual    = a / sqrt(a^2 + h1^2);
+        gamma_actual    = h / d;
+        delta_hat_actual = delta / sqrt(a^2 + h1^2);
+        alpha_actual    = k1 / k2;
+        alpha1_actual   = k3 / k2;
+        
+        % 计算误差（由于 a, h1, delta 是精确计算的）
+        err_a_hat = abs(a_hat_actual - a_hat_target);
+        err_delta = abs(delta_hat_actual - delta_hat_target);
+        err_gamma = abs(gamma_actual - gamma_target);
+        err_alpha = abs(alpha_actual - alpha_target);
+        err_alpha1 = abs(alpha1_actual - alpha1_target);
+        
+        tolerance = 1e-1;
+        if err_a_hat < tolerance && err_delta < tolerance && ...
+           err_gamma < tolerance && err_alpha < tolerance && ...
+           err_alpha1 < tolerance
+            
+            found_count = found_count + 1;
+            
+            fprintf('%4.0f |%6.2f |%6.2f |%6.2f |%7.2f |%7.2f |%6.2f |%7.4f | %.3f | %.3f | %.3f | %.3f | %.3f\n', ...
+                k1, h*1000, h1*1000, d*1000, k2, k3, a*1000, delta*1000, ...
+                a_hat_actual, gamma_actual, alpha_actual, alpha1_actual, delta_hat_actual);
+        
+            %% 计算无量纲恢复力曲线
+            %% 中间参数
+            % ρ = (1 - â²) / (γ - 1)²
+            rho = (1 - a_hat_actual^2) / (gamma_actual - 1)^2;
+            % Δ = √(1 + â²·γ² - 2·â²·γ)
+            Delta = sqrt(1 + a_hat_actual^2 * gamma_actual^2 - 2 * a_hat_actual^2 * gamma_actual);
+            % Δ₁ = (1 + δ̂)·(γ - 1)
+            Delta1 = (1 + delta_hat_actual) * (gamma_actual - 1);
+            % Δ₂ = (1 + δ̂)·(γ - 1)³
+            Delta2 = (1 + delta_hat_actual) * (gamma_actual - 1)^3;
+            % C₁ = 6·(1 + δ̂)·â⁻³ / [-12·Δ₂/Δ³ + 72·Δ₂·(1 - â²)/Δ⁵ - 60·Δ₂·(1 - â²)²/Δ⁷]
+            C1 = 6*(1 + delta_hat_actual) * a_hat_actual^(-3) / (-12*Delta2/Delta^3 + 72*Delta2*(1-a_hat_actual^2)/Delta^5 - 60*Delta2*(1-a_hat_actual^2)^2/Delta^7);
+                        
+            %% 自由长度相同推导得到的
+            % δ̂₁ = 1 - √(1 + 2·√(1 - â²)·√ρ + ρ) + δ̂
+            delta_hat1 = 1 - sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) + rho) + delta_hat_actual;
+            %% f1_hat = f2_hat 推导得到的
+            % δ̂₂ = 1 - √(1 + 4·√(1 - â²)·√ρ + 4·ρ) + δ̂
+            delta_hat2 = 1 - sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho) + delta_hat_actual;
+            % x̂_e = √(1 − â²) + √ρ
+            x_e_hat = sqrt(1 - a_hat_actual^2) + sqrt(rho);
+            % K̂ = zeros(size(ŷ))
+            K_hat = zeros(size(y_hat));
+                        
+            for i = 1:length(y_hat)
+                % x_i = x̂_e + ŷ(i) ，当前无量纲总位移
+                xi_hat = x_e_hat + y_hat(i);
+                % P₁ = √(1−â²) − ξ
+                P1 = sqrt(1 - a_hat_actual^2) - xi_hat;
+                % P₂ = 1 − 2√(1−â²)·ξ + ξ²
+                P2 = 1 - 2*sqrt(1 - a_hat_actual^2)*xi_hat + xi_hat^2;
+                % P₃ = 1 + δ̂
+                P3 = 1 + delta_hat_actual;
+                % P₄ = √(1−â²+ρ+2√(1−â²)√ρ) − ξ
+                P4 = sqrt(1 - a_hat_actual^2 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho)) - xi_hat;
+                % P₅ = 1+ρ+2√(1−â²)√ρ − 2√(1−â²+ρ+2√(1−â²)√ρ)·ξ + ξ²
+                P5 = 1 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) - 2*sqrt(1 - a_hat_actual^2 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho))*xi_hat + xi_hat^2;
+                % P₆ = √(1+2√(1−â²)√ρ+ρ) + δ̂₁
+                P6 = sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) + rho) + delta_hat1;
+                % P₇ = √(1−â²) + 2√ρ − ξ
+                P7 = sqrt(1 - a_hat_actual^2) + 2*sqrt(rho) - xi_hat;
+                % P₈ = 1+4√(1−â²)√ρ+4ρ − 2(√(1−â²)+2√ρ)ξ + ξ²
+                P8 = 1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho - 2*(sqrt(1 - a_hat_actual^2) + 2*sqrt(rho))*xi_hat + xi_hat^2;
+                % P₉ = √(1+4√(1−â²)√ρ+4ρ) + δ̂₂
+                P9 = sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho) + delta_hat2;
+                % dP₁ = dP₄ = dP₇ = -1 (常数导数)
+                dP1 = -1; dP4 = -1; dP7 = -1;
+                % dP₂ = −2√(1−â²) + 2ξ
+                dP2 = -2*sqrt(1 - a_hat_actual^2) + 2*xi_hat;
+                % dP₅ = −2√(1−â²+ρ+2√(1−â²)√ρ) + 2ξ
+                dP5 = -2*sqrt(1 - a_hat_actual^2 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho)) + 2*xi_hat;
+                % dP₈ = −2(√(1−â²)+2√ρ) + 2ξ
+                dP8 = -2*(sqrt(1 - a_hat_actual^2) + 2*sqrt(rho)) + 2*xi_hat;
+                % dN₁ = −2α(1−P₃·P₂^{−1/2})·dP₁ − α·P₁·P₂^{−3/2}·P₃·dP₂
+                dN1 = -2 * alpha_actual * (1 - P3 * P2^(-0.5)) * dP1 - alpha_actual * P1 * P2^(-1.5) * P3 * dP2;
+                % dN₃ = −2α₁(1−P₆·P₅^{−1/2})·dP₄ − α₁·P₄·P₅^{−3/2}·P₆·dP₅
+                dN3 = -2 * alpha1_actual * (1 - P6 * P5^(-0.5)) * dP4 - alpha1_actual * P4 * P5^(-1.5) * P6 * dP5;
+                % dN₅ = −2α(1−P₉·P₈^{−1/2})·dP₇ − α·P₇·P₈^{−3/2}·P₉·dP₈
+                dN5 = -2 * alpha_actual * (1 - P9 * P8^(-0.5)) * dP7 - alpha_actual * P7 * P8^(-1.5) * P9 * dP8;
+                % 无量纲刚度 K̂(i) = 1 + dN₁ + dN₃ + dN₅
+                K_hat(i) = 1 + dN1 + dN3 + dN5;
+                f_hat(i) = xi_hat - 2*alpha_actual * P1*(sqrt(P2)-P3)/sqrt(P2) - 2*alpha1_actual * P4*(sqrt(P5)-P6)/sqrt(P5) - 2*alpha_actual * P7*(sqrt(P8)-P9)/sqrt(P8);
+            end
+  
+fprintf('α = %.6f\n', alpha_actual);
+fprintf('α₁ = %.6f\n', alpha1_actual);
+fprintf('δ̂ = %.6f\n', delta_hat_actual);
+fprintf('â = %.6f\n', a_hat_actual);
+fprintf('γ = %.6f\n', gamma_actual);
+fprintf('ρ = %.6f\n', rho);
+fprintf('δ̂₁ = %.6f\n', delta_hat1);
+fprintf('δ̂₂ = %.6f\n', delta_hat2);
 
-    %% 根据 α 和 α₁ 计算 k2, k3
-    % k₂ = k₁ / α_target
-    k2 = k1 / alpha_target;
-    % k₃ = α₁_target · k₂
-    k3 = alpha1_target * k2;
 
-    % 计算实际无量纲参数
-    a_hat_actual    = a / sqrt(a^2 + h1^2);
-    gamma_actual    = h / d;
-    delta_hat_actual = delta / sqrt(a^2 + h1^2);
-    alpha_actual    = k1 / k2;
-    alpha1_actual   = k3 / k2;
-
-    % 计算误差（由于 a, h1, delta 是精确计算的）
-    err_a_hat = abs(a_hat_actual - a_hat_target);
-    err_delta = abs(delta_hat_actual - delta_hat_target);
-    err_gamma = abs(gamma_actual - gamma_target);
-    err_alpha = abs(alpha_actual - alpha_target);
-    err_alpha1 = abs(alpha1_actual - alpha1_target);
-
-    tolerance = 1e-1;
-    if err_a_hat < tolerance && err_delta < tolerance && ...
-            err_gamma < tolerance && err_alpha < tolerance && ...
-            err_alpha1 < tolerance
-
-        found_count = found_count + 1;
-
-        fprintf('%4.0f |%6.2f |%6.2f |%6.2f |%7.2f |%7.2f |%6.2f |%7.4f | %.3f | %.3f | %.3f | %.3f | %.3f\n', ...
-            k1, h*1000, h1*1000, d*1000, k2, k3, a*1000, delta*1000, ...
-            a_hat_actual, gamma_actual, alpha_actual, alpha1_actual, delta_hat_actual);
-
-        %% 计算无量纲恢复力曲线
-        %% 中间参数
-        % ρ = (1 - â²) / (γ - 1)²
-        rho = (1 - a_hat_actual^2) / (gamma_actual - 1)^2;
-        % Δ = √(1 + â²·γ² - 2·â²·γ)
-        Delta = sqrt(1 + a_hat_actual^2 * gamma_actual^2 - 2 * a_hat_actual^2 * gamma_actual);
-        % Δ₁ = (1 + δ̂)·(γ - 1)
-        Delta1 = (1 + delta_hat_actual) * (gamma_actual - 1);
-        % Δ₂ = (1 + δ̂)·(γ - 1)³
-        Delta2 = (1 + delta_hat_actual) * (gamma_actual - 1)^3;
-        % C₁ = 6·(1 + δ̂)·â⁻³ / [-12·Δ₂/Δ³ + 72·Δ₂·(1 - â²)/Δ⁵ - 60·Δ₂·(1 - â²)²/Δ⁷]
-        C1 = 6*(1 + delta_hat_actual) * a_hat_actual^(-3) / (-12*Delta2/Delta^3 + 72*Delta2*(1-a_hat_actual^2)/Delta^5 - 60*Delta2*(1-a_hat_actual^2)^2/Delta^7);
-
-        %% 自由长度相同推导得到的
-        % δ̂₁ = 1 - √(1 + 2·√(1 - â²)·√ρ + ρ) + δ̂
-        delta_hat1 = 1 - sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) + rho) + delta_hat_actual;
-        %% f1_hat = f2_hat 推导得到的
-        % δ̂₂ = 1 - √(1 + 4·√(1 - â²)·√ρ + 4·ρ) + δ̂
-        delta_hat2 = 1 - sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho) + delta_hat_actual;
-        % x̂_e = √(1 − â²) + √ρ
-        x_e_hat = sqrt(1 - a_hat_actual^2) + sqrt(rho);
-        % K̂ = zeros(size(ŷ))
-        K_hat = zeros(size(y_hat));
-
-        for i = 1:length(y_hat)
-            % x_i = x̂_e + ŷ(i) ，当前无量纲总位移
-            xi_hat = x_e_hat + y_hat(i);
-            % P₁ = √(1−â²) − xi_hat
-            P1 = sqrt(1 - a_hat_actual^2) - xi_hat;
-            % P₂ = 1 − 2√(1−â²)·xi_hat + xi_hat²
-            P2 = 1 - 2*sqrt(1 - a_hat_actual^2)*xi_hat + xi_hat^2;
-            % P₃ = 1 + δ̂
-            P3 = 1 + delta_hat_actual;
-            % P₄ = √(1−â²+ρ+2√(1−â²)√ρ) − xi_hat
-            P4 = sqrt(1 - a_hat_actual^2 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho)) - xi_hat;
-            % P₅ = 1+ρ+2√(1−â²)√ρ − 2√(1−â²+ρ+2√(1−â²)√ρ)·xi_hat + xi_hat²
-            P5 = 1 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) - 2*sqrt(1 - a_hat_actual^2 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho))*xi_hat + xi_hat^2;
-            % P₆ = √(1+2√(1−â²)√ρ+ρ) + δ̂₁
-            P6 = sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho) + rho) + delta_hat1;
-            % P₇ = √(1−â²) + 2√ρ − xi_hat
-            P7 = sqrt(1 - a_hat_actual^2) + 2*sqrt(rho) - xi_hat;
-            % P₈ = 1+4√(1−â²)√ρ+4ρ − 2(√(1−â²)+2√ρ)xi_hat + xi_hat²
-            P8 = 1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho - 2*(sqrt(1 - a_hat_actual^2) + 2*sqrt(rho))*xi_hat + xi_hat^2;
-            % P₉ = √(1+4√(1−â²)√ρ+4ρ) + δ̂₂
-            P9 = sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho) + 4*rho) + delta_hat2;
-            % dP₁ = dP₄ = dP₇ = -1 (常数导数)
-            dP1 = -1; dP4 = -1; dP7 = -1;
-            % dP₂ = −2√(1−â²) + 2xi_hat
-            dP2 = -2*sqrt(1 - a_hat_actual^2) + 2*xi_hat;
-            % dP₅ = −2√(1−â²+ρ+2√(1−â²)√ρ) + 2xi_hat
-            dP5 = -2*sqrt(1 - a_hat_actual^2 + rho + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho)) + 2*xi_hat;
-            % dP₈ = −2(√(1−â²)+2√ρ) + 2xi_hat
-            dP8 = -2*(sqrt(1 - a_hat_actual^2) + 2*sqrt(rho)) + 2*xi_hat;
-            % dN₁ = −2α(1−P₃·P₂^{−1/2})·dP₁ − α·P₁·P₂^{−3/2}·P₃·dP₂
-            dN1 = -2 * alpha_actual * (1 - P3 * P2^(-0.5)) * dP1 - alpha_actual * P1 * P2^(-1.5) * P3 * dP2;
-            % dN₃ = −2α₁(1−P₆·P₅^{−1/2})·dP₄ − α₁·P₄·P₅^{−3/2}·P₆·dP₅
-            dN3 = -2 * alpha1_actual * (1 - P6 * P5^(-0.5)) * dP4 - alpha1_actual * P4 * P5^(-1.5) * P6 * dP5;
-            % dN₅ = −2α(1−P₉·P₈^{−1/2})·dP₇ − α·P₇·P₈^{−3/2}·P₉·dP₈
-            dN5 = -2 * alpha_actual * (1 - P9 * P8^(-0.5)) * dP7 - alpha_actual * P7 * P8^(-1.5) * P9 * dP8;
-            % 无量纲刚度 K̂(i) = 1 + dN₁ + dN₃ + dN₅
-            K_hat(i) = 1 + dN1 + dN3 + dN5;
-            f_hat(i) = xi_hat - 2*alpha_actual * P1*(sqrt(P2)-P3)/sqrt(P2) - 2*alpha1_actual * P4*(sqrt(P5)-P6)/sqrt(P5) - 2*alpha_actual * P7*(sqrt(P8)-P9)/sqrt(P8);
-        end
-
-        fprintf('α = %.6f\n', alpha_actual);
-        fprintf('α₁ = %.6f\n', alpha1_actual);
-        fprintf('δ̂ = %.6f\n', delta_hat_actual);
-        fprintf('â = %.6f\n', a_hat_actual);
-        fprintf('γ = %.6f\n', gamma_actual);
-        fprintf('ρ = %.6f\n', rho);
-        fprintf('δ̂₁ = %.6f\n', delta_hat1);
-        fprintf('δ̂₂ = %.6f\n', delta_hat2);
-
-
-    end
+        end 
 end
 
 if found_count > 0
@@ -180,16 +180,16 @@ hold on;
 
 %% 计算总刚度曲线 [delta_hat, a_hat, gamma]
 test_params = [0.700, 0.875, 1.728;
-    0.600, 0.805, 1.970;
-    0.500, 0.755, 2.143;
-    %               0.200, 0.800, 2.192;
-    0.500, 0.800, 1.987;
-    0.800, 0.800, 1.987];
+               0.600, 0.805, 1.970;
+               0.500, 0.755, 2.143;
+%               0.200, 0.800, 2.192;
+               0.500, 0.800, 1.987;
+               0.800, 0.800, 1.987];
 
-num_test = size(test_params, 1);
+num_test = size(test_params, 1);  
 
-base_colors = lines(num_test);
-line_styles = {'-', '--', ':', '-.'};
+base_colors = lines(num_test);    
+line_styles = {'-', '--', ':', '-.'}; 
 test_styles = cell(1, num_test);
 for i = 1:num_test
     style_idx = mod(i-1, length(line_styles)) + 1;
@@ -204,7 +204,7 @@ end
 
 % 初始化存储句柄和图例文本
 h_targets = gobjects(1, num_test);
-target_legends = cell(1, num_test);
+target_legends = cell(1, num_test); 
 
 fprintf('\n五个无量纲参数计算结果:\n');
 fprintf('-------------------------------------------------------------------------------------------\n');
@@ -214,7 +214,7 @@ fprintf('-----------------------------------------------------------------------
 for j = 1:size(test_params, 1)
     d_hat = test_params(j,1); a_hat = test_params(j,2); g = test_params(j,3);
     % Δ = √(1 + â²·g² − 2·â²·g)
-    Delta = sqrt(1 + a_hat^2*g^2 - 2*a_hat^2*g);
+    Delta = sqrt(1 + a_hat^2*g^2 - 2*a_hat^2*g); 
     % Δ₁ = (1 + d̂)·(g − 1)
     Delta1 = (1 + d_hat)*(g - 1);
     % Δ₂ = (1 + d̂)·(g − 1)³
@@ -235,47 +235,47 @@ for j = 1:size(test_params, 1)
     delta_hat2_target = 1 - sqrt(1 + 4*sqrt(1 - a_hat^2)*sqrt(rho_target) + 4*rho_target) + d_hat;
     % x ̂_e_target = √(1 − â²) + √ρ_target
     x_e_hat_target = sqrt(1 - a_hat^2) + sqrt(rho_target);
-
+    
     for i = 1:length(y_hat)
-        % xi_hat = x̂_e_target + ŷ(i)
+        % ξ = x̂_e_target + ŷ(i)
         xi_hat = x_e_hat_target + y_hat(i);
-        % P₁ = √(1 − â²) − xi_hat
-        P1 = sqrt(1 - a_hat^2) - xi_hat;
-        % P₂ = 1 − 2·√(1 − â²)·xi_hat + xi_hat²
+        % P₁ = √(1 − â²) − ξ
+        P1 = sqrt(1 - a_hat^2) - xi_hat;        
+        % P₂ = 1 − 2·√(1 − â²)·ξ + ξ²
         P2 = 1 - 2*sqrt(1 - a_hat^2)*xi_hat + xi_hat^2;
         % P₃ = 1 + d̂
-        P3 = 1 + d_hat;
-        % P₄ = √(1 − â² + ρ_target + 2·√(1 − â²)·√ρ_target) − xi_hat
+        P3 = 1 + d_hat;        
+        % P₄ = √(1 − â² + ρ_target + 2·√(1 − â²)·√ρ_target) − ξ
         P4 = sqrt(1 - a_hat^2 + rho_target + 2*sqrt(1 - a_hat^2)*sqrt(rho_target)) - xi_hat;
-        % P₅ = 1 + ρ_target + 2·√(1 − â²)·√ρ_target − 2·√(1 − â² + ρ_target + 2·√(1 − â²)·√ρ_target)·xi_hat + xi_hat²
+        % P₅ = 1 + ρ_target + 2·√(1 − â²)·√ρ_target − 2·√(1 − â² + ρ_target + 2·√(1 − â²)·√ρ_target)·ξ + ξ²
         P5 = 1 + rho_target + 2*sqrt(1 - a_hat^2)*sqrt(rho_target) - 2*sqrt(1 - a_hat^2 + rho_target + 2*sqrt(1 - a_hat^2)*sqrt(rho_target))*xi_hat + xi_hat^2;
         % P₆ = √(1 + 2·√(1 − â²)·√ρ_target + ρ_target) + δ̂₁_target
-        P6 = sqrt(1 + 2*sqrt(1 - a_hat^2)*sqrt(rho_target) + rho_target) + delta_hat1_target;
-        % P₇ = √(1 − â²) + 2·√ρ_target − xi_hat
-        P7 = sqrt(1 - a_hat^2) + 2*sqrt(rho_target) - xi_hat;
-        % P₈ = 1 + 4·√(1 − â²)·√ρ_target + 4·ρ_target − 2·(√(1 − â²) + 2·√ρ_target)·xi_hat + xi_hat²
-        P8 = 1 + 4*sqrt(1 - a_hat^2)*sqrt(rho_target) + 4*rho_target - 2*(sqrt(1 - a_hat^2) + 2*sqrt(rho_target))*xi_hat + xi_hat^2;
+        P6 = sqrt(1 + 2*sqrt(1 - a_hat^2)*sqrt(rho_target) + rho_target) + delta_hat1_target;       
+        % P₇ = √(1 − â²) + 2·√ρ_target − ξ
+        P7 = sqrt(1 - a_hat^2) + 2*sqrt(rho_target) - xi_hat;        
+        % P₈ = 1 + 4·√(1 − â²)·√ρ_target + 4·ρ_target − 2·(√(1 − â²) + 2·√ρ_target)·ξ + ξ²
+        P8 = 1 + 4*sqrt(1 - a_hat^2)*sqrt(rho_target) + 4*rho_target - 2*(sqrt(1 - a_hat^2) + 2*sqrt(rho_target))*xi_hat + xi_hat^2;        
         % P₉ = √(1 + 4·√(1 − â²)·√ρ_target + 4·ρ_target) + δ̂₂_target
-        P9 = sqrt(1 + 4*sqrt(1 - a_hat^2)*sqrt(rho_target) + 4*rho_target) + delta_hat2_target;
-        % dP₂ = −2·√(1 − â²) + 2·xi_hat
+        P9 = sqrt(1 + 4*sqrt(1 - a_hat^2)*sqrt(rho_target) + 4*rho_target) + delta_hat2_target;        
+        % dP₂ = −2·√(1 − â²) + 2·ξ
         dP2 = -2*sqrt(1 - a_hat^2) + 2*xi_hat;
-        % dP₅ = −2·√(1 − â² + ρ_target + 2·√(1 − â²)·√ρ_target) + 2·xi_hat
-        dP5 = -2*sqrt(1 - a_hat^2 + rho_target + 2*sqrt(1 - a_hat^2)*sqrt(rho_target)) + 2*xi_hat;
-        % dP₈ = −2·(√(1 − â²) + 2·√ρ_target) + 2·xi_hat
-        dP8 = -2*(sqrt(1 - a_hat^2) + 2*sqrt(rho_target)) + 2*xi_hat;
+        % dP₅ = −2·√(1 − â² + ρ_target + 2·√(1 − â²)·√ρ_target) + 2·ξ
+        dP5 = -2*sqrt(1 - a_hat^2 + rho_target + 2*sqrt(1 - a_hat^2)*sqrt(rho_target)) + 2*xi_hat;        
+        % dP₈ = −2·(√(1 − â²) + 2·√ρ_target) + 2·ξ
+        dP8 = -2*(sqrt(1 - a_hat^2) + 2*sqrt(rho_target)) + 2*xi_hat;       
         % dN₁ = −2·α_calc·(1 − P₃·P₂⁻⁰·⁵)·(−1) − α_calc·P₁·P₂⁻¹·⁵·P₃·dP₂
-        dN1 = -2 * alpha_calc * (1 - P3 * P2^(-0.5)) * (-1) - alpha_calc * P1 * P2^(-1.5) * P3 * dP2;
+        dN1 = -2 * alpha_calc * (1 - P3 * P2^(-0.5)) * (-1) - alpha_calc * P1 * P2^(-1.5) * P3 * dP2;        
         % dN₃ = −2·α₁_calc·(1 − P₆·P₅⁻⁰·⁵)·(−1) − α₁_calc·P₄·P₅⁻¹·⁵·P₆·dP₅
         dN3 = -2 * alpha1_calc * (1 - P6 * P5^(-0.5)) * (-1) - alpha1_calc * P4 * P5^(-1.5) * P6 * dP5;
         % dN₅ = −2·α_calc·(1 − P₉·P₈⁻⁰·⁵)·(−1) − α_calc·P₇·P₈⁻¹·⁵·P₉·dP₈
-        dN5 = -2 * alpha_calc * (1 - P9 * P8^(-0.5)) * (-1) - alpha_calc * P7 * P8^(-1.5) * P9 * dP8;
+        dN5 = -2 * alpha_calc * (1 - P9 * P8^(-0.5)) * (-1) - alpha_calc * P7 * P8^(-1.5) * P9 * dP8;       
         % K̂_target(i) = 1 + dN₁ + dN₃ + dN₅
         K_hat_target(i) = 1 + dN1 + dN3 + dN5;
     end
     h_targets(j) = plot(y_hat, K_hat_target, 'Color', test_color_specs{j}{1}, ...
-        'LineStyle', test_color_specs{j}{2}, 'LineWidth', 3);
+                    'LineStyle', test_color_specs{j}{2}, 'LineWidth', 3);
     target_legends{j} = sprintf('$\\hat{a}=%.3f, \\hat{\\delta}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', ...
-        a_hat, d_hat, g, alpha_calc, alpha1_calc);
+    a_hat, d_hat, g, alpha_calc, alpha1_calc);
 end
 
 % 图例
@@ -296,7 +296,7 @@ alpha1_store = zeros(num_test, 1);
 
 for j = 1:num_test
     d_hat = test_params(j,1); a_hat = test_params(j,2); g = test_params(j,3);
-
+    
     % Δ = √(1 + â²·g² − 2·â²·g)
     Delta = sqrt(1 + a_hat^2*g^2 - 2*a_hat^2*g);
     % Δ₁ = (1 + d̂)·(g − 1)
@@ -313,7 +313,7 @@ for j = 1:num_test
     alpha_store(j) = alpha_calc;
     % α₁_store(j) = α₁_calc
     alpha1_store(j) = alpha1_calc;
-
+    
     fprintf('    %d    |      %.3f      |     %.3f     |     %.3f     |     %.3f     |     %.3f\n', j, d_hat, a_hat, g, alpha_calc, alpha1_calc);
 end
 
@@ -327,31 +327,31 @@ else
     % 构建仅包含 test_params 的参数组（前三列，后两列补0，但我们会直接用存储的 alpha）
     all_configs = [test_params, zeros(num_test, 2)];
     num_configs = num_test;
-
+    
     % 动态生成组名
     config_names = cell(1, num_configs);
     for i = 1:num_test
         config_names{i} = sprintf('Test Params Index %d', i);
     end
-
+    
     dy_step = 0.00001;
     y_range = [-dy_step, 0, dy_step];
     mu1_all = zeros(1, num_configs);
     mu3_all = zeros(1, num_configs);
-
+    
     for j = 1:num_configs
         d_t = test_params(j,1); a_t = test_params(j,2); g_t = test_params(j,3);
         % 直接使用之前存储的 alpha 和 alpha1
         al_t = alpha_store(j);
         al1_t = alpha1_store(j);
-
+        
         rho_t = (1 - a_t^2) / (g_t - 1)^2;
         xe_t = sqrt(1 - a_t^2) + sqrt(rho_t);
         dh1_t = 1 - sqrt(1 + 2*sqrt(1 - a_t^2)*sqrt(rho_t) + rho_t) + d_t;
         dh2_t = 1 - sqrt(1 + 4*sqrt(1 - a_t^2)*sqrt(rho_t) + 4*rho_t) + d_t;
         K_res = zeros(1, 3);
         F_res = zeros(1, 3);
-
+        
         for k = 1:3
             yi = y_range(k);
             xi_hat = xe_t + yi;
@@ -364,11 +364,11 @@ else
             P7 = sqrt(1-a_t^2) + 2*sqrt(rho_t) - xi_hat;
             P8 = 1 + 4*sqrt(1-a_t^2)*sqrt(rho_t) + 4*rho_t - 2*(sqrt(1-a_t^2)+2*sqrt(rho_t))*xi_hat + xi_hat^2;
             P9 = sqrt(1+4*sqrt(1-a_t^2)*sqrt(rho_t)+4*rho_t) + dh2_t;
-
+            
             F_res(k) = xi_hat - 2*al_t*P1*(1 - P3/sqrt(P2)) ...
-                - 2*al1_t*P4*(1 - P6/sqrt(P5)) ...
-                - 2*al_t*P7*(1 - P9/sqrt(P8));
-
+                          - 2*al1_t*P4*(1 - P6/sqrt(P5)) ...
+                          - 2*al_t*P7*(1 - P9/sqrt(P8));
+            
             dP2 = -2*sqrt(1-a_t^2) + 2*xi_hat;
             dP5 = -2*sqrt(1-a_t^2+rho_t+2*sqrt(1-a_t^2)*sqrt(rho_t)) + 2*xi_hat;
             dP8 = -2*(sqrt(1-a_t^2)+2*sqrt(rho_t)) + 2*xi_hat;
@@ -377,14 +377,14 @@ else
             dN5_t = -2*al_t*(1-P9*P8^-0.5)*-1 - al_t*P7*P8^-1.5*P9*dP8;
             K_res(k) = 1 + dN1_t + dN3_t + dN5_t;
         end
-
+        
         mu0_val = F_res(2);
         mu1_val = K_res(2);
         mu3_val = ((K_res(3) - 2*K_res(2) + K_res(1)) / dy_step^2) / 6;
-
+        
         mu1_all(j) = mu1_val;
         mu3_all(j) = mu3_val;
-
+        
         fprintf('组别 %d: %s\n', j, config_names{j});
         fprintf('  -> 展开式: f_hat = %.6f*y^3 + %.8f*y + %.6f\n', mu3_val, mu1_val, mu0_val);
     end
@@ -392,7 +392,7 @@ end
 
 
 %% 传递率曲线计算
-% L_ref = sqrt(1^2 + 40^2);
+% L_ref = sqrt(1^2 + 40^2);  
 % Ze_mm = 3;                   % 激励幅值 3 mm
 % Ze_hat = Ze_mm / L_ref;      % 无量纲激励幅值 ≈ 0.03194
 m = 3;              % 实际负载质量 3 kg
@@ -405,9 +405,9 @@ Ze_hat = Ze_mm / 1000 / L_ref; % 无量纲激励幅值
 
 % 线性系统固有频率
 % f0 = 3.5;  % Hz
-k2_actual = k1_actual / alpha_target;
-K_eq = k2_actual * mu1_opt1;
-f0 = (1/(2*pi)) * sqrt(K_eq / m);
+k2_actual = k1_actual / alpha_target; 
+K_eq = k2_actual * mu1_opt1; 
+f0 = (1/(2*pi)) * sqrt(K_eq / m); 
 fprintf('基于3kg负载计算得到的固有频率 f0 = %.2f Hz\n', f0);
 
 %% 所有隔离器的无量纲参数
@@ -419,8 +419,8 @@ mu1_three_pair = 0.1188;
 mu3_three_pair = 1.2344;
 params_three_pair = '$\delta=0.4706,\ \hat{a}=0.9999,\ \alpha=0.4793,\ \alpha_1=0.1786$';
 
-mu1_opt1 = 0.000476;
-mu3_opt1 = 0.001705;
+mu1_opt1 = 0.000476;  
+mu3_opt1 = 0.001705;  
 params_opt1 = '$\delta=0.500,\ \hat{a}=0.755,\ \gamma=2.143,\ \alpha=0.942,\ \alpha_1=0.501$';
 
 mu1_opt2 = 0.3367;
@@ -435,32 +435,32 @@ mu_str_opt3 = '$\mu_1=0.2189,\ \mu_3=0.2104$';
 
 %% 传递率计算函数
 function Ta = compute_transmissibility(mu1, mu3, Omega, Ze_hat, zeta)
-if Omega < 1e-6
-    Ta = 1;
-    return;
-end
-
-a = (9/16) * mu3^2 * Ze_hat^4;
-b = 1.5 * mu3 * (mu1 - Omega^2) * Ze_hat^2;
-c = (mu1 - Omega^2)^2 + (2*zeta*Omega)^2;
-d = -Omega^4;
-
-coeff = [a, b, c, d];
-roots_Z2 = roots(coeff);
-
-Z2_candidates = roots_Z2(abs(imag(roots_Z2)) < 1e-6 & real(roots_Z2) > 0);
-
-if isempty(Z2_candidates)
-    Z_linear = Omega^2 / sqrt((mu1 - Omega^2)^2 + (2*zeta*Omega)^2);
-    Z2 = Z_linear^2;
-else
-    Z2 = min(real(Z2_candidates));
-end
-
-Z_hat = sqrt(Z2);
-cos_phi = (0.75 * mu3 * Ze_hat^2 * Z_hat^3 + (mu1 - Omega^2) * Z_hat) / Omega^2;
-cos_phi = max(-1, min(1, cos_phi));
-Ta = sqrt(1 + 2 * Z_hat * cos_phi + Z_hat^2);
+    if Omega < 1e-6
+        Ta = 1;
+        return;
+    end
+    
+    a = (9/16) * mu3^2 * Ze_hat^4;
+    b = 1.5 * mu3 * (mu1 - Omega^2) * Ze_hat^2;
+    c = (mu1 - Omega^2)^2 + (2*zeta*Omega)^2;
+    d = -Omega^4;
+    
+    coeff = [a, b, c, d];
+    roots_Z2 = roots(coeff);
+    
+    Z2_candidates = roots_Z2(abs(imag(roots_Z2)) < 1e-6 & real(roots_Z2) > 0);
+    
+    if isempty(Z2_candidates)
+        Z_linear = Omega^2 / sqrt((mu1 - Omega^2)^2 + (2*zeta*Omega)^2);
+        Z2 = Z_linear^2;
+    else
+        Z2 = min(real(Z2_candidates));
+    end
+    
+    Z_hat = sqrt(Z2);
+    cos_phi = (0.75 * mu3 * Ze_hat^2 * Z_hat^3 + (mu1 - Omega^2) * Z_hat) / Omega^2;
+    cos_phi = max(-1, min(1, cos_phi));
+    Ta = sqrt(1 + 2 * Z_hat * cos_phi + Z_hat^2);
 end
 
 %% 频率扫描
@@ -505,12 +505,12 @@ set(gca, 'XTick', 0:2:10, 'YTick', 0:2:12);
 
 legend([h1, h2, h3, h4, h5], ...
     {params_one_pair, params_three_pair, ...
-    sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
-    configs(1,1), configs(1,2), configs(1,3), configs(1,4), configs(1,5)), ...
-    sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
-    configs(2,1), configs(2,2), configs(2,3), final_params(2,4), final_params(2,5)), ...
-    sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
-    configs(3,1), configs(3,2), configs(3,3), final_params(3,4), final_params(3,5))}, ...
+     sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
+        configs(1,1), configs(1,2), configs(1,3), configs(1,4), configs(1,5)), ...
+     sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
+        configs(2,1), configs(2,2), configs(2,3), final_params(2,4), final_params(2,5)), ...
+     sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
+        configs(3,1), configs(3,2), configs(3,3), final_params(3,4), final_params(3,5))}, ...
     'Location', 'northeast', 'FontSize', 15, 'Interpreter', 'latex');
 
 %% 图1的小窗口
@@ -544,7 +544,7 @@ set(gca, 'FontSize', 12, 'FontName', 'Times New Roman');
 xlabel('Frequency (Hz)', 'FontSize', 16);
 ylabel('$T_a$', 'Interpreter', 'latex', 'FontSize', 16);
 
-%% 传递率图2: 显示 μ₁和μ₃ 取值
+%% 传递率图2: 显示 μ₁和μ₃ 取值 
 figure('Color', 'w', 'Position', [100, 100, 950, 650]);
 
 plot(f_vec, Ta_one_pair, 'b--', 'LineWidth', 1.5); hold on;
@@ -566,10 +566,10 @@ xlim([0, 10]); ylim([0, 12]);
 set(gca, 'XTick', 0:2:10, 'YTick', 0:2:12);
 
 legend({sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_one_pair, mu3_one_pair), ...
-    sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_three_pair, mu3_three_pair), ...
-    sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_opt1, mu3_opt1), ...
-    sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_opt2, mu3_opt2), ...
-    sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_opt3, mu3_opt3)}, ...
+        sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_three_pair, mu3_three_pair), ...
+        sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_opt1, mu3_opt1), ...
+        sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_opt2, mu3_opt2), ...
+        sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_opt3, mu3_opt3)}, ...
     'Location', 'northeast', 'FontSize', 15, 'Interpreter', 'latex');
 
 %% 图2的小窗
@@ -594,14 +594,14 @@ fprintf('阻尼比 ζ = %.3f\n\n', zeta);
 
 % 计算指标函数
 function [f_peak, Ta_peak, f_iso] = calc_metrics(f_vec, Ta)
-[Ta_peak, idx_peak] = max(Ta(2:end));
-f_peak = f_vec(idx_peak + 1);
-idx_iso = find(Ta < 1, 1);
-if isempty(idx_iso)
-    f_iso = NaN;
-else
-    f_iso = f_vec(idx_iso);
-end
+    [Ta_peak, idx_peak] = max(Ta(2:end));
+    f_peak = f_vec(idx_peak + 1);
+    idx_iso = find(Ta < 1, 1);
+    if isempty(idx_iso)
+        f_iso = NaN;
+    else
+        f_iso = f_vec(idx_iso);
+    end
 end
 
 %% 读取CSV文件并计算传递后响应
@@ -614,12 +614,12 @@ fullpath = fullfile(filepath, filename);
 fprintf('\n正在读取文件: %s\n', filename);
 
 data = readmatrix(fullpath, 'NumHeaderLines', 3);
-t = data(:, 1);
-v_raw = data(:, 2);
+t = data(:, 1);          
+v_raw = data(:, 2);      
 % 修改增益
 gain = 100;
-v_in = v_raw / gain;
-v_in = v_in - mean(v_in);
+v_in = v_raw / gain;     
+v_in = v_in - mean(v_in); 
 dt = t(2) - t(1);
 fs = 1 / dt;
 fprintf('采样频率: %.2f Hz\n', fs);
@@ -632,10 +632,10 @@ V_in_mag(1) = V_in_mag(1) / 2;
 f_excitation = freq(idx_max + 1);
 fprintf('主激励频率: %.2f Hz\n', f_excitation);
 
-% 计算完整传递率曲线
+% 计算完整传递率曲线 
 n_pos = floor(N/2);
-freq_range = freq(1:n_pos);
-Omega_range = freq_range / f0;
+freq_range = freq(1:n_pos);  
+Omega_range = freq_range / f0;  
 Ta_curve_all = zeros(5, n_pos);
 for j = 1:n_pos
     Ta_curve_all(1, j) = compute_transmissibility(mu1_one_pair, mu3_one_pair, Omega_range(j), Ze_hat, zeta);
@@ -644,18 +644,18 @@ for j = 1:n_pos
     Ta_curve_all(4, j) = compute_transmissibility(mu1_opt2, mu3_opt2, Omega_range(j), Ze_hat, zeta);
     Ta_curve_all(5, j) = compute_transmissibility(mu1_opt3, mu3_opt3, Omega_range(j), Ze_hat, zeta);
 end
-% 在频域应用传递率曲线
+% 在频域应用传递率曲线 
 v_out_all = zeros(N, 5);
 for i = 1:5
     H_full = ones(1, N);
     H_full(1:n_pos) = Ta_curve_all(i, :);
     if mod(N, 2) == 0
-        H_full(n_pos+1) = Ta_curve_all(i, n_pos);
+        H_full(n_pos+1) = Ta_curve_all(i, n_pos); 
         for k = 2:n_pos, H_full(N - k + 2) = conj(Ta_curve_all(i, k)); end
     else
         for k = 2:n_pos, H_full(N - k + 2) = conj(Ta_curve_all(i, k)); end
     end
-
+    
     if size(V_in_fft, 2) > 1, V_in_fft = V_in_fft(:); end
     V_out_freq = V_in_fft .* H_full(:);
     v_out_all(:, i) = real(ifft(V_out_freq));
@@ -718,7 +718,7 @@ title('\textbf{Power Spectrum Density Comparison}', 'FontSize', 26, 'Interpreter
 
 lgd = legend([h_in, h_outs], [{'Input Signal'}, param_names_legend], ...
     'Interpreter', 'latex', 'Location', 'northeast', 'FontSize', 13);
-set(lgd, 'Position', [0.32, 0.22, 0.2, 0.1]);
+set(lgd, 'Position', [0.32, 0.22, 0.2, 0.1]); 
 grid on; box on; xlim([0.5, fs/2]); hold off;
 
 %% 保存并结束
@@ -727,17 +727,17 @@ save(fullfile(filepath, output_filename), 't', 'v_in', 'v_out_all', 'Ta_curve_al
 
 %% PSD计算辅助函数
 function psd = compute_psd(signal, window_size, overlap, nfft, fs, window)
-signal = signal(:);
-data_windowed = buffer(signal, window_size, overlap, 'nodelay');
-if size(data_windowed, 2) > 0 && size(data_windowed, 1) < window_size
-    data_windowed(:, end) = [];
-end
-data_windowed = data_windowed .* window;
-psd_matrix = zeros(nfft/2, size(data_windowed, 2));
-for j = 1:size(data_windowed, 2)
-    fft_data = fft(data_windowed(:,j), nfft);
-    psd_matrix(:,j) = abs(fft_data(1:nfft/2)).^2 / (fs * nfft);
-    psd_matrix(2:end-1,j) = 2 * psd_matrix(2:end-1,j);
-end
-psd = mean(psd_matrix, 2);
+    signal = signal(:);
+    data_windowed = buffer(signal, window_size, overlap, 'nodelay');
+    if size(data_windowed, 2) > 0 && size(data_windowed, 1) < window_size
+        data_windowed(:, end) = [];
+    end
+    data_windowed = data_windowed .* window;
+    psd_matrix = zeros(nfft/2, size(data_windowed, 2));
+    for j = 1:size(data_windowed, 2)
+        fft_data = fft(data_windowed(:,j), nfft);
+        psd_matrix(:,j) = abs(fft_data(1:nfft/2)).^2 / (fs * nfft);
+        psd_matrix(2:end-1,j) = 2 * psd_matrix(2:end-1,j);
+    end
+    psd = mean(psd_matrix, 2);
 end
