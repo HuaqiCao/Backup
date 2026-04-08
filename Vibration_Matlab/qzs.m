@@ -26,7 +26,7 @@ fprintf('根据 â = %.3f 和 a = %.1f mm 计算得到 h1 = %.1f mm\n\n', ...
 delta = delta_hat_target * sqrt(a^2 + h1^2);
 
 %% 参数范围
-k1_range = 100:1:1000;        % 上斜弹簧刚度 N/m
+k1_range = 0.2:0.1:2;        % 上斜弹簧刚度 N/m
 h_range  = 0.01:0.01:0.05;    % 中间斜弹簧高度 m 
 
 fprintf('============================================================================================================================================\n');
@@ -347,13 +347,13 @@ f0 = (1/(2*pi)) * sqrt(K_eq / m);
 fprintf('基于3kg负载计算得到的固有频率 f0 = %.2f Hz\n', f0);
 
 %% 所有隔离器的无量纲参数
-mu1_one_paper = 0.1907;
-mu3_one_paper = 1.3836;
-params_one_paper = '$\delta=0.4089,\ \alpha=0.9218,\ \hat{a}=0.9791$';
+mu1_one_pair = 0.1907;
+mu3_one_pair = 1.3836;
+params_one_pair = '$\delta=0.4089,\ \alpha=0.9218,\ \hat{a}=0.9791$';
 
-mu1_three_paper = 0.1188;
-mu3_three_paper = 1.2344;
-params_three_paper = '$\delta=0.4706,\ \hat{a}=0.9999,\ \alpha=0.4793,\ \alpha_1=0.1786$';
+mu1_three_pair = 0.1188;
+mu3_three_pair = 1.2344;
+params_three_pair = '$\delta=0.4706,\ \hat{a}=0.9999,\ \alpha=0.4793,\ \alpha_1=0.1786$';
 
 mu1_opt1 = 0.000476;  
 mu3_opt1 = 0.001705;  
@@ -403,16 +403,16 @@ end
 f_vec = linspace(0.1, 1000, 5000);
 Omega_vec = f_vec / f0;
 
-Ta_one_paper = zeros(size(f_vec));
-Ta_three_paper = zeros(size(f_vec));
+Ta_one_pair = zeros(size(f_vec));
+Ta_three_pair = zeros(size(f_vec));
 Ta_opt1 = zeros(size(f_vec));
 Ta_opt2 = zeros(size(f_vec));
 Ta_opt3 = zeros(size(f_vec));
 
 for i = 1:length(f_vec)
     Omega = Omega_vec(i);
-    Ta_one_paper(i) = compute_transmissibility(mu1_one_paper, mu3_one_paper, Omega, Ze_hat, zeta);
-    Ta_three_paper(i) = compute_transmissibility(mu1_three_paper, mu3_three_paper, Omega, Ze_hat, zeta);
+    Ta_one_pair(i) = compute_transmissibility(mu1_one_pair, mu3_one_pair, Omega, Ze_hat, zeta);
+    Ta_three_pair(i) = compute_transmissibility(mu1_three_pair, mu3_three_pair, Omega, Ze_hat, zeta);
     Ta_opt1(i) = compute_transmissibility(mu1_opt1, mu3_opt1, Omega, Ze_hat, zeta);
     Ta_opt2(i) = compute_transmissibility(mu1_opt2, mu3_opt2, Omega, Ze_hat, zeta);
     Ta_opt3(i) = compute_transmissibility(mu1_opt3, mu3_opt3, Omega, Ze_hat, zeta);
@@ -421,8 +421,8 @@ end
 %%  传递率图1: 显示五个无量纲参数
 figure('Color', 'w', 'Position', [100, 100, 950, 650]);
 
-h1 = plot(f_vec, Ta_one_paper, 'b--', 'LineWidth', 1.5); hold on;
-h2 = plot(f_vec, Ta_three_paper, 'r-', 'LineWidth', 1.5);
+h1 = plot(f_vec, Ta_one_pair, 'b--', 'LineWidth', 1.5); hold on;
+h2 = plot(f_vec, Ta_three_pair, 'r-', 'LineWidth', 1.5);
 h3 = plot(f_vec, Ta_opt1, 'g-.', 'LineWidth', 1.5);
 h4 = plot(f_vec, Ta_opt2, 'm:', 'LineWidth', 1.5);
 h5 = plot(f_vec, Ta_opt3, 'c-', 'LineWidth', 1.5);
@@ -440,7 +440,7 @@ xlim([0, 10]); ylim([0, 12]);
 set(gca, 'XTick', 0:2:10, 'YTick', 0:2:12);
 
 legend([h1, h2, h3, h4, h5], ...
-    {params_one_paper, params_three_paper, ...
+    {params_one_pair, params_three_pair, ...
      sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
         configs(1,1), configs(1,2), configs(1,3), configs(1,4), configs(1,5)), ...
      sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
@@ -462,8 +462,8 @@ Ta_opt3_inset = zeros(size(f_inset));
 
 for i = 1:length(f_inset)
     Omega = Omega_inset(i);
-    Ta_one_inset(i) = compute_transmissibility(mu1_one_paper, mu3_one_paper, Omega, Ze_hat, zeta);
-    Ta_three_inset(i) = compute_transmissibility(mu1_three_paper, mu3_three_paper, Omega, Ze_hat, zeta);
+    Ta_one_inset(i) = compute_transmissibility(mu1_one_pair, mu3_one_pair, Omega, Ze_hat, zeta);
+    Ta_three_inset(i) = compute_transmissibility(mu1_three_pair, mu3_three_pair, Omega, Ze_hat, zeta);
     Ta_opt1_inset(i) = compute_transmissibility(mu1_opt1, mu3_opt1, Omega, Ze_hat, zeta);
     Ta_opt2_inset(i) = compute_transmissibility(mu1_opt2, mu3_opt2, Omega, Ze_hat, zeta);
     Ta_opt3_inset(i) = compute_transmissibility(mu1_opt3, mu3_opt3, Omega, Ze_hat, zeta);
@@ -483,8 +483,8 @@ ylabel('$T_a$', 'Interpreter', 'latex', 'FontSize', 16);
 %% 传递率图2: 显示 μ₁和μ₃ 取值 
 figure('Color', 'w', 'Position', [100, 100, 950, 650]);
 
-plot(f_vec, Ta_one_paper, 'b--', 'LineWidth', 1.5); hold on;
-plot(f_vec, Ta_three_paper, 'r-', 'LineWidth', 1.5);
+plot(f_vec, Ta_one_pair, 'b--', 'LineWidth', 1.5); hold on;
+plot(f_vec, Ta_three_pair, 'r-', 'LineWidth', 1.5);
 plot(f_vec, Ta_opt1, 'g-.', 'LineWidth', 1.5);
 plot(f_vec, Ta_opt2, 'm:', 'LineWidth', 1.5);
 plot(f_vec, Ta_opt3, 'c-', 'LineWidth', 1.5);
@@ -501,8 +501,8 @@ title(['\textbf{Displacement Transmissibility ($\zeta = $', num2str(zeta), ', $Z
 xlim([0, 10]); ylim([0, 12]);
 set(gca, 'XTick', 0:2:10, 'YTick', 0:2:12);
 
-legend({sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_one_paper, mu3_one_paper), ...
-        sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_three_paper, mu3_three_paper), ...
+legend({sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_one_pair, mu3_one_pair), ...
+        sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_three_pair, mu3_three_pair), ...
         sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_opt1, mu3_opt1), ...
         sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_opt2, mu3_opt2), ...
         sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_opt3, mu3_opt3)}, ...
@@ -574,8 +574,8 @@ freq_range = freq(1:n_pos);
 Omega_range = freq_range / f0;  
 Ta_curve_all = zeros(5, n_pos);
 for j = 1:n_pos
-    Ta_curve_all(1, j) = compute_transmissibility(mu1_one_paper, mu3_one_paper, Omega_range(j), Ze_hat, zeta);
-    Ta_curve_all(2, j) = compute_transmissibility(mu1_three_paper, mu3_three_paper, Omega_range(j), Ze_hat, zeta);
+    Ta_curve_all(1, j) = compute_transmissibility(mu1_one_pair, mu3_one_pair, Omega_range(j), Ze_hat, zeta);
+    Ta_curve_all(2, j) = compute_transmissibility(mu1_three_pair, mu3_three_pair, Omega_range(j), Ze_hat, zeta);
     Ta_curve_all(3, j) = compute_transmissibility(mu1_opt1, mu3_opt1, Omega_range(j), Ze_hat, zeta);
     Ta_curve_all(4, j) = compute_transmissibility(mu1_opt2, mu3_opt2, Omega_range(j), Ze_hat, zeta);
     Ta_curve_all(5, j) = compute_transmissibility(mu1_opt3, mu3_opt3, Omega_range(j), Ze_hat, zeta);
@@ -601,8 +601,8 @@ end
 colors_map = {[0 0.4470 0.7410], [0.8500 0.3250 0.0980], [0.4660 0.6740 0.1880], [0.4940 0.1840 0.5560], [0.3010 0.7450 0.9330]};
 
 param_names_legend = { ...
-    sprintf('One-paper: $\\hat{\\delta}=0.409, \\hat{a}=0.979, \\alpha=0.922$'), ...
-    sprintf('Three-paper: $\\hat{\\delta}=0.471, \\hat{a}=1.000, \\alpha=0.479, \\alpha_1=0.179$'), ...
+    sprintf('One-pair: $\\hat{\\delta}=0.409, \\hat{a}=0.979, \\alpha=0.922$'), ...
+    sprintf('Three-pair: $\\hat{\\delta}=0.471, \\hat{a}=1.000, \\alpha=0.479, \\alpha_1=0.179$'), ...
     sprintf('Opt1: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', configs(1,1), configs(1,2), configs(1,3), configs(1,4), configs(1,5)), ...
     sprintf('Opt2: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', configs(2,1), configs(2,2), configs(2,3), final_params(2,4), final_params(2,5)), ...
     sprintf('Opt3: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', configs(3,1), configs(3,2), configs(3,3), final_params(3,4), final_params(3,5))};
