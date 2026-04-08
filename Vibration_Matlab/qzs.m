@@ -36,6 +36,7 @@ k1_range = 1:100:2000;        % 上斜弹簧刚度 N/m
 
 y_hat_all = {};
 f_hat_all = {};
+K_hat_all = {};
 k1_record = [];
 
 fprintf('============================================================================================================================================\n');
@@ -116,7 +117,7 @@ for k1 = k1_range
         y_hat_curve = zeros(size(y_hat));
 
         for i = 1:length(y_hat)
-            % x_i = x̂_e + ŷ(i) ，当前无量纲总位移
+            % x_i = x̂_e + ŷ(i) 
             xi_hat(i) = x_e_hat + y_hat(i);
             % P₁ = √(1−â²) − xi_hat(i)
             P1 = sqrt(1 - a_hat_actual^2) - xi_hat(i);
@@ -158,53 +159,50 @@ for k1 = k1_range
 
         y_hat_all{end+1} = y_hat_curve;  
         f_hat_all{end+1} = f_hat_curve;  
+        K_hat_all{end+1} = K_hat;
         k1_record(end+1) = k1;
 
     end
 end
 
 if found_count > 0
-    fprintf('\n找到 %d 组满足所有无量纲参数的组合。\n', found_count);
-else
-    fprintf('\n未找到严格满足所有无量纲参数（误差为0）的组合。\n');
-end
-
-
-% 绘制所有恢复力曲线
-if found_count > 0
-
-    colors = lines(found_count);
-    for i = 1:found_count
-        plot(y_hat_all{i}, f_hat_all{i}, 'Color', colors(i,:), 'LineWidth', 1.5, ...
-            'DisplayName', sprintf('k_1=%.0f N/m', k1_record(i)));
-        hold on;
+    %% 第 3 组
+    target_idx = 3; 
+    
+    if target_idx > found_count
+        target_idx = found_count;
     end
-    xlabel('$\hat{y}$', 'Interpreter', 'latex', 'FontSize', 22);
-    ylabel('$\hat{f}$', 'Interpreter', 'latex', 'FontSize', 22);
-    title('$\hat{f}$ versus $\hat{y}$', 'Interpreter', 'latex', 'FontSize', 22);
 
+    figure(1); clf; 
+    set(gcf, 'Position', [100, 100, 800, 600]);
+    
+    yyaxis left     
+    plot(y_hat_all{target_idx}, f_hat_all{target_idx}, 'LineWidth', 2); 
+    ylabel('Dimensionless Force $\hat{f}$', 'Interpreter', 'latex', 'FontSize', 18);
+    ylim([-6, 6]); xlim([-3, 3]);
+    grid on;
 
-    figure('Color', 'w', 'Position', [100, 100, 620, 450]);
-    % 画零线
-    x_all = cell2mat(y_hat_all);
-    plot([min(x_all), max(x_all)], [0, 0], 'k--', 'LineWidth', 0.5);
-    plot([0, 0], [min(cell2mat(f_hat_all)), max(cell2mat(f_hat_all))], 'k--', 'LineWidth', 0.5);
-    legend('Location', 'best');
-    hold on;
+    yyaxis right    
+    plot(y_hat_all{target_idx}, K_hat_all{target_idx}, 'r-', 'LineWidth', 2); 
+    ylabel('Dimensionless Stiffness $\hat{K}$', 'Interpreter', 'latex', 'FontSize', 18);
+    ylim([0, 1.5]);
+    
+    title(['Results for Parameter Set No. ', num2str(target_idx)], 'FontSize', 24);
+    xlabel('Dimensionless Displacement $\hat{y}$', 'Interpreter', 'latex', 'FontSize', 18);
+    
+    legend(sprintf('Force'), ...
+           sprintf('Stiffness'), ...
+           'Interpreter', 'latex', 'Location', 'northwest');
 else
-    disp('未找到有效参数组合，无法绘制恢复力曲线。');
+    disp('未找到有效参数组合');
 end
-
-hold on;
-
-
 
 
 %% 计算总刚度曲线 [delta_hat, a_hat, gamma]
 test_params = [0.700, 0.875, 1.728;
     0.600, 0.805, 1.970;
     0.500, 0.755, 2.143;
-    %               0.200, 0.800, 2.192;
+%   0.200, 0.800, 2.192;
     0.500, 0.800, 1.987;
     0.800, 0.800, 1.987];
 
@@ -224,7 +222,7 @@ for i = 1:num_test
     test_color_specs{i} = {rgb, test_styles{i}};
 end
 
-% 初始化存储句柄和图例文本
+%% 初始化存储句柄和图例文本
 h_targets = gobjects(1, num_test);
 target_legends = cell(1, num_test);
 
@@ -232,6 +230,10 @@ fprintf('\n五个无量纲参数计算结果:\n');
 fprintf('-------------------------------------------------------------------------------------------\n');
 fprintf('  Index  |   delta_hat (δ̂) |   a_hat (â)   |   gamma (γ)   |   alpha (α)   |   alpha1 (α1)\n');
 fprintf('-------------------------------------------------------------------------------------------\n');
+
+figure(2); clf; 
+set(gcf, 'Position', [100, 100, 800, 600]);
+hold on;
 
 for j = 1:size(test_params, 1)
     d_hat = test_params(j,1); a_hat = test_params(j,2); g = test_params(j,3);
@@ -339,78 +341,81 @@ for j = 1:num_test
     fprintf('    %d    |      %.3f      |     %.3f     |     %.3f     |     %.3f     |     %.3f\n', j, d_hat, a_hat, g, alpha_calc, alpha1_calc);
 end
 
+%% 全参数组泰勒展开计算 
+fprintf('\n无量纲参数的泰勒展开结果:\n');
 
-%% 全参数组泰勒展开计算（仅对 test_params 中的组合）
-fprintf('\n所有无量纲参数组的泰勒展开结果 (y=0 处):\n');
-num_test = size(test_params, 1);
-if num_test == 0
-    fprintf('没有需要展开的 test_params 组合。\n');
-else
-    % 构建仅包含 test_params 的参数组（前三列，后两列补0，但我们会直接用存储的 alpha）
-    all_configs = [test_params, zeros(num_test, 2)];
-    num_configs = num_test;
+num_configs = size(test_params, 1);
+all_configs = zeros(num_configs, 5); % 存储 [d, a, g, al, al1]
 
-    % 动态生成组名
-    config_names = cell(1, num_configs);
-    for i = 1:num_test
-        config_names{i} = sprintf('Test Params Index %d', i);
-    end
-
-    dy_step = 0.00001;
-    y_range = [-dy_step, 0, dy_step];
-    mu1_all = zeros(1, num_configs);
-    mu3_all = zeros(1, num_configs);
-
-    for j = 1:num_configs
-        d_t = test_params(j,1); a_t = test_params(j,2); g_t = test_params(j,3);
-        % 直接使用之前存储的 alpha 和 alpha1
-        al_t = alpha_store(j);
-        al1_t = alpha1_store(j);
-
-        rho_t = (1 - a_t^2) / (g_t - 1)^2;
-        xe_t = sqrt(1 - a_t^2) + sqrt(rho_t);
-        dh1_t = 1 - sqrt(1 + 2*sqrt(1 - a_t^2)*sqrt(rho_t) + rho_t) + d_t;
-        dh2_t = 1 - sqrt(1 + 4*sqrt(1 - a_t^2)*sqrt(rho_t) + 4*rho_t) + d_t;
-        K_res = zeros(1, 3);
-        F_res = zeros(1, 3);
-
-        for k = 1:3
-            yi = y_range(k);
-            xi_val = xe_t + yi;   % 改用标量变量
-            P1 = sqrt(1-a_t^2) - xi_val;
-            P2 = 1 - 2*sqrt(1-a_t^2)*xi_val + xi_val^2;
-            P3 = 1 + d_t;
-            P4 = sqrt(1-a_t^2+rho_t+2*sqrt(1-a_t^2)*sqrt(rho_t)) - xi_val;
-            P5 = 1 + rho_t + 2*sqrt(1-a_t^2)*sqrt(rho_t) - 2*sqrt(1-a_t^2+rho_t+2*sqrt(1-a_t^2)*sqrt(rho_t))*xi_val + xi_val^2;
-            P6 = sqrt(1+2*sqrt(1-a_t^2)*sqrt(rho_t)+rho_t) + dh1_t;
-            P7 = sqrt(1-a_t^2) + 2*sqrt(rho_t) - xi_val;
-            P8 = 1 + 4*sqrt(1-a_t^2)*sqrt(rho_t) + 4*rho_t - 2*(sqrt(1-a_t^2)+2*sqrt(rho_t))*xi_val + xi_val^2;
-            P9 = sqrt(1+4*sqrt(1-a_t^2)*sqrt(rho_t)+4*rho_t) + dh2_t;
-
-            F_res(k) = xi_val - 2*al_t*P1*(1 - P3/sqrt(P2)) ...
-                - 2*al1_t*P4*(1 - P6/sqrt(P5)) ...
-                - 2*al_t*P7*(1 - P9/sqrt(P8));
-
-            dP2 = -2*sqrt(1-a_t^2) + 2*xi_val;
-            dP5 = -2*sqrt(1-a_t^2+rho_t+2*sqrt(1-a_t^2)*sqrt(rho_t)) + 2*xi_val;
-            dP8 = -2*(sqrt(1-a_t^2)+2*sqrt(rho_t)) + 2*xi_val;
-            dN1_t = -2*al_t*(1-P3*P2^(-0.5))*(-1) - al_t*P1*P2^(-1.5)*P3*dP2;
-            dN3_t = -2*al1_t*(1-P6*P5^(-0.5))*(-1) - al1_t*P4*P5^(-1.5)*P6*dP5;
-            dN5_t = -2*al_t*(1-P9*P8^(-0.5))*(-1) - al_t*P7*P8^(-1.5)*P9*dP8;
-            K_res(k) = 1 + dN1_t + dN3_t + dN5_t;
-        end
-
-        mu0_val = F_res(2);
-        mu1_val = K_res(2);
-        mu3_val = ((K_res(3) - 2*K_res(2) + K_res(1)) / dy_step^2) / 6;
-
-        mu1_all(j) = mu1_val;
-        mu3_all(j) = mu3_val;
-
-        fprintf('组别 %d: %s\n', j, config_names{j});
-        fprintf('  -> 展开式: f_hat = %.6f*y^3 + %.8f*y + %.6f\n', mu3_val, mu1_val, mu0_val);
-    end
+for j = 1:num_configs
+    d_raw = test_params(j,1); 
+    a_raw = test_params(j,2); 
+    g_raw = test_params(j,3);
+    
+    % 计算理论 alpha (高精度)
+    Delta = sqrt(1 + a_raw^2*g_raw^2 - 2*a_raw^2*g_raw);
+    Delta1 = (1 + d_raw)*(g_raw - 1);
+    Delta2 = (1 + d_raw)*(g_raw - 1)^3;
+    C1 = 6*(1 + d_raw)* a_raw^(-3) / (-12 * Delta2/Delta^3 + 72*Delta2*(1 - a_raw^2)/Delta^5 - 60*Delta2*(1 - a_raw^2)^2/Delta^7);
+    al1_raw = -1 / (C1 * (4 - 4*Delta1/Delta + 4*(1-a_raw^2)*Delta1/Delta^3) + 2*(1 - (1+d_raw)/a_raw));
+    al_raw = C1 * al1_raw;
+    
+    % 强制截断为3位小数，模拟表格输入
+    all_configs(j, :) = [round(d_raw,3), round(a_raw,3), round(g_raw,3), round(al_raw,3), round(al1_raw,3)];
 end
+
+% 执行泰勒展开计算
+dy_step = 0.00001; 
+y_range = [-dy_step, 0, dy_step];
+
+for j = 1:num_configs
+    % 提取截断后的参数
+    d_t = all_configs(j,1); a_t = all_configs(j,2); g_t = all_configs(j,3);
+    al_t = all_configs(j,4); al1_t = all_configs(j,5);
+    
+    % 中间几何变量计算
+    rho_t = (1 - a_t^2) / (g_t - 1)^2;
+    xe_t = sqrt(1 - a_t^2) + sqrt(rho_t);
+    dh1_t = 1 - sqrt(1 + 2*sqrt(1 - a_t^2)*sqrt(rho_t) + rho_t) + d_t;
+    dh2_t = 1 - sqrt(1 + 4*sqrt(1 - a_t^2)*sqrt(rho_t) + 4*rho_t) + d_t;
+    
+    F_res = zeros(1, 3); K_res = zeros(1, 3);
+    for k = 1:3
+        yi = y_range(k); xi = xe_t + yi;
+        % P参数组
+        P1=sqrt(1-a_t^2)-xi; P2=1-2*sqrt(1-a_t^2)*xi+xi^2; P3=1+d_t;
+        P4=sqrt(1-a_t^2+rho_t+2*sqrt(1-a_t^2)*sqrt(rho_t))-xi;
+        P5=1+rho_t+2*sqrt(1-a_t^2)*sqrt(rho_t)-2*sqrt(1-a_t^2+rho_t+2*sqrt(1-a_t^2)*sqrt(rho_t))*xi+xi^2;
+        P6=sqrt(1+2*sqrt(1-a_t^2)*sqrt(rho_t)+rho_t)+dh1_t;
+        P7=sqrt(1-a_t^2)+2*sqrt(rho_t)-xi;
+        P8=1+4*sqrt(1-a_t^2)*sqrt(rho_t)+4*rho_t-2*(sqrt(1-a_t^2)+2*sqrt(rho_t))*xi+xi^2;
+        P9=sqrt(1+4*sqrt(1-a_t^2)*sqrt(rho_t)+4*rho_t)+dh2_t;
+        
+        % 力平衡方程
+        F_res(k) = xi - 2*al_t*P1*(1 - P3/sqrt(P2)) ...
+                      - 2*al1_t*P4*(1 - P6/sqrt(P5)) ...
+                      - 2*al_t*P7*(1 - P9/sqrt(P8));
+        % 刚度（导数）
+        dP2 = -2*sqrt(1-a_t^2)+2*xi; dP5 = -2*sqrt(1-a_t^2+rho_t+2*sqrt(1-a_t^2)*sqrt(rho_t))+2*xi;  
+        dP8 = -2*(sqrt(1-a_t^2)+2*sqrt(rho_t))+2*xi;
+        dN1 = -2*al_t*(1-P3*P2^-0.5)*-1 - al_t*P1*P2^-1.5*P3*dP2;
+        dN3 = -2*al1_t*(1-P6*P5^-0.5)*-1 - al1_t*P4*P5^-1.5*P6*dP5;
+        dN5 = -2*al_t*(1-P9*P8^-0.5)*-1 - al_t*P7*P8^-1.5*P9*dP8;
+        K_res(k) = 1 + dN1 + dN3 + dN5;
+    end
+    
+    % 提取系数
+    mu0 = F_res(2); 
+    mu1 = K_res(2); 
+    mu3 = ((K_res(3) - 2*K_res(2) + K_res(1)) / dy_step^2) / 6;
+    
+    % 打印输出
+    fprintf('Group%d: [δ̂=%.3f, â=%.3f, γ=%.3f, α=%.3f, α₁=%.3f]\n', ...
+        j, d_t, a_t, g_t, al_t, al1_t);
+    fprintf('  -> 展开式: f_hat = %.6f*y^3 + %.6f*y + %.6f\n\n', mu3, mu1, mu0);
+end
+
+
 
 
 %% 传递率曲线计算
