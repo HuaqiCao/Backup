@@ -35,7 +35,7 @@ fprintf('根据 δ̂ = %.3f, a = %.1f mm, h1 = %.1f mm 计算得到: L0 = sqrt(a
 k1_range = 1:100:2000;        % 上斜弹簧刚度 N/m
 
 fprintf('============================================================================================================================================\n');
-fprintf(' k1(N/m) | h(mm) | h1(mm) | d(mm) | k2(N/m) | k3(N/m) | a(mm) | delta(mm) | â实际 | γ实际 | α实际 | α₁实际| δ̂实际\n');
+fprintf(' k₁(N/m) | h(mm) | h₁(mm) | d(mm) | k₂(N/m) | k₃(N/m) | â_act | γ_act | α_act | α₁_act | δ̂_act | a(mm) | h₁(mm) | δ(mm) | L₀(mm) | d(mm)\n');
 fprintf('--------------------------------------------------------------------------------------------------------------------------------------------\n');
 
 figure('Color', 'w', 'Position', [100, 100, 620, 450]);
@@ -79,9 +79,10 @@ for k1 = k1_range
 
         found_count = found_count + 1;
 
-        fprintf('%4.0f |%6.2f |%6.2f |%6.2f |%7.2f |%7.2f |%6.2f |%7.4f | %.3f | %.3f | %.3f | %.3f | %.3f\n', ...
-            k1, h*1000, h1*1000, d*1000, k2, k3, a*1000, delta*1000, ...
-            a_hat_actual, gamma_actual, alpha_actual, alpha1_actual, delta_hat_actual);
+        fprintf('%4.0f |%6.2f |%6.2f |%6.2f |%7.2f |%7.2f |%6.2f |%7.4f | %.3f | %.3f | %.3f | %.3f | %.3f | %6.1f | %6.1f | %7.3f | %6.1f | %6.2f\n', ...
+    k1, h*1000, h1*1000, d*1000, k2, k3, a*1000, delta*1000, ...
+    a_hat_actual, gamma_actual, alpha_actual, alpha1_actual, delta_hat_actual, ...
+    a*1000, h1*1000, delta*1000, L0*1000, d*1000);
 
         %% 计算无量纲恢复力曲线
         %% 中间参数
@@ -146,17 +147,6 @@ for k1 = k1_range
             K_hat(i) = 1 + dN1 + dN3 + dN5;
             f_hat(i) = xi_hat - 2*alpha_actual * P1*(sqrt(P2)-P3)/sqrt(P2) - 2*alpha1_actual * P4*(sqrt(P5)-P6)/sqrt(P5) - 2*alpha_actual * P7*(sqrt(P8)-P9)/sqrt(P8);
         end
-
-        fprintf('α = %.6f\n', alpha_actual);
-        fprintf('α₁ = %.6f\n', alpha1_actual);
-        fprintf('δ̂ = %.6f\n', delta_hat_actual);
-        fprintf('â = %.6f\n', a_hat_actual);
-        fprintf('γ = %.6f\n', gamma_actual);
-        fprintf('ρ = %.6f\n', rho);
-        fprintf('δ̂₁ = %.6f\n', delta_hat1);
-        fprintf('δ̂₂ = %.6f\n', delta_hat2);
-
-
     end
 end
 
@@ -166,13 +156,6 @@ else
     fprintf('\n未找到严格满足所有无量纲参数（误差为0）的组合。\n');
 end
 
-fprintf('============================================================================================================================================\n');
-fprintf('\n关键几何参数:\n');
-fprintf('  a = %.1f mm\n', a*1000);
-fprintf('  h1 = %.1f mm\n', h1*1000);
-fprintf('  δ = %.3f mm\n', delta*1000);
-fprintf('  L0 = %.1f mm\n', L0*1000);
-fprintf('  d = %.2f mm\n', d*1000);
 hold on;
 
 
