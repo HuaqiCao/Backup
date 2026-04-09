@@ -166,8 +166,8 @@ for k1 = k1_range
 end
 
 if found_count > 0
-    %% 第 3 组
-    target_idx = 3; 
+    %% 第 3 组(双y轴图)
+    target_idx = 6; 
     
     if target_idx > found_count
         target_idx = found_count;
@@ -456,20 +456,7 @@ mu_str_opt3 = '$\mu_1=0.2189,\ \mu_3=0.2104$';
 
 
 % 线性系统固有频率
-% f0 = 3.5;  % Hz
-% 线性系统固有频率
-% f0 = 3.5;  % Hz
-if found_count > 0
-    k1_actual = k1_record(1);  % 使用第一组找到的 k1 值
-else
-    k1_actual = 1000;  % 默认值，如果没有找到
-end
-k2_actual = k1_actual / alpha_target;
-K_eq = k2_actual * mu1_opt1;
-f0 = (1/(2*pi)) * sqrt(K_eq / m);
-fprintf('基于3kg负载计算得到的固有频率 f0 = %.2f Hz\n', f0);
-
-
+f0 = 3.5;  % Hz
 
 %% 传递率计算函数
 function Ta = compute_transmissibility(mu1, mu3, Omega, Ze_hat, zeta)
