@@ -178,11 +178,8 @@ if found_count > 0
     end
 
     figure(1);
-    set(gcf, 'Position', [100, 100, 600, 450]);
-    % 坐标刻度的大小
-    set(gca,'FontSize',16);
-    % 不显示图像
-    set(gcf, 'Visible', 'off');
+    set(gcf, 'Position', [100, 100, 600, 450], 'Visible', 'on');
+
     yyaxis left
     plot(y_hat_fig1{target_idx}, f_hat{target_idx}, 'Color',[0, 0.4470, 0.7410],'LineWidth', 2);
     ylabel('Dimensionless Force $\hat{f}$', 'Interpreter', 'latex', 'FontSize', 18);
@@ -191,10 +188,11 @@ if found_count > 0
     yyaxis right
     plot(y_hat_fig1{target_idx}, K_hat_fig1{target_idx}, 'Color',[0.8500, 0.3250, 0.0980],'LineStyle','--', 'LineWidth', 2);
     ylabel('Dimensionless Stiffness $\hat{K}$', 'Interpreter', 'latex', 'FontSize', 18);
-    % ylim([0, 1.5]);
 
     title(['Results for Parameter Set No. ', num2str(target_idx)], 'FontSize', 24);
     xlabel('Dimensionless Displacement $\hat{y}$', 'Interpreter', 'latex', 'FontSize', 18);
+    set(gca,'FontSize',16);   % 坐标刻度的大小
+    grid on; %显示网格
 
     legend(sprintf('Force'), ...
         sprintf('Stiffness'), ...
@@ -246,10 +244,10 @@ fprintf('  Index  |   delta_hat (δ̂) |   a_hat (â)   |   gamma (γ)   |   alp
 fprintf('-------------------------------------------------------------------------------------------\n');
 
 figure(2);
-set(gcf, 'Position', [100, 100, 750, 520]);
+set(gcf, 'Position', [100, 100, 750, 520], 'Visible', 'on');
 set(gca,'FontSize',16);
-set(gcf, 'Visible', 'off');
-hold on;
+grid on;
+hold on; %不能删，显示后面legend
 
 for j = 1:size(test_params, 1)
     %% 提取test_params中delta_hat, a_hat, gamma
@@ -337,8 +335,8 @@ end
 % 图例
 legend(h_targets, target_legends, ...
     'Interpreter', 'latex', 'Location', 'best', 'FontSize', 12);
-xline(0, '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1.5,'HandleVisibility', 'off');
 
+xline(0, '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1.5,'HandleVisibility', 'off');
 xlabel('$\hat{y}$', 'Interpreter', 'latex', 'FontSize', 18);
 ylabel('$\hat{K}$', 'Interpreter', 'latex', 'FontSize', 18);
 xticks([-0.8, -0.5, -0.3, 0, 0.3, 0.5, 0.8]);
@@ -362,8 +360,8 @@ for j = 1:num_configs
     delta_hat_t = test_params(j, 1);      % δ̂
     a_hat_t = test_params(j, 2);      % â
     gamma_t = test_params(j, 3);      % γ
-    alpha_t = alpha_store(j);        % α 
-    alpha1_t = alpha1_store(j);      % α₁ 
+    alpha_t = alpha_store(j);        % α
+    alpha1_t = alpha1_store(j);      % α₁
 
     % 中间几何变量计算
     rho_t = (1 - a_hat_t^2) / (gamma_t - 1)^2;
@@ -371,15 +369,15 @@ for j = 1:num_configs
     delta_hat1_t = 1 - sqrt(1 + 2*sqrt(1 - a_hat_t^2)*sqrt(rho_t) + rho_t) + delta_hat_t;
     delta_hat2_t = 1 - sqrt(1 + 4*sqrt(1 - a_hat_t^2)*sqrt(rho_t) + 4*rho_t) + delta_hat_t;
 
-    F_t = zeros(1, 3); 
+    F_t = zeros(1, 3);
     K_t = zeros(1, 3);
-    
+
     for k = 1:3
-        yi = y_range(k); 
+        yi = y_range(k);
         xi = xe_t + yi;
-        
-        P1 = sqrt(1 - a_hat_t^2) - xi; 
-        P2 = 1 - 2*sqrt(1 - a_hat_t^2)*xi + xi^2; 
+
+        P1 = sqrt(1 - a_hat_t^2) - xi;
+        P2 = 1 - 2*sqrt(1 - a_hat_t^2)*xi + xi^2;
         P3 = 1 + delta_hat_t;
         P4 = sqrt(1 - a_hat_t^2 + rho_t + 2*sqrt(1 - a_hat_t^2)*sqrt(rho_t)) - xi;
         P5 = 1 + rho_t + 2*sqrt(1 - a_hat_t^2)*sqrt(rho_t) - 2*sqrt(1 - a_hat_t^2 + rho_t + 2*sqrt(1 - a_hat_t^2)*sqrt(rho_t))*xi + xi^2;
@@ -391,15 +389,15 @@ for j = 1:num_configs
         F_t(k) = xi - 2*alpha_t*P1*(1 - P3/sqrt(P2)) ...
             - 2*alpha1_t*P4*(1 - P6/sqrt(P5)) ...
             - 2*alpha_t*P7*(1 - P9/sqrt(P8));
-        
-        dP2 = -2*sqrt(1 - a_hat_t^2) + 2*xi; 
+
+        dP2 = -2*sqrt(1 - a_hat_t^2) + 2*xi;
         dP5 = -2*sqrt(1 - a_hat_t^2 + rho_t + 2*sqrt(1 - a_hat_t^2)*sqrt(rho_t)) + 2*xi;
         dP8 = -2*(sqrt(1 - a_hat_t^2) + 2*sqrt(rho_t)) + 2*xi;
-        
+
         dN1 = -2*alpha_t*(1 - P3*P2^-0.5)*-1 - alpha_t*P1*P2^-1.5*P3*dP2;
         dN3 = -2*alpha1_t*(1 - P6*P5^-0.5)*-1 - alpha1_t*P4*P5^-1.5*P6*dP5;
         dN5 = -2*alpha_t*(1 - P9*P8^-0.5)*-1 - alpha_t*P7*P8^-1.5*P9*dP8;
-        
+
         K_t(k) = 1 + dN1 + dN3 + dN5;
     end
 
@@ -426,16 +424,23 @@ end
 
 %% ====================================================泰勒展开（mu3对不上） end=================================================================%%
 
-%% 传递率曲线计算
-m = 3;              % 实际负载质量 3 kg
-g = 9.81;           % 重力加速度 m/s^2
-zeta = 0.15;        % 阻尼比
+%% 位移传递率曲线计算
+m = 3;              % kg
+g = 9.81;           % m/s^2
+
+K2_target = 10;    %需要修改
+c = 0.2;             % 需要修改
+Omega_0 = sqrt(K2_target/m);
+f0 = sqrt(K2_target/m)/(2*pi);
+
+% zeta = 0.15;
+zeta = c*Omega_0/2*K2_target;
 Ze_mm = 3;          % 激励幅值 3 mm
 
 L_ref = sqrt(a_target^2 + h1_target^2);
-Ze_hat = Ze_mm / 1000 / L_ref; % 无量纲激励幅值
+Ze_hat = Ze_mm / 1000 / L_ref;  % 无量纲激励幅值
 
-%% 所有隔离器的无量纲参数
+%% 提取 mu1 和 mu3
 % 提取 mu1 和 mu3（从泰勒展开结果）
 mu1_group1 = mu1_store(1);
 mu3_group1 = mu3_store(1);
@@ -448,7 +453,6 @@ mu3_group4 = mu3_store(4);
 mu1_group5 = mu1_store(5);
 mu3_group5 = mu3_store(5);
 
-% 提取无量纲参数用于图例显示
 delta_hat_group1 = test_params(1, 1);
 a_hat_group1     = test_params(1, 2);
 gamma_group1     = test_params(1, 3);
@@ -479,6 +483,23 @@ gamma_group5     = test_params(5, 3);
 alpha_group5     = alpha_store(5);
 alpha1_group5    = alpha1_store(5);
 
+%% 频率扫描 for绘图 (Figure 3 & 4)
+f_ex = linspace(0.1, 10, 1000);
+Ta_group1 = zeros(size(f_ex));
+Ta_group2 = zeros(size(f_ex));
+Ta_group3 = zeros(size(f_ex));
+Ta_group4 = zeros(size(f_ex));
+Ta_group5 = zeros(size(f_ex));
+
+for j = 1:length(f_ex)
+    Omega = f_ex(j) / f0;
+    Ta_group1(j) = compute_transmissibility(mu1_group1, mu3_group1, Omega, Ze_hat, zeta);
+    Ta_group2(j) = compute_transmissibility(mu1_group2, mu3_group2, Omega, Ze_hat, zeta);
+    Ta_group3(j) = compute_transmissibility(mu1_group3, mu3_group3, Omega, Ze_hat, zeta);
+    Ta_group4(j) = compute_transmissibility(mu1_group4, mu3_group4, Omega, Ze_hat, zeta);
+    Ta_group5(j) = compute_transmissibility(mu1_group5, mu3_group5, Omega, Ze_hat, zeta);
+end
+
 % 生成图例字符串
 params_group1 = sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
     delta_hat_group1, a_hat_group1, gamma_group1, alpha_group1, alpha1_group1);
@@ -491,42 +512,21 @@ params_group4 = sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\
 params_group5 = sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
     delta_hat_group5, a_hat_group5, gamma_group5, alpha_group5, alpha1_group5);
 
-%% 线性系统固有频率
-f0 = 3.5;  % Hz
-
-%% 频率扫描
-f_vec = linspace(0.1, 1000, 5000);
-Omega_vec = f_vec / f0;
-
-% 预分配数组
-Ta_group1 = zeros(size(f_vec));
-Ta_group2 = zeros(size(f_vec));
-Ta_group3 = zeros(size(f_vec));
-Ta_group4 = zeros(size(f_vec));
-Ta_group5 = zeros(size(f_vec));
-
-for i = 1:length(f_vec)
-    Omega = Omega_vec(i);
-    Ta_group1(i) = compute_transmissibility(mu1_group1, mu3_group1, Omega, Ze_hat, zeta);
-    Ta_group2(i) = compute_transmissibility(mu1_group2, mu3_group2, Omega, Ze_hat, zeta);
-    Ta_group3(i) = compute_transmissibility(mu1_group3, mu3_group3, Omega, Ze_hat, zeta);
-    Ta_group4(i) = compute_transmissibility(mu1_group4, mu3_group4, Omega, Ze_hat, zeta);
-    Ta_group5(i) = compute_transmissibility(mu1_group5, mu3_group5, Omega, Ze_hat, zeta);
-end
-
 %% 传递率图: 显示五个无量纲参数
-figure('Color', 'w', 'Position', [100, 100, 950, 650]);
+figure(3);
+set(gcf, 'Position', [100, 100, 950, 650], 'Visible', 'on');
+set(gca, 'FontSize', 16, 'FontName', 'Times New Roman');
+hold on;
+grid on;
 
-h1 = plot(f_vec, Ta_group1, 'b--', 'LineWidth', 1.5); hold on;
-h2 = plot(f_vec, Ta_group2, 'r-', 'LineWidth', 1.5);
-h3 = plot(f_vec, Ta_group3, 'g-.', 'LineWidth', 1.5);
-h4 = plot(f_vec, Ta_group4, 'm:', 'LineWidth', 1.5);
-h5 = plot(f_vec, Ta_group5, 'c-', 'LineWidth', 1.5);
+h1 = plot(f_ex, Ta_group1, 'b--', 'LineWidth', 1.5); hold on;
+h2 = plot(f_ex, Ta_group2, 'r-', 'LineWidth', 1.5);
+h3 = plot(f_ex, Ta_group3, 'g-.', 'LineWidth', 1.5);
+h4 = plot(f_ex, Ta_group4, 'm:', 'LineWidth', 1.5);
+h5 = plot(f_ex, Ta_group5, 'c-', 'LineWidth', 1.5);
 
-yline(1, 'k:', 'LineWidth', 0.8);
+yline(1, '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1.5,'HandleVisibility', 'off');
 
-grid on; box on;
-set(gca, 'FontSize', 14, 'FontName', 'Times New Roman');
 xlabel('Frequency (Hz)', 'FontSize', 22);
 ylabel('Transmissibility $T_a$', 'Interpreter', 'latex', 'FontSize', 22, 'FontWeight', 'bold');
 title(['\textbf{Displacement Transmissibility ($\zeta = $', num2str(zeta), ', $Z_e = $', num2str(Ze_mm), 'mm)}'], ...
@@ -552,11 +552,11 @@ Ta_group5_inset = zeros(size(f_inset));
 
 for i = 1:length(f_inset)
     Omega = Omega_inset(i);
-    Ta_group1_inset(i) = compute_transmissibility(mu1_group1, mu3_group1, Omega, Ze_hat, zeta);
-    Ta_group2_inset(i) = compute_transmissibility(mu1_group2, mu3_group2, Omega, Ze_hat, zeta);
-    Ta_group3_inset(i) = compute_transmissibility(mu1_group3, mu3_group3, Omega, Ze_hat, zeta);
-    Ta_group4_inset(i) = compute_transmissibility(mu1_group4, mu3_group4, Omega, Ze_hat, zeta);
-    Ta_group5_inset(i) = compute_transmissibility(mu1_group5, mu3_group5, Omega, Ze_hat, zeta);
+    Ta_group1_inset(i) = compute_transmissibility(mu1_group1,  mu3_group1, Omega, Ze_hat, zeta);
+    Ta_group2_inset(i) = compute_transmissibility(mu1_group2,  mu3_group2, Omega, Ze_hat, zeta);
+    Ta_group3_inset(i) = compute_transmissibility(mu1_group3,  mu3_group3, Omega, Ze_hat, zeta);
+    Ta_group4_inset(i) = compute_transmissibility(mu1_group4,  mu3_group4, Omega, Ze_hat, zeta);
+    Ta_group5_inset(i) = compute_transmissibility(mu1_group5,  mu3_group5, Omega, Ze_hat, zeta);
 end
 
 plot(f_inset, Ta_group1_inset, 'b--', 'LineWidth', 1.2); hold on;
@@ -564,24 +564,27 @@ plot(f_inset, Ta_group2_inset, 'r-', 'LineWidth', 1.2);
 plot(f_inset, Ta_group3_inset, 'g-.', 'LineWidth', 1.2);
 plot(f_inset, Ta_group4_inset, 'm:', 'LineWidth', 1.2);
 plot(f_inset, Ta_group5_inset, 'c-', 'LineWidth', 1.2);
-grid on;
+
 xlim([6, 10]); ylim([0, 0.25]);
 set(gca, 'FontSize', 12, 'FontName', 'Times New Roman');
 xlabel('Frequency (Hz)', 'FontSize', 16);
 ylabel('$T_a$', 'Interpreter', 'latex', 'FontSize', 16);
 
 %% 传递率图2: 显示 μ₁和μ₃ 取值
-figure('Color', 'w', 'Position', [100, 100, 950, 650]);
+figure(4);
+set(gcf, 'Position', [100, 100, 950, 650]);
+set(gca, 'FontSize', 16, 'FontName', 'Times New Roman', 'Visible', 'on');
+hold on;
+grid on;
 
-plot(f_vec, Ta_group1, 'b--', 'LineWidth', 1.5); hold on;
-plot(f_vec, Ta_group2, 'r-', 'LineWidth', 1.5);
-plot(f_vec, Ta_group3, 'g-.', 'LineWidth', 1.5);
-plot(f_vec, Ta_group4, 'm:', 'LineWidth', 1.5);
-plot(f_vec, Ta_group5, 'c-', 'LineWidth', 1.5);
+plot(f_ex, Ta_group1, 'b--', 'LineWidth', 1.5); hold on;
+plot(f_ex, Ta_group2, 'r-', 'LineWidth', 1.5);
+plot(f_ex, Ta_group3, 'g-.', 'LineWidth', 1.5);
+plot(f_ex, Ta_group4, 'm:', 'LineWidth', 1.5);
+plot(f_ex, Ta_group5, 'c-', 'LineWidth', 1.5);
 
-yline(1, 'k:', 'LineWidth', 0.8);
+yline(1, '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1.5,'HandleVisibility', 'off');
 
-grid on; box on;
 set(gca, 'FontSize', 14, 'FontName', 'Times New Roman');
 xlabel('Frequency (Hz)', 'FontSize', 22);
 ylabel('Transmissibility $T_a$', 'Interpreter', 'latex', 'FontSize', 22, 'FontWeight', 'bold');
@@ -606,7 +609,7 @@ plot(f_inset, Ta_group2_inset, 'r-', 'LineWidth', 1.2);
 plot(f_inset, Ta_group3_inset, 'g-.', 'LineWidth', 1.2);
 plot(f_inset, Ta_group4_inset, 'm:', 'LineWidth', 1.2);
 plot(f_inset, Ta_group5_inset, 'c-', 'LineWidth', 1.2);
-grid on;
+
 xlim([6, 10]); ylim([0, 0.25]);
 set(gca, 'FontSize', 12, 'FontName', 'Times New Roman');
 xlabel('Frequency (Hz)', 'FontSize', 16);
@@ -620,64 +623,64 @@ fprintf('阻尼比 ζ = %.3f\n\n', zeta);
 
 %% 读取CSV文件并计算传递后响应
 [filename, filepath] = uigetfile('*.csv', '请选择包含振动数据的CSV文件');
-if isequal(filename, 0)
-    disp('用户取消选择文件');
-    return;
-end
-fullpath = fullfile(filepath, filename);
-fprintf('\n正在读取文件: %s\n', filename);
+if isequal(filename, 0), return; end
 
+fullpath = fullfile(filepath, filename);
 data = readmatrix(fullpath, 'NumHeaderLines', 3);
 t = data(:, 1);
-v_raw = data(:, 2);
-% 修改增益
-gain = 100;
-v_in = v_raw / gain;
+v_in = (data(:, 2) / 100); % 增益 100
 v_in = v_in - mean(v_in);
 dt = t(2) - t(1);
 fs = 1 / dt;
-fprintf('采样频率: %.2f Hz\n', fs);
 N = length(v_in);
 freq = (0:N-1) * fs / N;
-V_in_fft = fft(v_in);
-V_in_mag = abs(V_in_fft) / N * 2;
-V_in_mag(1) = V_in_mag(1) / 2;
-[~, idx_max] = max(V_in_mag(2:floor(N/2)));
-f_excitation = freq(idx_max + 1);
-fprintf('主激励频率: %.2f Hz\n', f_excitation);
-
-% 计算完整传递率曲线
 n_pos = floor(N/2);
 freq_range = freq(1:n_pos);
 Omega_range = freq_range / f0;
-Ta_curve_all = zeros(5, n_pos);
-for j = 1:n_pos
-    Ta_curve_all(1, j) = compute_transmissibility(mu1_group1, mu3_group1, Omega_range(j), Ze_hat, zeta);
-    Ta_curve_all(2, j) = compute_transmissibility(mu1_group2, mu3_group2, Omega_range(j), Ze_hat, zeta);
-    Ta_curve_all(3, j) = compute_transmissibility(mu1_group3, mu3_group3, Omega_range(j), Ze_hat, zeta);
-    Ta_curve_all(4, j) = compute_transmissibility(mu1_group4, mu3_group4, Omega_range(j), Ze_hat, zeta);
-    Ta_curve_all(5, j) = compute_transmissibility(mu1_group5, mu3_group5, Omega_range(j), Ze_hat, zeta);
-end
 
-% 在频域应用传递率曲线
+% --- 核心修改：频域应用传递率 ---
 v_out_all = zeros(N, 5);
+Ta_curve_all = zeros(5, n_pos);
+
 for i = 1:5
-    H_full = ones(1, N);
-    H_full(1:n_pos) = Ta_curve_all(i, :);
-    if mod(N, 2) == 0
-        H_full(n_pos+1) = Ta_curve_all(i, n_pos);
-        for k = 2:n_pos, H_full(N - k + 2) = conj(Ta_curve_all(i, k)); end
-    else
-        for k = 2:n_pos, H_full(N - k + 2) = conj(Ta_curve_all(i, k)); end
+    mu1 = mu1_vals(i);
+    mu3 = mu3_vals(i);
+    last_Z = 1.0; % 扫频法初值继承
+
+    % 1. 计算该参数组下所有频率点的传递率
+    for j = 1:n_pos
+        Omega = Omega_range(j);
+        % 为了处理非线性跳跃，这里直接手动实现求解逻辑或改进函数
+        if Omega < 1e-4
+            Z_hat = 0;
+        else
+            eq28 = @(Z) ( (mu1 - Omega^2)*Z + 0.75*mu3*(Ze_hat^2)*(Z^3) )^2 + ...
+                ( 2*zeta*Omega*Z )^2 - Omega^4;
+            try
+                Z_hat = fzero(eq28, last_Z, optimset('Display','off'));
+                last_Z = Z_hat; % 继承解作为下一个频率的初值
+            catch
+                Z_hat = Omega^2 / sqrt((mu1 - Omega^2)^2 + (2*zeta*Omega)^2);
+            end
+        end
+        % 29式
+        cp = (0.75*mu3*(Ze_hat^2)*(Z_hat^3) + (mu1 - Omega^2)*Z_hat) / (Omega^2 + 1e-9);
+        cp = max(-1, min(1, cp));
+        % 30式
+        Ta_curve_all(i, j) = sqrt(1 + 2*Z_hat*cp + Z_hat^2);
     end
 
-    if size(V_in_fft, 2) > 1, V_in_fft = V_in_fft(:); end
-    V_out_freq = V_in_fft .* H_full(:);
-    v_out_all(:, i) = real(ifft(V_out_freq));
+    % 2. 构造对称频谱并逆变换
+    H_full = zeros(N, 1);
+    H_full(1:n_pos) = Ta_curve_all(i, :);
+    % 填补负频率部分 (对于实信号，频域具有共轭对称性)
+    H_full(N:-1:N-n_pos+2) = conj(Ta_curve_all(i, 2:n_pos));
+
+    V_in_fft = fft(v_in);
+    v_out_all(:, i) = real(ifft(V_in_fft(:) .* H_full));
 end
 
-%% 绘制输入输出对比图
-% 定义颜色
+%% 绘制输入输出对比图-时域
 colors_map = {[0 0.4470 0.7410], [0.8500 0.3250 0.0980], [0.4660 0.6740 0.1880], [0.4940 0.1840 0.5560], [0.3010 0.7450 0.9330]};
 
 param_names_legend = { ...
@@ -689,14 +692,21 @@ param_names_legend = { ...
 
 time_show = min(2, t(end));
 idx_show = t <= time_show;
-figure('Color', 'w', 'Position', [100, 100, 950, 650]);
+
+figure(5);clf;
+set(gcf, 'Position', [100, 100, 950, 650],'Visible', 'on');
+
 
 subplot(3, 2, 1);
 plot(t(idx_show), v_in(idx_show), '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 2);
 xlabel('Time (s)', 'Interpreter', 'latex', 'FontSize', 22);
 ylabel('Voltage (V)', 'Interpreter', 'latex', 'FontSize', 22);
 title('Input Signal', 'FontSize', 18, 'Interpreter', 'latex');
-set(gca, 'FontSize', 12); grid on; box on; xlim([0, time_show]);
+set(gca, 'FontSize', 12);
+xlim([0, time_show]);
+set(gca, 'FontSize', 16, 'FontName', 'Times New Roman');
+hold on;
+grid on;
 
 for i = 1:5
     subplot(3, 2, i+1);
@@ -708,7 +718,11 @@ for i = 1:5
 end
 sgtitle('Voltage Response (Time Domain)', 'FontSize', 28, 'FontWeight', 'bold');
 
-figure('Color', 'w', 'Position', [100, 100, 950, 650]);
+figure(6);clf;
+set(gcf, 'Position', [100, 100, 950, 650], 'Visible', 'on');
+set(gca, 'FontSize', 16, 'FontName', 'Times New Roman');
+
+
 window_size = min(length(v_in), 1 * fs);
 nfft = 2^nextpow2(window_size);
 overlap = nfft/2;
@@ -735,7 +749,7 @@ title('\textbf{Power Spectrum Density Comparison}', 'FontSize', 26, 'Interpreter
 lgd = legend([h_in, h_outs], [{'Input Signal'}, param_names_legend], ...
     'Interpreter', 'latex', 'Location', 'northeast', 'FontSize', 13);
 set(lgd, 'Position', [0.32, 0.22, 0.2, 0.1]);
-grid on; box on; xlim([0.5, fs/2]); hold off;
+xlim([0.5, fs/2]);
 
 %% 保存并结束
 output_filename = strrep(filename, '.csv', '_voltage_output.mat');
@@ -743,56 +757,53 @@ save(fullfile(filepath, output_filename), 't', 'v_in', 'v_out_all', 'Ta_curve_al
 
 %% 传递率计算函数
 function Ta = compute_transmissibility(mu1, mu3, Omega, Ze_hat, zeta)
-    a = (9/16) * mu3^2 * Ze_hat^4;
-    b = 1.5 * mu3 * (mu1 - Omega^2) * Ze_hat^2;
-    c = (mu1 - Omega^2)^2 + (2*zeta*Omega)^2;
-    d = -Omega^4;
-    
-    coeff = [a, b, c, d];
-    roots_Z2 = roots(coeff);
-    
-    Z2_candidates = roots_Z2(abs(imag(roots_Z2)) < 1e-6 & real(roots_Z2) > 0);
-    
-    if isempty(Z2_candidates)
-        Z_linear = Omega^2 / sqrt((mu1 - Omega^2)^2 + (2*zeta*Omega)^2);
-        Z2 = Z_linear^2;
-    else
-        Z2 = min(real(Z2_candidates));
-    end
-    
-    Z_hat = sqrt(Z2);
-    cos_phi = (0.75 * mu3 * Ze_hat^2 * Z_hat^3 + (mu1 - Omega^2) * Z_hat) / Omega^2;
-    cos_phi = max(-1, min(1, cos_phi));
-    Ta = sqrt(1 + 2 * Z_hat * cos_phi + Z_hat^2);
-end
+% 1. 严格按照图片 Eq. (28) 定义方程
+% [(mu1 - Omega^2)*Z + 3/4 * mu3 * Ze_hat^2 * Z^3]^2 + (2*zeta*Omega*Z)^2 = Omega^4
+equation = @(Z) ( (mu1 - Omega^2)*Z + 0.75*mu3*(Ze_hat^2)*(Z^3) )^2 + ...
+    ( 2*zeta*Omega*Z )^2 - Omega^4;
 
-%% 指标计算函数
-function [f_peak, Ta_peak, f_iso] = calc_metrics(f_vec, Ta)
-    [Ta_peak, idx_peak] = max(Ta(2:end));
-    f_peak = f_vec(idx_peak + 1);
-    idx_iso = find(Ta < 1, 1);
-    if isempty(idx_iso)
-        f_iso = NaN;
-    else
-        f_iso = f_vec(idx_iso);
+% 2. 求解 Z_hat (无量纲响应幅值)
+options = optimset('Display', 'off');
+if Omega < 1e-4
+    Z_hat = 0;
+else
+    try
+        % 尝试从线性平衡点附近搜索根
+        Z_hat = fzero(equation, 1.0, options);
+    catch
+        % 兜底：若不收敛则使用线性系统的幅频响应公式
+        Z_hat = Omega^2 / sqrt((mu1 - Omega^2)^2 + (2*zeta*Omega)^2);
     end
 end
 
-%% PSD计算辅助函数
+% 3. 严格按照图片 Eq. (29) 计算相位 cos_phi
+if Omega < 1e-4
+    cos_phi = -1; % 低频极限
+else
+    cos_phi = ( 0.75*mu3*(Ze_hat^2)*(Z_hat^3) + (mu1 - Omega^2)*Z_hat ) / (Omega^2);
+end
+cos_phi = max(-1, min(1, cos_phi)); % 数值范围截断
+
+% 4. 严格按照 Eq. (30) 计算位移传递率 Ta
+Ta = sqrt(1 + 2*Z_hat*cos_phi + Z_hat^2);
+end
+
 function psd = compute_psd(signal, window_size, overlap, nfft, fs, window)
-    signal = signal(:);
-    data_windowed = buffer(signal, window_size, overlap, 'nodelay');
-    if size(data_windowed, 2) > 0 && size(data_windowed, 1) < window_size
-        data_windowed(:, end) = [];
-    end
-    data_windowed = data_windowed .* window;
-    psd_matrix = zeros(nfft/2, size(data_windowed, 2));
-    for j = 1:size(data_windowed, 2)
-        fft_data = fft(data_windowed(:,j), nfft);
-        psd_matrix(:,j) = abs(fft_data(1:nfft/2)).^2 / (fs * nfft);
-        psd_matrix(2:end-1,j) = 2 * psd_matrix(2:end-1,j);
-    end
-    psd = mean(psd_matrix, 2);
+signal = signal(:);
+% 使用 buffer 分帧
+data_frames = buffer(signal, window_size, overlap, 'nodelay');
+% 去除不满一帧的数据
+if size(data_frames, 1) < window_size
+    data_frames = data_frames(:, 1:end-1);
+end
+% 加窗
+data_windowed = data_frames .* window;
+% 计算每一帧的功率谱
+fft_data = fft(data_windowed, nfft);
+psd_matrix = (abs(fft_data(1:nfft/2, :)).^2) / (fs * nfft);
+% 单边谱能量补偿
+psd_matrix(2:end-1, :) = 2 * psd_matrix(2:end-1, :);
+psd = mean(psd_matrix, 2);
 end
 
 %% ====================================================传递率图像（使用原文公式进行计算并展开） end=================================================================%%
