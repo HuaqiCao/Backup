@@ -205,9 +205,9 @@ end
 
 %% 计算目标参数的总刚度曲线 [delta_hat, a_hat, gamma]
 test_params = [0.700, 0.875, 1.728;
-    0.600, 0.805, 1.970;
+    %0.600, 0.805, 1.970;
     0.500, 0.755, 2.143;
-    %   0.200, 0.800, 2.192;
+    0.200, 0.800, 2.192;
     0.500, 0.800, 1.987;
     0.800, 0.800, 1.987];
 
@@ -268,8 +268,10 @@ for j = 1:size(test_params, 1)
     % α = C₁ · α₁
     alpha = C1 * alpha1;
 
-    %% 存储alpha和alpha1(保留小数点后三位)
+    %% 存储alpha和alpha1
+    %alpha_store(j) = alpha;
     alpha_store(j) = round(alpha, 3);
+    %alpha1_store(j) = alpha1;
     alpha1_store(j) = round(alpha1, 3);
 
     % K̂_target = zeros(size(ŷ))
@@ -352,74 +354,30 @@ num_configs = size(test_params, 1);
 mu1_store = zeros(num_configs, 1);
 mu3_store = zeros(num_configs, 1);
 
-% 执行泰勒展开计算
-dy_step = 0.00001;
-y_range = [-dy_step, 0, dy_step];
-
 for j = 1:num_configs
     delta_hat_t = test_params(j, 1);      % δ̂
-    a_hat_t = test_params(j, 2);      % â
-    gamma_t = test_params(j, 3);      % γ
-    alpha_t = alpha_store(j);        % α
-    alpha1_t = alpha1_store(j);      % α₁
+    a_hat_t = test_params(j, 2);          % â
+    gamma_t = test_params(j, 3);          % γ
+    alpha_t = alpha_store(j);             % α
+    alpha1_t = alpha1_store(j);           % α₁
 
     % 中间几何变量计算
     rho_t = (1 - a_hat_t^2) / (gamma_t - 1)^2;
     xe_t = sqrt(1 - a_hat_t^2) + sqrt(rho_t);
-    delta_hat1_t = 1 - sqrt(1 + 2*sqrt(1 - a_hat_t^2)*sqrt(rho_t) + rho_t) + delta_hat_t;
-    delta_hat2_t = 1 - sqrt(1 + 4*sqrt(1 - a_hat_t^2)*sqrt(rho_t) + 4*rho_t) + delta_hat_t;
 
-    F_t = zeros(1, 3);
-    K_t = zeros(1, 3);
+    % 计算系数
+    mu0 = sqrt(1-a_hat_t^2) + sqrt(rho_t);
+    mu1 = 1 + 4*alpha_t + 2*alpha1_t - 2 * (1 + delta_hat_t) * (2*alpha_t * a_hat_t^2 / (sqrt(rho_t + a_hat_t^2))^3 + alpha1_t/a_hat_t);
+    mu3 = [- 2 * (1 + delta_hat_t) * (2*alpha_t*(12*a_hat_t^2*rho_t-3*a_hat_t^4)/((sqrt(rho_t+a_hat_t^2))^7) + alpha1_t*(-3)/a_hat_t^3)]/6;
 
-    for k = 1:3
-        yi = y_range(k);
-        xi = xe_t + yi;
-
-        P1 = sqrt(1 - a_hat_t^2) - xi;
-        P2 = 1 - 2*sqrt(1 - a_hat_t^2)*xi + xi^2;
-        P3 = 1 + delta_hat_t;
-        P4 = sqrt(1 - a_hat_t^2 + rho_t + 2*sqrt(1 - a_hat_t^2)*sqrt(rho_t)) - xi;
-        P5 = 1 + rho_t + 2*sqrt(1 - a_hat_t^2)*sqrt(rho_t) - 2*sqrt(1 - a_hat_t^2 + rho_t + 2*sqrt(1 - a_hat_t^2)*sqrt(rho_t))*xi + xi^2;
-        P6 = sqrt(1 + 2*sqrt(1 - a_hat_t^2)*sqrt(rho_t) + rho_t) + delta_hat1_t;
-        P7 = sqrt(1 - a_hat_t^2) + 2*sqrt(rho_t) - xi;
-        P8 = 1 + 4*sqrt(1 - a_hat_t^2)*sqrt(rho_t) + 4*rho_t - 2*(sqrt(1 - a_hat_t^2) + 2*sqrt(rho_t))*xi + xi^2;
-        P9 = sqrt(1 + 4*sqrt(1 - a_hat_t^2)*sqrt(rho_t) + 4*rho_t) + delta_hat2_t;
-
-        F_t(k) = xi - 2*alpha_t*P1*(1 - P3/sqrt(P2)) ...
-            - 2*alpha1_t*P4*(1 - P6/sqrt(P5)) ...
-            - 2*alpha_t*P7*(1 - P9/sqrt(P8));
-
-        dP2 = -2*sqrt(1 - a_hat_t^2) + 2*xi;
-        dP5 = -2*sqrt(1 - a_hat_t^2 + rho_t + 2*sqrt(1 - a_hat_t^2)*sqrt(rho_t)) + 2*xi;
-        dP8 = -2*(sqrt(1 - a_hat_t^2) + 2*sqrt(rho_t)) + 2*xi;
-
-        dN1 = -2*alpha_t*(1 - P3*P2^-0.5)*-1 - alpha_t*P1*P2^-1.5*P3*dP2;
-        dN3 = -2*alpha1_t*(1 - P6*P5^-0.5)*-1 - alpha1_t*P4*P5^-1.5*P6*dP5;
-        dN5 = -2*alpha_t*(1 - P9*P8^-0.5)*-1 - alpha_t*P7*P8^-1.5*P9*dP8;
-
-        K_t(k) = 1 + dN1 + dN3 + dN5;
-    end
-
-    % 提取系数
-    mu0 = F_t(2);
-    mu1 = K_t(2);
-    mu3 = (F_t(3) - 2*F_t(2) + F_t(1)) / (dy_step^2) / 6;
-
-    %% mu1&mu3存储到数组
+    %% mu1 & mu3 存储到数组
     mu1_store(j) = mu1;
     mu3_store(j) = mu3;
 
     % 打印输出
     fprintf('Group%d: [δ̂=%.3f, â=%.3f, γ=%.3f, α=%.3f, α₁=%.3f]\n', ...
         j, delta_hat_t, a_hat_t, gamma_t, alpha_t, alpha1_t);
-    fprintf('  -> 展开式: f_hat = %.10f*y^3 + %.10f*y + %.10f\n\n', mu3, mu1, mu0);
-end
-
-%% 循环结束后查看存储结果
-fprintf('\n========== 存储的 mu1 和 mu3 ==========\n');
-for j = 1:num_configs
-    fprintf('Group%d: mu1 = %.10f, mu3 = %.10f\n', j, mu1_store(j), mu3_store(j));
+    fprintf('  -> 展开式: f_hat = %.10f*y^3 + %.10f*y + %.3f\n\n', mu3, mu1, mu0);
 end
 
 %% ====================================================泰勒展开（mu3对不上） end=================================================================%%
@@ -594,11 +552,11 @@ title(['\textbf{Displacement Transmissibility ($\zeta = $', num2str(zeta), ', $Z
 xlim([0, 10]); ylim([0, 12]);
 set(gca, 'XTick', 0:2:10, 'YTick', 0:2:12);
 
-legend({sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_group1, mu3_group1), ...
-    sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_group2, mu3_group2), ...
-    sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_group3, mu3_group3), ...
-    sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_group4, mu3_group4), ...
-    sprintf('$\\mu_1=%.4f,\\ \\mu_3=%.4f$', mu1_group5, mu3_group5)}, ...
+legend({sprintf('$\\mu_1=%.5f,\\ \\mu_3=%.5f$', mu1_group1, mu3_group1), ...
+    sprintf('$\\mu_1=%.5f,\\ \\mu_3=%.5f$', mu1_group2, mu3_group2), ...
+    sprintf('$\\mu_1=%.5f,\\ \\mu_3=%.5f$', mu1_group3, mu3_group3), ...
+    sprintf('$\\mu_1=%.5f,\\ \\mu_3=%.5f$', mu1_group4, mu3_group4), ...
+    sprintf('$\\mu_1=%.5f,\\ \\mu_3=%.5f$', mu1_group5, mu3_group5)}, ...
     'Location', 'northeast', 'FontSize', 15, 'Interpreter', 'latex');
 
 %% 图2的小窗
