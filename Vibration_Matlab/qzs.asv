@@ -344,7 +344,7 @@ xticks([-0.8, -0.5, -0.3, 0, 0.3, 0.5, 0.8]);
 title('\textbf{Stiffness curves comparison of QZS}', 'FontSize', 24, 'Interpreter', 'latex');
 xlim([-0.8, 0.8]); ylim([-0, 1.5]);
 
-%% ====================================================Figure2 无量纲刚度vs相对于平衡位置的位移图 end=================================================================%%
+%% ====================================================Figure2 无量纲刚度vs相对于平衡位置的end=================================================================%%
 
 %% 全参数组泰勒展开计算
 fprintf('\nf_hat泰勒展开结果:\n');
@@ -367,7 +367,7 @@ for j = 1:num_configs
     % 计算系数
     mu0 = sqrt(1-a_hat_t^2) + sqrt(rho_t);
     mu1 = 1 + 4*alpha_t + 2*alpha1_t - 2 * (1 + delta_hat_t) * (2*alpha_t * a_hat_t^2 / (sqrt(rho_t + a_hat_t^2))^3 + alpha1_t/a_hat_t);
-    mu3 = (- 2 * (1 + delta_hat_t) * (2*alpha_t*(12*a_hat_t^2*rho_t-3*a_hat_t^4)/((sqrt(rho_t+a_hat_t^2))^7) + alpha1_t*(-3)/a_hat_t^3))/6;
+    mu3 = [- 2 * (1 + delta_hat_t) * (2*alpha_t*(12*a_hat_t^2*rho_t-3*a_hat_t^4)/((sqrt(rho_t+a_hat_t^2))^7) + alpha1_t*(-3)/a_hat_t^3)]/6;
 
     %% mu1 & mu3 存储到数组
     mu1_store(j) = mu1;
