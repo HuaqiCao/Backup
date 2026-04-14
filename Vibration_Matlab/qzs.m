@@ -636,7 +636,7 @@ xlabel('Frequency (Hz)', 'FontSize', 16);
 ylabel('$T_a$', 'Interpreter', 'latex', 'FontSize', 16);
 
 %% 输出结果
-fprintf('\n========== 传递率计算结果 ==========\n');
+fprintf('\n========== 传递率计算用到的参数 ==========\n');
 fprintf('参考频率 f0 = %.3f Hz\n', f0);
 fprintf('激励幅值 Z_e = %.3f mm (无量纲: %.4f)\n', Ze_mm, Ze_hat);
 fprintf('阻尼比 ζ = %.3f\n\n', zeta);
@@ -672,23 +672,7 @@ for i = 1:5
 
     for j = 1:n_pos
         Omega = Omega_range(j);
-        if Omega < 1e-4
-            Z_hat = 0;
-        else
-            eq28 = @(Z) ( (mu1 - Omega^2)*Z + 0.75*mu3*(Ze_hat^2)*(Z^3) )^2 + ...
-                ( 2*zeta*Omega*Z )^2 - Omega^4;
-            try
-                Z_hat = fzero(eq28, last_Z, optimset('Display','off'));
-                last_Z = Z_hat;
-            catch
-                Z_hat = Omega^2 / sqrt((mu1 - Omega^2)^2 + (2*zeta*Omega)^2);
-            end
-        end
-        %% 29式
-        cp = (0.75*mu3*(Ze_hat^2)*(Z_hat^3) + (mu1 - Omega^2)*Z_hat) / (Omega^2 + 1e-9);
-        cp = max(-1, min(1, cp));
-        %% 30式
-        Ta_curve_all(i, j) = sqrt(1 + 2*Z_hat*cp + Z_hat^2);
+        Ta_curve_all(i, j) = compute_transmissibility(mu1, mu3, Omega, Ze_hat, zeta);
     end
 
     H_full = zeros(N, 1);
