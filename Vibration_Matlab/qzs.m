@@ -31,11 +31,11 @@ fprintf('根据 δ̂ = %.3f, a_target = %.3f mm, h1_target = %.3f mm 计算得�
 
 %% 根据 γ 计算 d
 % d = h / γ_target
-d = h1_target / (gamma_target-1);
-% h = h1_target + d
-h = h1_target + d;
+d_target = h1_target / (gamma_target-1);
+% h_target = h1_target + d_target
+h_target = h1_target + d_target;
 
-h2 = h1_target + 2*d;
+h2_target = h1_target + 2*d_target;
 
 rho_target = (1 - a_hat_target^2) / (gamma_target - 1)^2;
 delta_hat1_target = 1 - sqrt(1 + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + rho_target) + delta_hat_target;
@@ -44,20 +44,20 @@ delta_hat2_target = 1 - sqrt(1 + 4*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + 4
 delta1_target = delta_hat1_target * sqrt(a_target^2 + h1_target^2);
 delta2_target = delta_hat2_target * sqrt(a_target^2 + h1_target^2);
 
-L2 = sqrt(a_target^2 + h^2) + delta1_target;
-L3 = sqrt(a_target^2 + h2^2) + delta2_target;
+L2 = sqrt(a_target^2 + h_target^2) + delta1_target;
+L3 = sqrt(a_target^2 + h2_target^2) + delta2_target;
 
 fprintf('根据 â = %.3f, γ = %.3f 计算得到: ρ = %.3f \n\n', ...
     a_hat_target, gamma_target, rho_target);
-fprintf('根据 â = %.3f, ρ= %.3f, δ̂= %.3f 计算得到: δ̂_1 = %.3f, δ̂_2 = %.3f, 此时, δ_1 = %.3f mm, δ_1 = %.3f mm, L2 = %.3f mm, L3 = %.3f mm\n\n', ...
+fprintf('根据 â = %.3f, ρ= %.3f, δ̂= %.3f 计算得到: δ̂_1 = %.3f, δ̂_2 = %.3f, 此时, δ_1 = %.3f mm, δ_2 = %.3f mm, L2 = %.3f mm, L3 = %.3f mm\n\n', ...
     a_hat_target, rho_target,delta_hat_target, delta_hat1_target, delta_hat2_target, delta1_target*1000, delta2_target*1000, L2*1000, L3*1000);
 
 %% 参数范围
 k1_range = 1:10:2000;        % 上斜弹簧刚度 N/m
 
-fprintf('======================================================================================================================================================================================\n');
-fprintf(' k₁(N/m) | h(mm) | h₁(mm) | h₂ (mm) | d_target(mm) | k₂(N/m) | k₃(N/m) | â_actual | γ_actual | α_actual | α₁_actual | δ̂_actual | a_target(mm) | h₁_target(mm) | δ_target(mm) | L₀(mm) \n');
-fprintf('--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n');
+fprintf('=====================================================================================================================================================================================================================================\n');
+fprintf(' k₁(N/m) | h_target(mm) | h₁(mm) | h₂ (mm) | d_target(mm) | k₂(N/m) | k₃(N/m) | a_target(mm) | h₁_target(mm) | δ_target(mm) | δ1_target(mm) | δ2_target(mm) | δ3_target(mm) | L₀(mm) | L(mm) \n');
+fprintf('-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n');
 
 colors = lines(length(k1_range));
 found_count = 0;
@@ -65,9 +65,7 @@ y_hat = linspace(-10, 10, 1000);
 h_iterated = [];
 iter_legend_str = '';
 
-% 在循环前计算最大可能长度
 max_len = length(k1_range);
-% 预分配固定大小的数组/元胞
 y_hat_fig1 = cell(1, max_len); %figure1对应的y_hat
 f_hat      = cell(1, max_len); %figure1对应的f_hat
 K_hat_fig1 = cell(1, max_len); %figure1对应的K_hat
@@ -81,12 +79,46 @@ for k1 = k1_range
     % k₃ = α₁_target · k₂
     k3 = alpha1_target * k2;
 
+%刚度
+k = (G * d^4) / (8 * D^3 * n) ;
+%切应力
+tau = (8 * F * D) / (pi * d^3) * K;
+%曲度系数
+K = (4*C - 1) / (4*C - 4) + 0.615 / C;
+% 旋绕比
+C = D/d;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     %% 计算实际无量纲参数
     a_hat_actual    = a_target / sqrt(a_target^2 + h1_target^2);
-    gamma_actual    = h / d;
+    gamma_actual    = h_target / d_target;
     delta_hat_actual = delta_target / sqrt(a_target^2 + h1_target^2);
     alpha_actual    = k1 / k2;
     alpha1_actual   = k3 / k2;
+
+    %% 计算K2的预压缩量
+    f1 = -k1*delta_target*h1_target/sqrt(a_target^2+h1_target^2);
+    f3 = -k3*delta1_target*h_target/sqrt(a_target^2+h_target^2);
+    f4 = -k1*delta2_target*h2_target/sqrt(a_target^2+h2_target^2);
+    f2 = 2*f1 + 2*f3 +2*f4;
+    delta3_target = f2/k2;
+    L = h2_target + delta3_target;
+    % fprintf('delta3_target =%.3f\n,delta_target=%.3f\n,delta1_target=%.3f\n,delta2_target=%.3f\n',delta3_target,delta_target,delta1_target,delta2_target);
 
     %% 计算误差（由于 a_target, h1_target, delta_target 是精确计算的）
     err_a_hat = abs(a_hat_actual - a_hat_target);
@@ -102,10 +134,10 @@ for k1 = k1_range
 
         found_count = found_count + 1;
 
-        fprintf('   %4.0f | %6.2f | %6.2f |  %6.2f |     %6.2f   | %7.2f | %7.2f | %6.2f  |  %7.4f  |  %.3f   |  %.3f |    %.3f    |    %.2f   |      %.2f    |     %6.2f    | %6.2f \n', ...
-            k1, h*1000, h1_target*1000, h2*1000,d*1000, k2, k3, a_hat_actual, gamma_target, ...
-            alpha_actual, alpha1_actual, delta_hat_actual, ...
-            a_target*1000, h1_target*1000, delta_target*1000, L1*1000);
+        fprintf('   %4.0f | %6.2f | %6.2f | %6.2f |     %6.2f   | %7.2f | %7.2f |     %.2f    |      %.2f    |    %6.2f   |     %6.2f    |    %6.2f    |    %6.2f   |  %6.2f  | %6.2f \n', ...
+            k1, h_target*1000, h1_target*1000, h2_target*1000,d_target*1000, k2, k3, a_target*1000, h1_target*1000, delta_target*1000,delta1_target*1000,delta2_target*1000,delta3_target*1000, L1*1000,L*1000);
+
+        fprintf('=======================================================输出可能的参数组合======================================================================================================================================\n');
 
         %% 计算无量纲恢复力曲线（f_hat & xi_hat）
         % 中间变量
@@ -418,7 +450,7 @@ end
 %% ====================================================无量纲力的泰勒展开 end=================================================================%%
 
 %% 位移传递率曲线计算
-M = 2;              % kg
+M = 3;              % kg
 g = 9.81;           % m/s^2
 mu3_target = 0.0017;
 
@@ -426,7 +458,7 @@ mu3_target = 0.0017;
 c = 20;
 
 %% 激励幅值
-Ze_mm = 1;
+Ze_mm = 3;
 Ze_hat = Ze_mm / 1000 / sqrt(a_target^2 + h1_target^2);  % 无量纲激励幅值
 
 n_max = length(k2_record);
