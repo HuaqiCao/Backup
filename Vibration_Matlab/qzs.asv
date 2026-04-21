@@ -56,7 +56,7 @@ fprintf('根据 â = %.3f, ρ= %.3f, δ̂= %.3f 计算得到: δ̂_1 = %.3f, δ�
 k1_range = 10:1:5000;        % 上斜弹簧刚度 N/m
 
 fprintf('=====================================================================================================================================================================================================================================\n');
-fprintf(' k₁(N/m) | h_target(mm) | h₁_target(mm) | h₂ (mm) | d_target(mm) | k₂(N/m) | k₃(N/m) | a_target(mm) | δ_target(mm) | δ1_target(mm) | δ2_target(mm) | δ3_target(mm) | L₀(mm) | L(mm) \n');
+fprintf(' k₁(N/m) | h_target(mm) | h₁(mm) | h₂ (mm) | d_target(mm) | k₂(N/m) | k₃(N/m) | a_target(mm) | h₁_target(mm) | δ_target(mm) | δ1_target(mm) | δ2_target(mm) | δ3_target(mm) | L₀(mm) | L(mm) \n');
 fprintf('-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n');
 
 colors = lines(length(k1_range));
@@ -125,8 +125,8 @@ for k1 = k1_range
 
         found_count = found_count + 1;
 
-        fprintf('   %4.0f  |     %6.2f    |    %6.2f    |  %6.2f |     %6.2f   | %7.2f | %7.2f |     %.2f    |    %6.2f   |     %6.2f    |     %6.2f     |    %6.2f   |  %6.2f  | %6.2f \n', ...
-            k1, h_target*1000, h1_target*1000, h2_target*1000,d_target*1000, k2, k3, a_target*1000, delta_target*1000,delta1_target*1000,delta2_target*1000,delta3_target*1000, L1*1000,L*1000);
+        fprintf('   %4.0f  |     %6.2f    | %6.2f |  %6.2f |     %6.2f   | %7.2f | %7.2f |     %.2f    |      %.2f    |    %6.2f   |     %6.2f    |     %6.2f     |    %6.2f   |  %6.2f  | %6.2f \n', ...
+            k1, h_target*1000, h1_target*1000, h2_target*1000,d_target*1000, k2, k3, a_target*1000, h1_target*1000, delta_target*1000,delta1_target*1000,delta2_target*1000,delta3_target*1000, L1*1000,L*1000);
 
 %% fprintf('=======================================================输出可能的参数组合======================================================================================================================================\n');
 
@@ -778,7 +778,7 @@ set(lgd, 'Position', [0.32, 0.22, 0.2, 0.1]);
 xlim([0.5, fs/2]);
 
 %% 传递率计算函数
-function Ta = compute_transmissibility(mu1_target, mu3_target, Omega, Ze_hat, zeta)
+function Ta = compute_transmissibility(mu1, mu3, Omega, Ze_hat, zeta)
 if Omega < 1e-6
     Ta = 1;
     return;
@@ -795,7 +795,7 @@ roots_Z2 = roots(coeff);
 Z2_candidates = roots_Z2(abs(imag(roots_Z2)) < 1e-6 & real(roots_Z2) > 0);
 
 if isempty(Z2_candidates)
-    Z_linear = Omega^2 / sqrt((mu1_target - Omega^2)^2 + (2*zeta*Omega)^2);
+    Z_linear = Omega^2 / sqrt((mu1 - Omega^2)^2 + (2*zeta*Omega)^2);
     Z2 = Z_linear^2;
 else
     Z2 = min(real(Z2_candidates));
@@ -804,7 +804,7 @@ end
 Z_hat = sqrt(Z2);
 
 %% 28式
-cos_phi = (0.75 * mu3_target * Ze_hat^2 * Z_hat^3 + (mu1_target - Omega^2) * Z_hat) / Omega^2;
+cos_phi = (0.75 * mu3 * Ze_hat^2 * Z_hat^3 + (mu1 - Omega^2) * Z_hat) / Omega^2;
 cos_phi = max(-1, min(1, cos_phi));
 Ta = sqrt(1 + 2 * Z_hat * cos_phi + Z_hat^2);
 end
