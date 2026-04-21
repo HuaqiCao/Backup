@@ -12,13 +12,13 @@ fprintf('  δ̂ = %.3f, â = %.3f, α = %.3f, α₁ = %.3f, γ = %.3f\n\n', ...
     delta_hat_target, a_hat_target, alpha_target, alpha1_target, gamma_target);
 
 %% 铜屏蔽内径 12cm
-a_target = 0.06;     %m
+a_target = 60;     %mm
 
 %% 根据 â = a / sqrt(a^2 + h1^2) 反求 h1
 h1_target = sqrt(a_target^2 * (1/a_hat_target^2 - 1));
 
-fprintf('根据 â = %.3f 和 a_target = %.1f mm 计算得到: h₁_target = %.3f mm\n\n', ...
-    a_hat_target, a_target*1000, h1_target*1000);
+fprintf('根据 â = %.3f 和 a_target = %.3f mm 计算得到: h₁_target = %.3f mm\n\n', ...
+    a_hat_target, a_target, h1_target);
 
 %% 根据 δ̂ = δ / sqrt(a^2 + h1^2) 求 δ
 % δ = δ̂ * sqrt(a^2 + h1_target^2)
@@ -26,8 +26,8 @@ delta_target = delta_hat_target * sqrt(a_target^2 + h1_target^2);
 
 %% 斜弹簧原始长度（三根弹簧原长相同）
 L1 = sqrt(a_target^2 + h1_target^2) + delta_target;
-fprintf('根据 δ̂ = %.3f, a_target = %.1f mm, h1_target = %.3f mm 计算得到: L1 = %.3f mm, δ = %.3f mm\n\n', ...
-    delta_hat_target, a_target*1000, h1_target*1000, L1*1000, delta_target*1000);
+fprintf('根据 δ̂ = %.3f, a_target = %.3f mm, h1_target = %.3f mm 计算得到: L1 = %.3f mm, δ = %.3f mm\n\n', ...
+    delta_hat_target, a_target, h1_target, L1, delta_target);
 
 %% 根据 γ 计算 d
 % d = h / γ_target
@@ -49,21 +49,23 @@ L3 = sqrt(a_target^2 + h2_target^2) + delta2_target;
 
 fprintf('根据 â = %.3f, γ = %.3f 计算得到: ρ = %.3f \n\n', ...
     a_hat_target, gamma_target, rho_target);
-fprintf('根据 â = %.3f, ρ= %.3f, δ̂= %.3f 计算得到: δ̂_1 = %.3f, δ̂_2 = %.3f, 此时, δ_1 = %.3f mm, δ_2 = %.3f mm, L2 = %.3f mm, L3 = %.3f mm\n\n', ...
-    a_hat_target, rho_target,delta_hat_target, delta_hat1_target, delta_hat2_target, delta1_target*1000, delta2_target*1000, L2*1000, L3*1000);
+fprintf('根据 â = %.3f, ρ= %.3f, 预压缩δ̂= %.3f 计算得到: δ̂_1 = %.3f, δ̂_2 = %.3f, 此时, 预压缩δ_1 = %.3f mm, 预压缩δ_2 = %.3f mm, L2 = %.3f mm, L3 = %.3f mm\n\n', ...
+    a_hat_target, rho_target,delta_hat_target, delta_hat1_target, delta_hat2_target, delta1_target, delta2_target, L2, L3);
 
 %% 参数范围
 k1_range = 10:1:5000;        % 上斜弹簧刚度 N/m
 C_range = 5:1:12;
-tau_p =300;
-F=20;
-G=600;
-M = 3;              % kg
+tau_p =270; %Mpa
+G=39000; %Mpa
+M = 2;              % kg
 g = 9.81;           % m/s^2
+F = M*g;
 
-fprintf('=====================================================================================================================================================================================================================================\n');
-fprintf(' k₁(N/m) | h_target(mm) | h₁_target(mm) | h₂ (mm) | d_target(mm) | k₂(N/m) | k₃(N/m) | a_target(mm) | δ_target(mm) | δ1_target(mm) | δ2_target(mm) | δ3_target(mm) | L₀(mm) | L(mm) \n');
-fprintf('-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n');
+fprintf('====================================================================================================================================================================================================================\n');
+fprintf('%-8s | %-10s | %-10s | %-6s | %-10s | %-8s | %-8s | %-10s | %-10s | %-10s | %-10s | %-10s | %-8s | %-6s | %-3s | %-6s | %-6s | %-4s | %-4s | %-4s\n', ...
+    'k₁(N/m)', 'h_target', 'h₁_target', 'h₂', 'd_target', 'k₂(N/m)', 'k₃(N/m)', ...
+    'a_target', 'δ_target', 'δ1_target', 'δ2_target', 'δ3_target', 'L₀(mm)', 'L(mm)', 'C', 'd(mm)', 'D(mm)', 'n1', 'n2', 'n3');
+fprintf('--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n');
 
 colors = lines(length(k1_range));
 found_count = 0;
@@ -88,26 +90,27 @@ for k1 = k1_range
     for C = C_range
 
         K = (4*C-1)/(4*C-4)+0.615/C;
-        d = 1.6*sqrt(K*C*F/tau_p); %mm
+        d = 1.6*sqrt(K*C*F/tau_p);    %mm
         D = C*d;
 
-        n_1 = G*D/8*C^4*k1;
-        n_2 = G*D/8*C^4*k2;
-        n_3 = G*D/8*C^4*k3;
+        n_1 = (G*D)/(8*C^4*(k1/1000));
+        n_2 = (G*D)/(8*C^4*(k2/1000));
+        n_3 = (G*D)/(8*C^4*(k3/1000));
+        %fprintf('C=%0.3f,d=%0.3fmm,D=%0.3fmm,n_1=%0.3f,n_2=%0.3f,n_3=%0.3f\n',C,d,D,n_1,n_2,n_3)
 
-        if (L1-1.5*d)/n_1*d <0.5 && (L1-1.5*d)/n_1*d >0.28
-            if (L1-1.5*d)/n_3*d <0.5 && (L1-1.5*d)/n_3*d >0.28
-                if (L-1.5*d)/n_2*d <0.5 && (L1-1.5*d)/n_2*d >0.28
+        if (L1-1.5*d)/(n_1*D) >0.28 && (L1-1.5*d)/(n_1*D) <0.58
+            if (L1-1.5*d)/(n_3*D) >0.25 && (L1-1.5*d)/(n_3*D) <0.58
 
+                %% 计算K2的预压缩量
+                f1 = -k1*delta_target*h1_target/sqrt(a_target^2+h1_target^2);
+                f3 = -k3*delta1_target*h_target/sqrt(a_target^2+h_target^2);
+                f4 = -k1*delta2_target*h2_target/sqrt(a_target^2+h2_target^2);
+                f2 = 2*f1 + 2*f3 +2*f4;
+                delta3_target = f2/k2;
+                L = h2_target + delta3_target;
+                % fprintf('delta3_target =%.3f\n,delta_target=%.3f\n,delta1_target=%.3f\n,delta2_target=%.3f\n',delta3_target,delta_target,delta1_target,delta2_target);
 
-                    %% 计算K2的预压缩量
-                    f1 = -k1*delta_target*h1_target/sqrt(a_target^2+h1_target^2);
-                    f3 = -k3*delta1_target*h_target/sqrt(a_target^2+h_target^2);
-                    f4 = -k1*delta2_target*h2_target/sqrt(a_target^2+h2_target^2);
-                    f2 = 2*f1 + 2*f3 +2*f4;
-                    delta3_target = f2/k2;
-                    L = h2_target + delta3_target;
-                    % fprintf('delta3_target =%.3f\n,delta_target=%.3f\n,delta1_target=%.3f\n,delta2_target=%.3f\n',delta3_target,delta_target,delta1_target,delta2_target);
+                if (L-1.5*d)/(n_2*D) >0.28 && (L-1.5*d)/(n_2*D) <0.65
 
                     %% 计算实际无量纲参数以及误差
                     a_hat_actual    = a_target / sqrt(a_target^2 + h1_target^2);
@@ -129,8 +132,22 @@ for k1 = k1_range
 
                         found_count = found_count + 1;
 
-                        fprintf('   %4.0f  |     %6.2f    |    %6.2f    |  %6.2f |     %6.2f   | %7.2f | %7.2f |     %.2f    |    %6.2f   |     %6.2f    |     %6.2f     |    %6.2f   |  %6.2f  | %6.2f \n', ...
-                            k1, h_target*1000, h1_target*1000, h2_target*1000,d_target*1000, k2, k3, a_target*1000, delta_target*1000,delta1_target*1000,delta2_target*1000,delta3_target*1000, L1*1000,L*1000);
+                        fprintf('%-8.1f | %-10.1f | %-10.1f | %-6.1f | %-10.1f | %-8.1f | %-8.1f | %-10.1f | %-10.1f | %-10.1f | %-10.1f | %-10.1f | %-8.1f | %-6.1f | %-3d | %-6.2f | %-6.2f | %-4.1f | %-4.1f | %-4.1f\n', ...
+                            k1, h_target, h1_target, h2_target, d_target, k2, k3, a_target, delta_target, ...
+                            delta1_target, delta2_target, delta3_target, L1, L, C, d, D, n_1, n_2, n_3);
+                        %% 保存到Excel文件
+                        if found_count == 1
+                            header = {'k1', 'h_target', 'h1_target', 'h2_target', 'd_target', ...
+                                'k2', 'k3', 'a_target', 'delta_target', 'delta1_target', ...
+                                'delta2_target', 'delta3_target', 'L0', 'L', 'C', 'd', ...
+                                'D', 'n1', 'n2', 'n3'};
+                            writecell(header, '弹簧参数组合.xlsx', 'Sheet', 1, 'Range', 'A1');
+                        end
+
+                        data_row = {k1, h_target, h1_target, h2_target, d_target, k2, k3, ...
+                            a_target, delta_target, delta1_target, delta2_target, ...
+                            delta3_target, L1, L, C, d, D, n_1, n_2, n_3};
+                        writecell(data_row, '弹簧参数组合.xlsx', 'Sheet', 1, 'Range', sprintf('A%d', found_count+1));
 
                         %% fprintf('=======================================================输出可能的参数组合======================================================================================================================================\n');
 
@@ -214,8 +231,11 @@ for k1 = k1_range
                         k1_record(found_count)  = k1;
                         k2_record(found_count)  = k2;
                     end
+
                 end
+
             end
+
         end
     end
 end
@@ -235,7 +255,7 @@ if found_count > 0
     end
 
     figure(1);
-    set(gcf, 'Position', [100, 100, 600, 450], 'Visible', 'off');
+    set(gcf, 'Position', [100, 100, 600, 450], 'Visible', 'on');
 
     yyaxis left
     plot(y_hat_fig1{target_idx}, f_hat{target_idx}, 'Color',[0, 0.4470, 0.7410],'LineWidth', 2);
@@ -453,7 +473,7 @@ mu3_target = 0.0017;
 mu1_target = 0.00048;
 
 %% 阻尼系数
-c = 20;
+c = 20; %需要根据材料修改
 
 %% 激励幅值
 Ze_mm = 3;
@@ -532,16 +552,6 @@ a_hat_group5     = test_params(5, 2);
 gamma_group5     = test_params(5, 3);
 alpha_group5     = alpha_store(5);
 alpha1_group5    = alpha1_store(5);
-
-%% 计算参考频率 f0（取第一个 k2 值）
-if found_count > 0
-    k2_ref = k2_record(1);
-    omega_0 = sqrt(k2_ref / M);
-    f0 = omega_0 / (2*pi);
-else
-    f0 = 1;  % 默认值，避免报错
-    warning('未找到有效参数组合，使用默认 f0 = 1 Hz');
-end
 
 %% 频率扫描 for绘图 (Figure 3 & 4)
 f_ex = linspace(0.1, 10, 1000);
