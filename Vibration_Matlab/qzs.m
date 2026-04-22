@@ -55,8 +55,8 @@ fprintf('根据 â = %.3f, ρ= %.3f, 预压缩δ̂= %.3f 计算得到: δ̂_1 = 
 %% 参数范围
 k1_range = 10:1:5000;        % 上斜弹簧刚度 N/m
 C_range = 5:1:12;
-tau_p =270; %Mpa
-G=39000; %Mpa
+tau_p =70; %Mpa
+G=77000; %Mpa
 M = 2;              % kg
 g = 9.81;           % m/s^2
 F = M*g;
@@ -135,6 +135,7 @@ for k1 = k1_range
                         fprintf('%-8.1f | %-10.1f | %-10.1f | %-6.1f | %-10.1f | %-8.1f | %-8.1f | %-10.1f | %-10.1f | %-10.1f | %-10.1f | %-10.1f | %-8.1f | %-6.1f | %-3d | %-6.2f | %-6.2f | %-4.1f | %-4.1f | %-4.1f\n', ...
                             k1, h_target, h1_target, h2_target, d_target, k2, k3, a_target, delta_target, ...
                             delta1_target, delta2_target, delta3_target, L1, L, C, d, D, n_1, n_2, n_3);
+
                         %% 保存到Excel文件
                         if found_count == 1
                             header = {'k1', 'h_target', 'h1_target', 'h2_target', 'd_target', ...
