@@ -36,7 +36,7 @@ d_target = h1_target / (gamma_target-1);
 h_target = h1_target + d_target;
 h2_target = h1_target + 2*d_target;
 fprintf('根据  h1_target = %.1fmm, γ = %.3f 计算得到: d = %.1fmm ,进而得到 h_target = %.1fmm，h2_target = %.1fmm\n\n', ...
-    h1_target, gamma_target, d_target,h_target,h2_target);
+     h1_target, gamma_target, d_target,h_target,h2_target);
 
 rho_target = (1 - a_hat_target^2) / (gamma_target - 1)^2;
 delta_hat1_target = 1 - sqrt(1 + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + rho_target) + delta_hat_target;
@@ -55,6 +55,7 @@ fprintf('根据 â = %.3f, ρ= %.3f, 预压缩δ̂= %.3f 计算得到: δ̂_1 = 
 
 %% 参数范围
 k1_range = 10:1:5000; % 上斜弹簧刚度 N/m
+%k1_range = 0.001:0.001:5; % 上斜弹簧刚度 N/mm
 C_range = 5:1:12;
 
 %% 弹簧材料参数
@@ -68,7 +69,7 @@ F = M*g;            % N
 
 fprintf('====================================================================================================================================================================================================================\n');
 fprintf('%-8s | %-10s | %-10s | %-6s | %-10s | %-8s | %-8s | %-10s | %-10s | %-10s | %-10s | %-10s | %-8s | %-6s | %-3s | %-6s | %-6s | %-4s | %-4s | %-4s\n', ...
-    'k₁(N/m)', 'h_target(mm)', 'h₁_target(mm)', 'h₂_target(mm)', 'd_target(mm)', 'k₂(N/m)', 'k₃(N/m)', ...
+    'k₁(N/mm)', 'h_target(mm)', 'h₁_target(mm)', 'h₂_target(mm)', 'd_target(mm)', 'k₂(N/mm)', 'k₃(N/mm)', ...
     'a_target(mm)', 'δ_target(mm)', 'δ1_target(mm)', 'δ2_target(mm)', 'δ3_target(mm)', 'L₀(mm)', 'L(mm)', 'C', 'd(mm)', 'D(mm)', 'n1', 'n2', 'n3');
 fprintf('--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n');
 
@@ -101,24 +102,17 @@ for k1 = k1_range
         n_1 = (G*D)/(8*C^4*(k1/1000)); %上&下（转换为N/mm）
         n_2 = (G*D)/(8*C^4*(k2/1000)); %K2
         n_3 = (G*D)/(8*C^4*(k3/1000)); %中
-
-        %% 计算真实的弹簧刚度
-        K1_actual = (G*D)/(8*n_1*C^4); %N/mm
-        K2_actual = (G*D)/(8*n_2*C^4);
-        K3_actual = (G*D)/(8*n_3*C^4);
-        %fprintf('K1_actual = %0.1fN/mm,K2_actual = %0.1fN/mm,K3_actual = %0.1fN/mm\n',K1_actual,K2_actual,K3_actual);
         %fprintf('C=%0.3f,d=%0.3fmm,D=%0.3fmm,n_1=%0.3f,n_2=%0.3f,n_3=%0.3f\n',C,d,D,n_1,n_2,n_3)
 
         if (L1-1.5*d)/(n_1*D) >0.28 && (L1-1.5*d)/(n_1*D) <0.58
             if (L2-1.5*d)/(n_3*D) >0.25 && (L2-1.5*d)/(n_3*D) <0.58
 
                 %% 计算K2的预压缩量
-                f1 = -(k1/1000)*delta_target*h1_target/sqrt(a_target^2+h1_target^2);
-                f3 = -(k3/1000)*delta1_target*h_target/sqrt(a_target^2+h_target^2);
-                f4 = -(k1/1000)*delta2_target*h2_target/sqrt(a_target^2+h2_target^2);
-
+                f1 = -k1*delta_target*h1_target/sqrt(a_target^2+h1_target^2);
+                f3 = -k3*delta1_target*h_target/sqrt(a_target^2+h_target^2);
+                f4 = -k1*delta2_target*h2_target/sqrt(a_target^2+h2_target^2);
                 f2 = 2*f1 + 2*f3 +2*f4;
-                delta3_target = f2/(k2/1000); %mm
+                delta3_target = f2/k2;
                 L = h2_target + delta3_target;
                 % fprintf('delta3_target =%.3f\n,delta_target=%.3f\n,delta1_target=%.3f\n,delta2_target=%.3f\n',delta3_target,delta_target,delta1_target,delta2_target);
 
@@ -157,7 +151,7 @@ for k1 = k1_range
                             writecell(header, '弹簧参数组合.xlsx', 'Sheet', 1, 'Range', 'A1');
                         end
 
-                        data_row = {k1, h_target, h1_target, h2_target, d_target, k2, k3, ...
+                        data_row = {k1, h_target, h1_target, h2_target, d_target, k2, k3/1000, ...
                             a_target, delta_target, delta1_target, delta2_target, ...
                             delta3_target, L1, L, C, d, D, n_1, n_2, n_3};
                         writecell(data_row, '弹簧参数组合.xlsx', 'Sheet', 1, 'Range', sprintf('A%d', found_count+1));
