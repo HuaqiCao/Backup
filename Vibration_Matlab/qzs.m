@@ -531,8 +531,8 @@ mu1_group1 = 0.1907; %mu1_store(1)
 mu3_group1 = 1.3836; %mu3_store(1)
 mu1_group2 = 0.1188;
 mu3_group2 = 1.2344;
-mu1_group3 = 0.000476;
-mu3_group3 = 0.001705;
+mu1_group3 = 0.00048;
+mu3_group3 = 0.0017;
 mu1_group4 = 0.3367;
 mu3_group4 = 0.3876;
 mu1_group5 = 0.2189;
@@ -707,11 +707,23 @@ fprintf('激励幅值 Z_e = %.3f mm (无量纲: %.4f)\n', Ze_mm, Ze_hat);
 fprintf('阻尼比 ζ = %.3f\n\n', zeta);
 
 %% 读取CSV文件并计算传递后响应
-[filename, filepath] = uigetfile('*.csv', '请选择包含振动数据的CSV文件');
-if isequal(filename, 0), return; end
+%[filename, filepath] = uigetfile('*.csv', '请选择包含振动数据的CSV文件');
+%if isequal(filename, 0), return; end
 
-fullpath = fullfile(filepath, filename);
-data = readmatrix(fullpath, 'NumHeaderLines', 3);
+%fullpath = fullfile(filepath, filename);
+%data = readmatrix(fullpath, 'NumHeaderLines', 3);
+
+%% 振动输入和参考曲线
+[filename1, filepath1] = uigetfile('*.csv', '请选择振动输入CSV文件');
+if isequal(filename1, 0), return; end
+fullpath1 = fullfile(filepath1, filename1);
+
+[filename2, filepath2] = uigetfile('*.csv', '请选择参考曲线CSV文件');
+if isequal(filename2, 0), return; end
+fullpath2 = fullfile(filepath2, filename2);
+
+%% 读取振动数据&进行隔振计算
+data = readmatrix(fullpath1, 'NumHeaderLines', 3);
 t = data(:, 1);
 v_in = (data(:, 2) / 100);
 v_in = v_in - mean(v_in);
@@ -747,6 +759,13 @@ for i = 1:5
     V_in_fft = fft(v_in);
     v_out_all(:, i) = real(ifft(V_in_fft(:) .* H_full));
 end
+️
+%% 读取参考文件（便于对比）
+data_ref = readmatrix(fullpath2, 'NumHeaderLines', 3);
+t_ref = data_ref(:, 1);
+v_ref_raw = (data_ref(:, 2) / 100);
+v_ref = v_ref_raw - mean(v_ref_raw);
+fs_ref = 1 / (t_ref(2) - t_ref(1));️
 
 %% 绘制输入输出对比图-时域
 colors_map = {[0 0.4470 0.7410], [0.8500 0.3250 0.0980], [0.4660 0.6740 0.1880], [0.4940 0.1840 0.5560], [0.3010 0.7450 0.9330]};
@@ -813,8 +832,14 @@ xlabel('Frequency (Hz)', 'Interpreter', 'latex', 'FontSize', 22);
 ylabel('PSD $[V/\sqrt{Hz}]$', 'Interpreter', 'latex', 'FontSize', 22);
 title('\textbf{Power Spectrum Density Comparison}', 'FontSize', 26, 'Interpreter', 'latex');
 
-lgd = legend([h_in, h_outs], [{'Input Signal'}, param_names_legend], ...
-    'Interpreter', 'latex', 'Location', 'northeast', 'FontSize', 13);
+%% 参考文件
+v_ref_psd = compute_psd(v_ref, window_size, overlap, nfft, fs_ref, window);
+f_ref_psd = (0:nfft/2-1)*fs_ref/nfft;
+v_ref_psd_interp = interp1(f_ref_psd, sqrt(v_ref_psd), f_psd, 'linear', 'extrap');
+h_ref = loglog(f_psd, v_ref_psd_interp, 'k-', 'LineWidth', 2.5, 'DisplayName', 'Reference Curve');
+
+lgd = legend([h_in, h_outs, h_ref], [{'Input Signal'}, param_names_legend, {'Reference Curve'}], ...
+    'Interpreter', 'latex', 'Location', 'northeast', 'FontSize', 11);
 set(lgd, 'Position', [0.32, 0.22, 0.2, 0.1]);
 xlim([0.5, fs/2]);
 
