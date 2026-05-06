@@ -520,7 +520,7 @@ fprintf('\n===================隔振效果========================\n');
 if isempty(k2_satisfied)
     fprintf('隔振较差的所有 k2 值为：\n');
 else
-    disp('在提取的 k2 中，均满足3𝜇3𝑍̂𝑒^2∕16𝜁^2 ≥ 1，隔振效果较好。')
+    disp('在提取的 k2 中，均满足33̂^2∕16^2 ≥ 1，隔振效果较好。')
     % disp(k2_satisfied');
     fprintf('共计: %d 个\n', length(k2_satisfied));
 end
@@ -759,13 +759,12 @@ for i = 1:5
     V_in_fft = fft(v_in);
     v_out_all(:, i) = real(ifft(V_in_fft(:) .* H_full));
 end
-️
 %% 读取参考文件（便于对比）
 data_ref = readmatrix(fullpath2, 'NumHeaderLines', 3);
 t_ref = data_ref(:, 1);
 v_ref_raw = (data_ref(:, 2) / 100);
 v_ref = v_ref_raw - mean(v_ref_raw);
-fs_ref = 1 / (t_ref(2) - t_ref(1));️
+fs_ref = 1 / (t_ref(2) - t_ref(1));
 
 %% 绘制输入输出对比图-时域
 colors_map = {[0 0.4470 0.7410], [0.8500 0.3250 0.0980], [0.4660 0.6740 0.1880], [0.4940 0.1840 0.5560], [0.3010 0.7450 0.9330]};
