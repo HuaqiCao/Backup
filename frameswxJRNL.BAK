@@ -1,5 +1,5 @@
 ' ******************************************************************************
-' swxJRNL.swj - journal recorded on 04/27/26 by Caohuaqi
+' swxJRNL.swj - journal recorded on 05/05/26 by Caohuaqi
 ' *****************************************************************************
 Dim swApp As Object
 
@@ -11,7 +11,7 @@ Sub main()
 
 Set swApp = Application.SldWorks
 
-swApp.ActivateDoc2 "Æ½Ì¨2", False, longstatus
+swApp.ActivateDoc2 "Çò½Â - ¸Ë1", False, longstatus
 Set Part = swApp.ActiveDoc
 Set Part = swApp.ActiveDoc
 Dim myModelView As Object
@@ -22,9 +22,28 @@ Set myModelView = Part.ActiveView
 myModelView.FrameState = swWindowState_e.swWindowMaximized
 Set myModelView = Part.ActiveView
 myModelView.FrameState = swWindowState_e.swWindowMaximized
+boolstatus = Part.Extension.SelectByID2("Ðý×ª2", "BODYFEATURE", 0, 0, 0, False, 0, Nothing, 0)
+Part.ActivateSelectedFeature
+boolstatus = Part.Extension.SelectByID2("²ÝÍ¼6", "SKETCH", 0, 0, 0, False, 0, Nothing, 0)
+boolstatus = Part.Extension.SelectByID2("Ðý×ª2", "BODYFEATURE", 0, 0, 0, False, 0, Nothing, 0)
+boolstatus = Part.Extension.SelectByID2("²ÝÍ¼6", "SKETCH", 0, 0, 0, False, 0, Nothing, 0)
+Part.EditSketch
+Part.ClearSelection2 True
+boolstatus = Part.Extension.SelectByID2("D2@²ÝÍ¼6@Çò½Â - ¸Ë1.SLDPRT", "DIMENSION", 0, -0.04356857297732258383, -0.007408342550086113865, False, 0, Nothing, 0)
+boolstatus = Part.Extension.SelectByID2("D2@²ÝÍ¼6@Çò½Â - ¸Ë1.SLDPRT", "DIMENSION", 0.006500000000000018784, -0.06464922251008793641, 0, False, 0, Nothing, 0)
+Dim myDimension As Object
+Set myDimension = Part.Parameter("D2@²ÝÍ¼6")
+myDimension.SystemValue = 0.11
+boolstatus = Part.Extension.SelectByID2("D2@²ÝÍ¼6@Çò½Â - ¸Ë1.SLDPRT", "DIMENSION", 0, -0.05886710149538658399, -0.007890185967977900172, False, 0, Nothing, 0)
+Set myDimension = Part.Parameter("D2@²ÝÍ¼6")
+myDimension.SystemValue = 0.085
+Part.ClearSelection2 True
+Part.SketchManager.InsertSketch True
 
-' Save As
-longstatus = Part.SaveAs3("C:\Users\Administrator\Desktop\Æ½Ì¨2.STEP", 0, 2)
+' Save
+Dim swErrors As Long
+Dim swWarnings As Long
+boolstatus = Part.Save3(1, swErrors, swWarnings)
 Set myModelView = Part.ActiveView
 myModelView.FrameState = swWindowState_e.swWindowMaximized
 swApp.ExitApp
