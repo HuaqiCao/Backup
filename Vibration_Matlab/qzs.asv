@@ -79,8 +79,8 @@ for C = C_range
 
     K = (4*C-1)/(4*C-4)+0.615/C;
 
-    d = 2*sqrt(K*C*M*g/tau_p);  %mm M=2kg
-    d1 = 2*sqrt(K*C*1*g/tau_p); %mm M=1kg
+    d = 1.6*sqrt(K*C*M*g/tau_p);  %mm M=2kg
+    d1 = 1.6*sqrt(K*C*1*g/tau_p); %mm M=1kg
 
     D = C*d;                      %mm
     D1 = C*d1;
@@ -90,10 +90,10 @@ for C = C_range
     n_3 = (G*D1)/(8*C^4*(k3/1000)); %中
 
     %% 计算真实的弹簧刚度
-    K1_actual = (G*D1)/(8*n_1*C^4); %上&下N/mm
+    K1_actual = (G*D)/(8*n_1*C^4); %上&下N/mm
     K2_actual = (G*D)/(8*n_2*C^4); %K2
-    K3_actual = (G*D1)/(8*n_3*C^4); %中
-    fprintf('K1_actual = %0.3fN/mm,K2_actual = %0.3fN/mm,K3_actual = %0.3fN/mm\n\n',K1_actual,K2_actual,K3_actual);
+    K3_actual = (G*D)/(8*n_3*C^4); %中
+    %fprintf('K1_actual = %0.1fN/mm,K2_actual = %0.1fN/mm,K3_actual = %0.1fN/mm\n',K1_actual,K2_actual,K3_actual);
     %fprintf('C=%0.1f,d=%0.1fmm,D=%0.1fmm,n_1=%0.1f,n_2=%0.1f,n_3=%0.1f\n',C,d,D,n_1,n_2,n_3)
 
     %% 计算K2的预压缩量（fig.(c)）
@@ -122,7 +122,7 @@ for C = C_range
     p2 = (L-3*d)/n_2; del2 = p2/D; %K2
     p3 = (L-3*d1)/n_3; del3 = p3/D1; %中
     fprintf('p1=%0.1fmm,p2=%0.1fmm,p3=%0.1fmm\n\n,ratio1=%0.3f,ratio2=%0.3f,ratio3=%0.3f\n\n',p1,p2,p3,del1,del2,del3);
-    fprintf('n_1=%0.1f,n_2=%0.1f,n_3=%0.1f\n\n,',n_1,n_2,n_3);
+    fprintf('n_1=%0.1f,n_2=%0.1f,n_3=%0.1f\n\,',n_1,n_2,n_3);
 
     %% 计算实际无量纲参数以及误差
     a_hat_actual    = a_target / sqrt(a_target^2 + h1_target^2);
