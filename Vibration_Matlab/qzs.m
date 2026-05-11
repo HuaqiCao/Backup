@@ -15,12 +15,21 @@ fprintf('  δ̂_target = %.3f, â_target = %.3f, α_target = %.3f, α₁_target 
 a_target = 60;     %mm
 
 %% 弹簧材料参数（可调）
-tau_p =90; %平均许用切应力Mpa
+tau_p =100; %平均许用切应力Mpa
 G=105000; %Mpa
-C_range = 5:1:12; %旋绕比
+
+C_range = 5:1:12; %旋绕比 K2
+C1_range = 5:1:12; %旋绕比 上&下
+C2_range = 5:1:12; %旋绕比 中
+
+ratio_range = 0.28:0.01:0.5; %K2
+ratio1_range = 0.28:0.01:0.5; %上&下
+ratio2_range = 0.28:0.01:0.5; %中
 
 %% load mass
-M = 2;              % kg
+M = 2;              % kg K2
+M1 = 2;             % kg 上&下
+M2 = 2;             % kg 中
 g = 9.81;           % m/s^2
 
 %% 由 â = a / sqrt(a^2 + h1^2) 反求 h1
@@ -32,7 +41,7 @@ fprintf('由 â_target & a_target 计算得到: h₁_target = %.1f mm\n\n',h1_ta
 delta_target = delta_hat_target * sqrt(a_target^2 + h1_target^2);
 
 %% 斜弹簧原始长度（三根弹簧原长相同）
-L1 = sqrt(a_target^2 + h1_target^2) + delta_target;
+L1 = sqrt(a_target^2 + h1_target^2) + delta_target; %上
 fprintf('由 δ̂_target & a_target & h1_target 计算得到: δ_target = %.1f mm, L1(上) = %.1f mm\n\n',delta_target, L1);
 
 %% 由 γ 计算 d，进而计算h和h2
@@ -50,8 +59,8 @@ delta_hat2_target = 1 - sqrt(1 + 4*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + 4
 delta1_target = delta_hat1_target * sqrt(a_target^2 + h1_target^2);
 delta2_target = delta_hat2_target * sqrt(a_target^2 + h1_target^2);
 
-L2 = sqrt(a_target^2 + h_target^2) + delta1_target;
-L3 = sqrt(a_target^2 + h2_target^2) + delta2_target;
+L2 = sqrt(a_target^2 + h_target^2) + delta1_target; %中
+L3 = sqrt(a_target^2 + h2_target^2) + delta2_target; %下
 
 fprintf('由 â_target & γ_target 计算得到(中间量): ρ = %.3f \n\n', rho_target);
 fprintf('由 â_target & ρ_target & 预压缩 δ̂_target 计算得到: δ̂_1 = %.3f, δ̂_2 = %.3f, 此时, 预压缩δ_1 = %.1f mm, 预压缩δ_2 = %.1f mm, L2(中) = %.1f mm, L3(下) = %.1f mm\n\n',delta_hat1_target, delta_hat2_target, delta1_target, delta2_target, L2, L3);
@@ -66,225 +75,213 @@ k1 = k2 * alpha_target;
 k3 = alpha1_target * k2;
 fprintf('最佳的刚度系数，上&下：k1=%0.1fN/m, 支撑弹簧：k2=%0.1fN/m, 中间：k3=%0.1fN/m\n\n,',k1,k2,k3);
 
-fprintf('====================================================================================================================================================================================================================\n');
-fprintf('%-8s | %-10s | %-10s | %-6s | %-10s | %-8s | %-8s | %-10s | %-10s | %-10s | %-10s | %-10s | %-8s | %-6s | %-3s | %-6s | %-6s | %-4s | %-4s | %-4s\n', ...
-    'k₁(N/m)', 'h_target(mm)', 'h₁_target(mm)', 'h₂_target(mm)', 'd_target(mm)', 'k₂(N/m)', 'k₃(N/m)', ...
-    'a_target(mm)', 'δ_target(mm)', 'δ1_target(mm)', 'δ2_target(mm)', 'δ3_target(mm)', 'L₀(mm)', 'L(mm)', 'C', 'd(mm)', 'D(mm)', 'n1', 'n2', 'n3');
-fprintf('--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n');
+%% 计算K2的预压缩量（fig.(c)）
+f1 = -(k1/1000)*delta_target*(h1_target/sqrt(a_target^2+h1_target^2));
+f3 = -(k3/1000)*delta1_target*(h_target/sqrt(a_target^2+h_target^2));
+f4 = -(k1/1000)*delta2_target*(h2_target/sqrt(a_target^2+h2_target^2));
 
-found_count = 0;
+f2 = -(2*f1 + 2*f3 +2*f4);
+delta3_target = f2/(k2/1000); %mm
+
+L = h2_target + delta3_target;
+%fprintf('delta3_target =%.3f,delta_target=%.3f,delta1_target=%.3f,delta2_target=%.3f\n',delta3_target,delta_target,delta1_target,delta2_target);
+%fprintf('预压缩计算底部弹簧的原长：L=%0.1fmm\n\n',L);
+
+%% 平衡时的压缩量（fig.(d)）
+delta_eq = L1 - sqrt(a_target^2 + d_target^2); %mm
+delta3_eq = L2 - a_target;
+delta2_eq = (M*g)/(k2/1000); %平衡时底部弹簧的压缩量
+%fprintf('计算的到平衡时的压缩量：上&下：delta_eq=%0.1fmm, 中：delta3_eq=%0.1fmm, 底部：delta2_eq=%0.1fmm\n\n',delta_eq,delta3_eq,delta2_eq);
+
+L_eq = d_target + delta2_eq + delta3_target;
+%fprintf('平衡时计算底部弹簧的原长：L_eq=%0.1f\n\n',L_eq);
+
 y_hat = linspace(-10, 10, 1000);
 
+%% 存储弹簧参数到Excel
+path = '/Users/caohuaqi/Desktop';
+excel_filename = fullfile(path, 'Spring_Parameters.xlsx');
+
+% 存储K2弹簧参数
+k2_results = [];
 for C = C_range
-
-    K = (4*C-1)/(4*C-4)+0.615/C;
-
-    d = 2*sqrt(K*C*M*g/tau_p);  %mm M=2kg
-    d1 = 2*sqrt(K*C*1*g/tau_p); %mm M=1kg
-
-    D = C*d;                      %mm
-    D1 = C*d1;
-
-    n_1 = (G*D1)/(8*C^4*(k1/1000)); %上&下（转换为N/mm）
-    n_2 = (G*D)/(8*C^4*(k2/1000)); %K2
-    n_3 = (G*D1)/(8*C^4*(k3/1000)); %中
-
-    %% 计算真实的弹簧刚度
-    K1_actual = (G*D1)/(8*n_1*C^4); %上&下N/mm
-    K2_actual = (G*D)/(8*n_2*C^4); %K2
-    K3_actual = (G*D1)/(8*n_3*C^4); %中
-    fprintf('K1_actual = %0.3fN/mm,K2_actual = %0.3fN/mm,K3_actual = %0.3fN/mm\n\n',K1_actual,K2_actual,K3_actual);
-    %fprintf('C=%0.1f,d=%0.1fmm,D=%0.1fmm,n_1=%0.1f,n_2=%0.1f,n_3=%0.1f\n',C,d,D,n_1,n_2,n_3)
-
-    %% 计算K2的预压缩量（fig.(c)）
-    f1 = -(k1/1000)*delta_target*(h1_target/sqrt(a_target^2+h1_target^2));
-    f3 = -(k3/1000)*delta1_target*(h_target/sqrt(a_target^2+h_target^2));
-    f4 = -(k1/1000)*delta2_target*(h2_target/sqrt(a_target^2+h2_target^2));
-
-    f2 = -(2*f1 + 2*f3 +2*f4);
-    delta3_target = f2/(k2/1000); %mm
-
-    L = h2_target + delta3_target;
-    %fprintf('delta3_target =%.3f,delta_target=%.3f,delta1_target=%.3f,delta2_target=%.3f\n',delta3_target,delta_target,delta1_target,delta2_target);
-    fprintf('预压缩计算底部弹簧的原长：L=%0.1fmm\n\n',L);
-
-    %% 平衡时的压缩量（fig.(d)）
-    delta_eq = L1 - sqrt(a_target^2 + d_target^2); %mm
-    delta3_eq = L2 - a_target;
-    delta2_eq = (M*g)/(k2/1000); %平衡时底部弹簧的压缩量
-    %fprintf('计算的到平衡时的压缩量：上&下：delta_eq=%0.1fmm, 中：delta3_eq=%0.1fmm, 底部：delta2_eq=%0.1fmm\n\n',delta_eq,delta3_eq,delta2_eq);
-
-    L_eq = d_target + delta2_eq + delta3_target;
-    %fprintf('平衡时计算底部弹簧的原长：L_eq=%0.1f\n\n',L_eq);
-
-    %% 节距
-    p1 = (L-3*d1)/n_1; del1 = p1/D1; %上&下
-    p2 = (L-3*d)/n_2; del2 = p2/D; %K2
-    p3 = (L-3*d1)/n_3; del3 = p3/D1; %中
-    fprintf('p1=%0.1fmm,p2=%0.1fmm,p3=%0.1fmm\n\n,ratio1=%0.3f,ratio2=%0.3f,ratio3=%0.3f\n\n',p1,p2,p3,del1,del2,del3);
-    fprintf('n_1=%0.1f,n_2=%0.1f,n_3=%0.1f\n\n,',n_1,n_2,n_3);
-
-    %% 计算实际无量纲参数以及误差
-    a_hat_actual    = a_target / sqrt(a_target^2 + h1_target^2);
-    gamma_actual    = h_target / d_target;
-    delta_hat_actual = delta_target / sqrt(a_target^2 + h1_target^2);
-    alpha_actual    = k1 / k2;
-    alpha1_actual   = k3 / k2;
-
-    err_a_hat = abs(a_hat_actual - a_hat_target);
-    err_delta = abs(delta_hat_actual - delta_hat_target);
-    err_gamma = abs(gamma_actual - gamma_target);
-    err_alpha = abs(alpha_actual - alpha_target);
-    err_alpha1 = abs(alpha1_actual - alpha1_target);
-
-    tolerance = 1e-5;
-    if err_a_hat < tolerance && err_delta < tolerance && ...
-            err_gamma < tolerance && err_alpha < tolerance && ...
-            err_alpha1 < tolerance
-
-        found_count = found_count + 1;
-
-        fprintf('%-8.1f | %-10.1f | %-10.1f | %-6.1f | %-10.1f | %-8.1f | %-8.1f | %-10.1f | %-10.1f | %-10.1f | %-10.1f | %-10.1f | %-8.1f | %-6.1f | %-3d | %-6.2f | %-6.2f | %-4.1f | %-4.1f | %-4.1f\n', ...
-            k1, h_target, h1_target, h2_target, d_target, k2, k3, a_target, delta_target, ...
-            delta1_target, delta2_target, delta3_target, L1, L, C, d, D, n_1, n_2, n_3);
-
-        %% 保存到Excel文件
-        if found_count == 1
-            header = {'k1', 'h_target', 'h1_target', 'h2_target', 'd_target', ...
-                'k2', 'k3', 'a_target', 'delta_target', 'delta1_target', ...
-                'delta2_target', 'delta3_target', 'L0', 'L', 'C', 'd', ...
-                'D', 'n1', 'n2', 'n3'};
-            writecell(header, '弹簧参数组合.xlsx', 'Sheet', 1, 'Range', 'A1');
-        end
-
-        data_row = {k1, h_target, h1_target, h2_target, d_target, k2, k3, ...
-            a_target, delta_target, delta1_target, delta2_target, ...
-            delta3_target, L1, L, C, d, D, n_1, n_2, n_3};
-        writecell(data_row, '弹簧参数组合.xlsx', 'Sheet', 1, 'Range', sprintf('A%d', found_count+1));
-
-        %% fprintf('=======================================================输出可能的参数组合======================================================================================================================================\n');
-
-        %% 计算无量纲恢复力曲线（f_hat & xi_hat）
-        % 中间变量
-        % ρ = (1 - â²) / (γ - 1)²
-        rho_actual = (1 - a_hat_actual^2) / (gamma_actual - 1)^2;
-        % Δ = √(1 + â²·γ² - 2·â²·γ)
-        Delta_actual = sqrt(1 + a_hat_actual^2 * gamma_actual^2 - 2 * a_hat_actual^2 * gamma_actual);
-        % Δ₁ = (1 + δ̂)·(γ - 1)
-        Delta1_actual = (1 + delta_hat_actual) * (gamma_actual - 1);
-        % Δ₂ = (1 + δ̂)·(γ - 1)³
-        Delta2_actual = (1 + delta_hat_actual) * (gamma_actual - 1)^3;
-        % C₁ = 6·(1 + δ̂)·â⁻³ / [-12·Δ₂/Δ³ + 72·Δ₂·(1 - â²)/Δ⁵ - 60·Δ₂·(1 - â²)²/Δ⁷]
-        C1_actual = 6*(1 + delta_hat_actual) * a_hat_actual^(-3) / (-12*Delta2_actual/Delta_actual^3 + 72*Delta2_actual*(1-a_hat_actual^2)/Delta_actual^5 - 60*Delta2_actual*(1-a_hat_actual^2)^2/Delta_actual^7);
-
-        %% 弹簧自由长度相同推导得到的
-        % δ̂₁ = 1 - √(1 + 2·√(1 - â²)·√ρ + ρ) + δ̂
-        delta_hat1_actual = 1 - sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho_actual) + rho_actual) + delta_hat_actual;
-        %% f1_hat = f4_hat 推导得到的
-        % δ̂₂ = 1 - √(1 + 4·√(1 - â²)·√ρ + 4·ρ) + δ̂
-        delta_hat2_actual = 1 - sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho_actual) + 4*rho_actual) + delta_hat_actual;
-
-        %% 位移
-        % x̂_e = √(1 − â²) + √ρ
-        x_e_hat_actual = sqrt(1 - a_hat_actual^2) + sqrt(rho_actual);
-        % K̂ = zeros(size(ŷ))
-
-        %% 创建向量
-        K_hat = zeros(size(y_hat));
-        xi_hat = zeros(size(y_hat));
-        f_hat_curve1 = zeros(size(y_hat)); %figure1对应的f_hat
-        y_hat_curve1 = zeros(size(y_hat)); %figure1对应的y_hat
-
-        for i = 1:length(y_hat)
-            % x_i = x̂_e + ŷ(i)
-            xi_hat(i) = x_e_hat_actual + y_hat(i);
-            % P₁ = √(1−â²) − xi_hat(i)
-            P1 = sqrt(1 - a_hat_actual^2) - xi_hat(i);
-            % P₂ = 1 − 2√(1−â²)·xi_hat + xi_hat(i)²
-            P2 = 1 - 2*sqrt(1 - a_hat_actual^2)*xi_hat(i) + xi_hat(i)^2;
-            % P₃ = 1 + δ̂
-            P3 = 1 + delta_hat_actual;
-            % P₄ = √(1−â²+ρ+2√(1−â²)√ρ) − xi_hat(i)
-            P4 = sqrt(1 - a_hat_actual^2 + rho_actual + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho_actual)) - xi_hat(i);
-            % P₅ = 1+ρ+2√(1−â²)√ρ − 2√(1−â²+ρ+2√(1−â²)√ρ)·xi_hat + xi_hat(i)²
-            P5 = 1 + rho_actual + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho_actual) - 2*sqrt(1 - a_hat_actual^2 + rho_actual + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho_actual))*xi_hat(i) + xi_hat(i)^2;
-            % P₆ = √(1+2√(1−â²)√ρ+ρ) + δ̂₁
-            P6 = sqrt(1 + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho_actual) + rho_actual) + delta_hat1_actual;
-            % P₇ = √(1−â²) + 2√ρ − xi_hat(i)
-            P7 = sqrt(1 - a_hat_actual^2) + 2*sqrt(rho_actual) - xi_hat(i);
-            % P₈ = 1+4√(1−â²)√ρ+4ρ − 2(√(1−â²)+2√ρ)xi_hat + xi_hat(i)²
-            P8 = 1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho_actual) + 4*rho_actual - 2*(sqrt(1 - a_hat_actual^2) + 2*sqrt(rho_actual))*xi_hat(i) + xi_hat(i)^2;
-            % P₉ = √(1+4√(1−â²)√ρ+4ρ) + δ̂₂
-            P9 = sqrt(1 + 4*sqrt(1 - a_hat_actual^2)*sqrt(rho_actual) + 4*rho_actual) + delta_hat2_actual;
-            % dP₁ = dP₄ = dP₇ = -1
-            dP1 = -1; dP4 = -1; dP7 = -1;
-            % dP₂ = −2√(1−â²) + 2xi_hat
-            dP2 = -2*sqrt(1 - a_hat_actual^2) + 2*xi_hat(i);
-            % dP₅ = −2√(1−â²+ρ+2√(1−â²)√ρ) + 2xi_hat
-            dP5 = -2*sqrt(1 - a_hat_actual^2 + rho_actual + 2*sqrt(1 - a_hat_actual^2)*sqrt(rho_actual)) + 2*xi_hat(i);
-            % dP₈ = −2(√(1−â²)+2√ρ) + 2xi_hat
-            dP8 = -2*(sqrt(1 - a_hat_actual^2) + 2*sqrt(rho_actual)) + 2*xi_hat(i);
-            % dN₁ = −2α(1−P₃·P₂^{−1/2})·dP₁ − α·P₁·P₂^{−3/2}·P₃·dP₂
-            dN1 = -2 * alpha_actual * (1 - P3 * P2.^(-0.5)) * (-1) - alpha_actual * P1 * P2.^(-1.5) * P3 * dP2;
-            % dN₃ = −2α₁(1−P₆·P₅^{−1/2})·dP₄ − α₁·P₄·P₅^{−3/2}·P₆·dP₅
-            dN3 = -2 * alpha1_actual * (1 - P6 * P5.^(-0.5)) * (-1) - alpha1_actual * P4 * P5.^(-1.5) * P6 * dP5;
-            % dN₅ = −2α(1−P₉·P₈^{−1/2})·dP₇ − α·P₇·P₈^{−3/2}·P₉·dP₈
-            dN5 = -2 * alpha_actual * (1 - P9 * P8.^(-0.5)) * (-1) - alpha_actual * P7 * P8.^(-1.5) * P9 * dP8;
-
-            %% 无量纲刚度&力 K̂(i) = 1 + dN₁ + dN₃ + dN₅
-            K_hat(i) = 1 + dN1 + dN3 + dN5;
-            f_hat_curve1(i) = xi_hat(i) - 2*alpha_actual * P1*(sqrt(P2)-P3)/sqrt(P2) - 2*alpha1_actual * P4*(sqrt(P5)-P6)/sqrt(P5) - 2*alpha_actual * P7*(sqrt(P8)-P9)/sqrt(P8);
-            y_hat_curve1(i) = xi_hat(i) - x_e_hat_actual;
-        end
-
-        %% 循环输出变量到数组
-        y_hat_fig1{found_count} = y_hat_curve1;
-        f_hat{found_count}      = f_hat_curve1;
-        K_hat_fig1{found_count} = K_hat;
-        k1_record(found_count)  = k1;
-        k2_record(found_count)  = k2;
+    for ratio = ratio_range %K2
+        a=(G*ratio)/(8*(C^4)*(k2/1000));
+        D=(-2/C+sqrt(4/(C^2)+4*a*L))/(2*a); %2d -2/C+sqrt(4/(C^2)需要修改
+        d = D/C; %K2
+        K = (4*C-1)/(4*C-4)+0.615/C; %K2
+        d_target = 1.6*sqrt(K*C*M*g/tau_p);  %mm K2
+        %if d >= d_target1
+        n = (G*D)/(8*(C^4)*(k2/1000)); %K2
+        %% 用于检验
+        k2_actual = (G*D)/(8*(C^4)*n); %N/mm
+        p = ratio * D;
+        k2_results = [k2_results; d_target,d,D,C,n,ratio,p,G,L,k2_actual];
+        fprintf('d_target =%0.1fmm,d=%0.1fmm,D=%0.1fmm,C=%0.1f,n=%0.1f,ratio=%0.1f,p=%0.1fmm,G=%0.1fMpa,L=%0.1fmm,k2_actual=%0.4fN/mm\n\n',d_target,d,D,C,n,ratio,p,G,L,k2_actual);
+        %end
     end
 end
 
-%% 绘制第 n 组无量纲刚度和力的双y轴图
-if found_count > 0
-    target_idx = 8;
-    if target_idx > found_count
-        target_idx = found_count;
+k2_table = array2table(k2_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm', 'C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_Nmm'});
+[~, ia] = unique(k2_table(:, {'C', 'ratio'}), 'rows');
+k2_table = k2_table(ia, :);
+
+%% 上&下弹簧
+k1_results = [];
+for C1 = C1_range
+    for ratio1 = ratio1_range %上&下
+        a1=(G*ratio1)/(8*(C1^4)*(k1/1000));
+        D1=(-2/C1+sqrt(4/(C1^2)+4*a1*L1))/(2*a1);
+        d1 = D1/C1; %K2
+        K1 = (4*C1-1)/(4*C1-4)+0.615/C1; %上&下
+        d_target1 = 1.6*sqrt(K1*C1*M1*g/tau_p); %mm 上&下
+        
+        %if d1 >= d1_target
+        n1 = (G*D1)/(8*(C1^4)*(k1/1000)); %上&下（转换为N/mm）
+        %% 用于检验
+        k1_actual = (G*D1)/(8*(C1^4)*n1); %N/mm
+        p1 = ratio1 * D1;
+        fprintf('d_target1 =%0.1fmm,d1=%0.1fmm,D1=%0.1fmm,C1=%0.1f,n1=%0.1f,ratio1=%0.1f,p1=%0.1fmm,G=%0.1fMpa,L1=%0.1fmm,k1_actual=%0.4fN/mm\n\n',d_target1,d1,D1,C1,n1,ratio1,p1,G,L1,k1_actual);
+        k1_results = [k1_results; d_target1,d1,D1,C1,n1,ratio1,p1,G,L1,k1_actual];
+        %end
     end
-
-    figure(1);
-    set(gcf, 'Position', [100, 100, 600, 450], 'Visible', 'on');
-
-    yyaxis left
-    plot(y_hat_fig1{target_idx}, f_hat{target_idx}, 'Color',[0, 0.4470, 0.7410],'LineWidth', 2);
-    ylabel('Dimensionless Force $\hat{f}$', 'Interpreter', 'latex', 'FontSize', 18);
-    ylim([-6, 6]); xlim([-3, 3]);
-
-    yyaxis right
-    plot(y_hat_fig1{target_idx}, K_hat_fig1{target_idx}, 'Color',[0.8500, 0.3250, 0.0980],'LineStyle','--', 'LineWidth', 2);
-    ylabel('Dimensionless Stiffness $\hat{K}$', 'Interpreter', 'latex', 'FontSize', 18);
-
-    title(['Results for Parameter Set No. ', num2str(target_idx)], 'FontSize', 24);
-    xlabel('Dimensionless Displacement $\hat{y}$', 'Interpreter', 'latex', 'FontSize', 18);
-    set(gca,'FontSize',16);   % 坐标刻度的大小
-    grid on; %显示网格
-
-    legend(sprintf('Force'), ...
-        sprintf('Stiffness'), ...
-        'Interpreter', 'latex', 'Location', 'best','FontSize',14);
-else
-    disp('未找到有效参数组合');
 end
-fprintf('可能的参数组合%d\n',found_count);
+
+k1_table = array2table(k1_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm', 'C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_Nmm'});
+[~, ia] = unique(k1_table(:, {'C', 'ratio'}), 'rows');
+k1_table = k1_table(ia, :);
+
+%% 存储中间弹簧参数（侧边）
+k3_results = [];
+for C2 = C2_range
+    for ratio2 = ratio2_range %中
+        a2=(G*ratio1)/(8*(C2^4)*(k3/1000));
+        D2=(-2/C2+sqrt(4/(C2^2)+4*a2*L2))/(2*a2);
+        d2 = D2/C2; %K2
+        K2 = (4*C2-1)/(4*C2-4)+0.615/C2; %中
+        d_target2 = 1.6*sqrt(K2*C2*M1*g/tau_p); %mm 中
+        
+        %if d2 >= d2_target
+        n2 = (G*D2)/(8*(C2^4)*(k3/1000)); %中
+        %% 用于检验
+        k3_actual = (G*D2)/(8*(C2^4)*n2); %N/mm
+        p2 = ratio2 * D2;
+        fprintf('d_target2 =%0.1fmm,d2=%0.1fmm,D2=%0.1fmm,C2=%0.1f,n2=%0.1f,ratio2=%0.1f,p2=%0.1fmm,G=%0.1fMpa,L2=%0.1fmm,k3_actual=%0.4fN/mm\n\n',d_target2,d2,D2,C2,n2,ratio2,p2,G,L2,k3_actual);
+        k3_results = [k3_results; d_target2,d2,D2,C2,n2,ratio2,p2,G,L2,k3_actual];
+        %end
+    end
+end
+
+k3_table = array2table(k3_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm', 'C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_Nmm'});
+[~, ia] = unique(k3_table(:, {'C', 'ratio'}), 'rows');
+k3_table = k3_table(ia, :);
+
+%% 写入Excel
+writetable(k2_table, excel_filename, 'Sheet', 'K2_Spring');
+writetable(k1_table, excel_filename, 'Sheet', 'Up_Down_Spring');
+writetable(k3_table, excel_filename, 'Sheet', 'Middle_Spring');
+
+%% fprintf('=======================================================输出可能的参数组合======================================================================================================================================\n');
+
+%% 计算无量纲恢复力曲线（f_hat & xi_hat）
+% 中间变量
+% ρ = (1 - â²) / (γ - 1)²
+rho_target = (1 - a_hat_target^2) / (gamma_target - 1)^2;
+% Δ = √(1 + â²·γ² - 2·â²·γ)
+Delta_target = sqrt(1 + a_hat_target^2 * gamma_target^2 - 2 * a_hat_target^2 * gamma_target);
+% Δ₁ = (1 + δ̂)·(γ - 1)
+Delta1_target = (1 + delta_hat_target) * (gamma_target - 1);
+% Δ₂ = (1 + δ̂)·(γ - 1)³
+Delta2_target = (1 + delta_hat_target) * (gamma_target - 1)^3;
+% C₁ = 6·(1 + δ̂)·â⁻³ / [-12·Δ₂/Δ³ + 72·Δ₂·(1 - â²)/Δ⁵ - 60·Δ₂·(1 - â²)²/Δ⁷]
+C1_target = 6*(1 + delta_hat_target) * a_hat_target^(-3) / (-12*Delta2_target/Delta_target^3 + 72*Delta2_target*(1-a_hat_target^2)/Delta_target^5 - 60*Delta2_target*(1-a_hat_target^2)^2/Delta_target^7);
+
+%% 弹簧自由长度相同推导得到的
+% δ̂₁ = 1 - √(1 + 2·√(1 - â²)·√ρ + ρ) + δ̂
+delta_hat1_target = 1 - sqrt(1 + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + rho_target) + delta_hat_target;
+%% f1_hat = f4_hat 推导得到的
+% δ̂₂ = 1 - √(1 + 4·√(1 - â²)·√ρ + 4·ρ) + δ̂
+delta_hat2_target = 1 - sqrt(1 + 4*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + 4*rho_target) + delta_hat_target;
+
+%% 位移
+% x̂_e = √(1 − â²) + √ρ
+x_e_hat_target = sqrt(1 - a_hat_target^2) + sqrt(rho_target);
+% K̂ = zeros(size(ŷ))
+
+%% 创建向量
+K_hat = zeros(size(y_hat));
+xi_hat = zeros(size(y_hat));
+f_hat_curve1 = zeros(size(y_hat)); %figure1对应的f_hat
+y_hat_curve1 = zeros(size(y_hat)); %figure1对应的y_hat
+
+for i = 1:length(y_hat)
+    % x_i = x̂_e + ŷ(i)
+    xi_hat(i) = x_e_hat_target + y_hat(i);
+    % P₁ = √(1−â²) − xi_hat(i)
+    P1 = sqrt(1 - a_hat_target^2) - xi_hat(i);
+    % P₂ = 1 − 2√(1−â²)·xi_hat + xi_hat(i)²
+    P2 = 1 - 2*sqrt(1 - a_hat_target^2)*xi_hat(i) + xi_hat(i)^2;
+    % P₃ = 1 + δ̂
+    P3 = 1 + delta_hat_target;
+    % P₄ = √(1−â²+ρ+2√(1−â²)√ρ) − xi_hat(i)
+    P4 = sqrt(1 - a_hat_target^2 + rho_target + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target)) - xi_hat(i);
+    % P₅ = 1+ρ+2√(1−â²)√ρ − 2√(1−â²+ρ+2√(1−â²)√ρ)·xi_hat + xi_hat(i)²
+    P5 = 1 + rho_target + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target) - 2*sqrt(1 - a_hat_target^2 + rho_target + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target))*xi_hat(i) + xi_hat(i)^2;
+    % P₆ = √(1+2√(1−â²)√ρ+ρ) + δ̂₁
+    P6 = sqrt(1 + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + rho_target) + delta_hat1_target;
+    % P₇ = √(1−â²) + 2√ρ − xi_hat(i)
+    P7 = sqrt(1 - a_hat_target^2) + 2*sqrt(rho_target) - xi_hat(i);
+    % P₈ = 1+4√(1−â²)√ρ+4ρ − 2(√(1−â²)+2√ρ)xi_hat + xi_hat(i)²
+    P8 = 1 + 4*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + 4*rho_target - 2*(sqrt(1 - a_hat_target^2) + 2*sqrt(rho_target))*xi_hat(i) + xi_hat(i)^2;
+    % P₉ = √(1+4√(1−â²)√ρ+4ρ) + δ̂₂
+    P9 = sqrt(1 + 4*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + 4*rho_target) + delta_hat2_target;
+    % dP₁ = dP₄ = dP₇ = -1
+    dP1 = -1; dP4 = -1; dP7 = -1;
+    % dP₂ = −2√(1−â²) + 2xi_hat
+    dP2 = -2*sqrt(1 - a_hat_target^2) + 2*xi_hat(i);
+    % dP₅ = −2√(1−â²+ρ+2√(1−â²)√ρ) + 2xi_hat
+    dP5 = -2*sqrt(1 - a_hat_target^2 + rho_target + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target)) + 2*xi_hat(i);
+    % dP₈ = −2(√(1−â²)+2√ρ) + 2xi_hat
+    dP8 = -2*(sqrt(1 - a_hat_target^2) + 2*sqrt(rho_target)) + 2*xi_hat(i);
+    % dN₁ = −2α(1−P₃·P₂^{−1/2})·dP₁ − α·P₁·P₂^{−3/2}·P₃·dP₂
+    dN1 = -2 * alpha_target * (1 - P3 * P2.^(-0.5)) * (-1) - alpha_target * P1 * P2.^(-1.5) * P3 * dP2;
+    % dN₃ = −2α₁(1−P₆·P₅^{−1/2})·dP₄ − α₁·P₄·P₅^{−3/2}·P₆·dP₅
+    dN3 = -2 * alpha1_target * (1 - P6 * P5.^(-0.5)) * (-1) - alpha1_target * P4 * P5.^(-1.5) * P6 * dP5;
+    % dN₅ = −2α(1−P₉·P₈^{−1/2})·dP₇ − α·P₇·P₈^{−3/2}·P₉·dP₈
+    dN5 = -2 * alpha_target * (1 - P9 * P8.^(-0.5)) * (-1) - alpha_target * P7 * P8.^(-1.5) * P9 * dP8;
+
+    %% 无量纲刚度&力 K̂(i) = 1 + dN₁ + dN₃ + dN₅
+    K_hat(i) = 1 + dN1 + dN3 + dN5;
+    f_hat_curve1(i) = xi_hat(i) - 2*alpha_target * P1*(sqrt(P2)-P3)/sqrt(P2) - 2*alpha1_target * P4*(sqrt(P5)-P6)/sqrt(P5) - 2*alpha_target * P7*(sqrt(P8)-P9)/sqrt(P8);
+    y_hat_curve1(i) = xi_hat(i) - x_e_hat_target;
+end
+
+%% 绘制无量纲刚度和力的双y轴图
+figure(1);
+set(gcf, 'Position', [100, 100, 600, 450], 'Visible', 'on');
+
+yyaxis left
+plot(y_hat_curve1, f_hat_curve1, 'Color', [0, 0.4470, 0.7410], 'LineWidth', 2);
+ylabel('Dimensionless Force $\hat{f}$', 'Interpreter', 'latex', 'FontSize', 18);
+ylim([-6, 6]);
+xlim([-3, 3]);
+
+yyaxis right
+plot(y_hat_curve1, K_hat, 'Color', [0.8500, 0.3250, 0.0980], 'LineStyle', '--', 'LineWidth', 2);
+ylabel('Dimensionless Stiffness $\hat{K}$', 'Interpreter', 'latex', 'FontSize', 18);
+
+title('Dimensionless Force and Stiffness Curves (Target Parameters)', 'FontSize', 24);
+xlabel('Dimensionless Displacement $\hat{y}$', 'Interpreter', 'latex', 'FontSize', 18);
+set(gca, 'FontSize', 16);
+grid on;
+
+legend('Force', 'Stiffness', 'Interpreter', 'latex', 'Location', 'best', 'FontSize', 14);
 
 %% ====================================================Figure1 end=================================================================%%
 %% 计算目标参数的总刚度曲线 [delta_hat, a_hat, gamma] => 计算得到alpha & alpha1
 test_params = [
     0.500, 0.755, 2.143, 0.942, 0.501;
     0.471, 1.000, 1.054, 2.684, 0.179;
-    %40/sqrt(85^2+1),  85/sqrt(85^2+1), 19.5/18.5, 0.7059/0.263, 0.263/1.473;
-    %0.470555672014, 0.999930803031, 1.05405405405, 2.68403041825, 0.178547182621;
     0.800, 0.800, 1.987, NaN, NaN;
     0.500, 0.800, 1.987, NaN, NaN;
     0.200, 0.800, 2.192, NaN, NaN];
@@ -407,7 +404,6 @@ for j = 1:size(test_params, 1)
         dN5 = -2 * alpha * (1 - P9 * P8.^(-0.5)) * (-1) - alpha * P7 * P8.^(-1.5) * P9 .* dP8;
         % K̂_hat(i) = 1 + dN₁ + dN₃ + dN₅
         K_hat(i) = 1 + dN1 + dN3 + dN5;
-
     end
 
     %% 输出五个无量纲参数
@@ -448,7 +444,7 @@ for j = 1:num_configs
     alpha_t = alpha_store(j);             % α
     alpha1_t = alpha1_store(j);           % α₁
 
-    % 中间几何变量计算
+    %% 中间几何变量计算
     rho_t = (1 - a_hat_t^2) / (gamma_t - 1)^2;
     xe_t = sqrt(1 - a_hat_t^2) + sqrt(rho_t);
 
@@ -473,8 +469,8 @@ end
 mu3_target = 0.0017;
 mu1_target = 0.00048;
 
-%% 阻尼系数
-c = 20; %需要根据材料修改
+%% 阻尼系数（需要根据材料修改）
+c = 20; 
 
 %% 激励幅值
 Ze_mm = 3;
@@ -669,12 +665,6 @@ fprintf('激励幅值 Z_e = %.3f mm (无量纲: %.4f)\n', Ze_mm, Ze_hat);
 fprintf('阻尼比 ζ = %.3f\n\n', zeta);
 
 %% 读取CSV文件并计算传递后响应
-%[filename, filepath] = uigetfile('*.csv', '请选择包含振动数据的CSV文件');
-%if isequal(filename, 0), return; end
-
-%fullpath = fullfile(filepath, filename);
-%data = readmatrix(fullpath, 'NumHeaderLines', 3);
-
 %% 振动输入和参考曲线
 [filename1, filepath1] = uigetfile('*.csv', '请选择振动输入CSV文件');
 if isequal(filename1, 0), return; end
@@ -721,6 +711,7 @@ for i = 1:5
     V_in_fft = fft(v_in);
     v_out_all(:, i) = real(ifft(V_in_fft(:) .* H_full));
 end
+
 %% 读取参考文件（便于对比）
 data_ref = readmatrix(fullpath2, 'NumHeaderLines', 3);
 t_ref = data_ref(:, 1);
@@ -793,7 +784,7 @@ xlabel('Frequency (Hz)', 'Interpreter', 'latex', 'FontSize', 22);
 ylabel('PSD $[V/\sqrt{Hz}]$', 'Interpreter', 'latex', 'FontSize', 22);
 title('\textbf{Power Spectrum Density Comparison}', 'FontSize', 26, 'Interpreter', 'latex');
 
-%% 参考文件
+%% 参考文件（对照）
 v_ref_psd = compute_psd(v_ref, window_size, overlap, nfft, fs_ref, window);
 f_ref_psd = (0:nfft/2-1)*fs_ref/nfft;
 v_ref_psd_interp = interp1(f_ref_psd, sqrt(v_ref_psd), f_psd, 'linear', 'extrap');
