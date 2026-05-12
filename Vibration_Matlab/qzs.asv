@@ -15,8 +15,8 @@ fprintf('  δ̂_target = %.3f, â_target = %.3f, α_target = %.3f, α₁_target 
 a_target = 60;     %mm
 
 %% 弹簧材料参数（可调）
-tau_p =100; %平均许用切应力Mpa
-G=105000; %Mpa
+tau_p =70; %平均许用切应力Mpa
+G=77000; %Mpa
 
 C_range = 5:1:12; %旋绕比 K2
 C1_range = 5:1:12; %旋绕比 上&下
@@ -109,6 +109,7 @@ for C = C_range
         a=(G*ratio)/(8*(C^4)*(k2/1000));
         D=(-2/C+sqrt(4/(C^2)+4*a*L))/(2*a); %2d -2/C+sqrt(4/(C^2)需要修改
         d = D/C; %K2
+        D_out = D+d; %弹簧外径
         K = (4*C-1)/(4*C-4)+0.615/C; %K2
         d_target = 1.6*sqrt(K*C*M*g/tau_p);  %mm K2
         %if d >= d_target1
@@ -116,22 +117,24 @@ for C = C_range
         %% 用于检验
         k2_actual = (G*D)/(8*(C^4)*n); %N/mm
         p = ratio * D;
-        k2_results = [k2_results; C, ratio, d, D, n, p, k2_actual, d_target];
-        fprintf('d_target =%0.1fmm,d=%0.1fmm,D=%0.1fmm,C=%0.1f,n=%0.1f,ratio=%0.1f,p=%0.1fmm,G=%0.1fMpa,L=%0.1fmm,k2_actual=%0.4fN/mm\n\n',d_target,d,D,C,n,ratio,p,G,L,k2_actual);
+        k2_results = [k2_results; d_target,d,D,D_out,C,n,ratio,p,G,L,k2_actual*1000];
+        fprintf('d_target =%0.1fmm,d=%0.1fmm,D=%0.1fmm,D_out=%0.1fmm,C=%0.1f,n=%0.1f,ratio=%0.1f,p=%0.1fmm,G=%0.1fMpa,L=%0.1fmm,k2_actual=%0.1fN/m\n\n',d_target,d,D,D_out,C,n,ratio,p,G,L,k2_actual*1000);
         %end
     end
 end
 
-k2_table = array2table(k2_results, 'VariableNames', {'C','ratio','d_mm','D_mm','n','p_mm','k_actual_Nmm','d_target_mm'});
-[~,ia] = unique(k2_table(:,{'C','ratio'}), 'rows');
-k2_table = k2_table(ia,:);
+k2_table = array2table(k2_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm','C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N/m'});
+[~, ia] = unique(k2_table(:, {'C', 'ratio'}), 'rows');
+k2_table = k2_table(ia, :);
 
+%% 上&下弹簧
 k1_results = [];
 for C1 = C1_range
     for ratio1 = ratio1_range %上&下
         a1=(G*ratio1)/(8*(C1^4)*(k1/1000));
         D1=(-2/C1+sqrt(4/(C1^2)+4*a1*L1))/(2*a1);
         d1 = D1/C1; %K2
+        D_out1 = D1 + d1; %弹簧外径
         K1 = (4*C1-1)/(4*C1-4)+0.615/C1; %上&下
         d_target1 = 1.6*sqrt(K1*C1*M1*g/tau_p); %mm 上&下
         
@@ -140,24 +143,24 @@ for C1 = C1_range
         %% 用于检验
         k1_actual = (G*D1)/(8*(C1^4)*n1); %N/mm
         p1 = ratio1 * D1;
-        fprintf('d_target1 =%0.1fmm,d1=%0.1fmm,D1=%0.1fmm,C1=%0.1f,n1=%0.1f,ratio1=%0.1f,p1=%0.1fmm,G=%0.1fMpa,L1=%0.1fmm,k1_actual=%0.4fN/mm\n\n',d_target1,d1,D1,C1,n1,ratio1,p1,G,L1,k1_actual);
-        k1_results = [k1_results; C1, ratio1, d1, D1, n1, p1, k1_actual, d_target1];
+        fprintf('d_target1 =%0.1fmm,d1=%0.1fmm,D1=%0.1fmm,D_out1=%0.1f,C1=%0.1f,n1=%0.1f,ratio1=%0.1f,p1=%0.1fmm,G=%0.1fMpa,L1=%0.1fmm,k1_actual=%0.1fN/m\n\n',d_target1,d1,D1,D_out1,C1,n1,ratio1,p1,G,L1,k1_actual*1000);
+        k1_results = [k1_results; d_target1,d1,D1,D_out1,C1,n1,ratio1,p1,G,L1,k1_actual*1000];
         %end
     end
 end
 
-k1_table = array2table(k1_results, 'VariableNames', {'C','ratio','d_mm','D_mm','n','p_mm','k_actual_Nmm','d_target_mm'});
-[~,ia] = unique(k1_table(:,{'C','ratio'}), 'rows');
-k1_table = k1_table(ia,:);
+k1_table = array2table(k1_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm', 'C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N/m'});
+[~, ia] = unique(k1_table(:, {'C', 'ratio'}), 'rows');
+k1_table = k1_table(ia, :);
 
-% 存储中间弹簧参数
+%% 存储中间弹簧参数（侧边）
 k3_results = [];
-
 for C2 = C2_range
     for ratio2 = ratio2_range %中
         a2=(G*ratio1)/(8*(C2^4)*(k3/1000));
         D2=(-2/C2+sqrt(4/(C2^2)+4*a2*L2))/(2*a2);
         d2 = D2/C2; %K2
+        D_out2 = D2 + d2;
         K2 = (4*C2-1)/(4*C2-4)+0.615/C2; %中
         d_target2 = 1.6*sqrt(K2*C2*M1*g/tau_p); %mm 中
         
@@ -166,22 +169,20 @@ for C2 = C2_range
         %% 用于检验
         k3_actual = (G*D2)/(8*(C2^4)*n2); %N/mm
         p2 = ratio2 * D2;
-        fprintf('d_target2 =%0.1fmm,d2=%0.1fmm,D2=%0.1fmm,C2=%0.1f,n2=%0.1f,ratio2=%0.1f,p2=%0.1fmm,G=%0.1fMpa,L2=%0.1fmm,k3_actual=%0.4fN/mm\n\n',d_target2,d2,D2,C2,n2,ratio2,p2,G,L2,k3_actual);
-        k3_results = [k3_results; C2, ratio2, d2, D2, n2, p2, k3_actual, d_target2];
+        fprintf('d_target2 =%0.1fmm,d2=%0.1fmm,D2=%0.1fmm,D_out2=%0.1fmm,C2=%0.1f,n2=%0.1f,ratio2=%0.1f,p2=%0.1fmm,G=%0.1fMpa,L2=%0.1fmm,k3_actual=%0.1fN/m\n\n',d_target2,d2,D2,D_C2,n2,ratio2,p2,G,L2,k3_actual*1000);
+        k3_results = [k3_results; d_target2,d2,D2,D_out2,C2,n2,ratio2,p2,G,L2,k3_actual*1000];
         %end
     end
 end
 
-k3_table = array2table(k3_results, 'VariableNames', {'C','ratio','d_mm','D_mm','n','p_mm','k_actual_Nmm','d_target_mm'});
-[~,ia] = unique(k3_table(:,{'C','ratio'}), 'rows');
-k3_table = k3_table(ia,:);
+k3_table = array2table(k3_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm', 'C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N/m'});
+[~, ia] = unique(k3_table(:, {'C', 'ratio'}), 'rows');
+k3_table = k3_table(ia, :);
 
-% 写入Excel
+%% 写入Excel
 writetable(k2_table, excel_filename, 'Sheet', 'K2_Spring');
 writetable(k1_table, excel_filename, 'Sheet', 'Up_Down_Spring');
 writetable(k3_table, excel_filename, 'Sheet', 'Middle_Spring');
-
-fprintf('\n✓ 参数已保存到桌面: %s\n', excel_filename);
 
 %% fprintf('=======================================================输出可能的参数组合======================================================================================================================================\n');
 
