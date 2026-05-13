@@ -73,7 +73,7 @@ k2 = (M*g)/(1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2)); %N/m
 k1 = k2 * alpha_target;
 % k₃ = α₁_target · k₂
 k3 = alpha1_target * k2;
-fprintf('最佳的刚度系数，上&下：k1=%0.1fN/m, 底部弹簧：k2=%0.1fN/m, 中：k3=%0.1fN/m\n\n,',k1,k2,k3);
+fprintf('最佳的刚度系数，上&下：k1=%0.1fN/m, 底部弹簧：k2=%0.1fN/m, 中：k3=%0.1fN/m\n\n',k1,k2,k3);
 
 %% 计算K2的预压缩量（fig.(c)）
 f1 = -(k1/1000)*delta_target*(h1_target/sqrt(a_target^2+h1_target^2));
@@ -86,6 +86,7 @@ delta3_target = f2/(k2/1000); %mm
 fprintf('预压缩量 上：delta_target=%.1fmm, 中：delta1_target=%.1fmm, 下：delta2_target=%.1fmm, 底部：delta3_target =%.1fmm\n\n',delta_target,delta1_target,delta2_target,delta3_target);
 L = h2_target + delta3_target;
 fprintf('由预压缩计算底部弹簧的原长：L=%0.1fmm，上：L1=%0.1fmm，中：L2=%0.1fmm，下：L3=%0.1fmm\n\n',L,L1,L2,L3);
+fprintf('预压缩后弹簧的长度：底部：%.1fmm, 上：%.1fmm, 中：%.1fmm, 下：%.1fmm\n\n',L-delta3_target,L1-delta_target,L2-delta1_target,L3-delta2_target);
 
 %% 平衡时的压缩量（fig.(d)）
 delta_eq = L1 - sqrt(a_target^2 + d_target^2); %mm
@@ -94,7 +95,8 @@ delta3_eq = (M*g)/(k2/1000); %平衡时底部弹簧的压缩量
 fprintf('平衡时的压缩量：上&下：delta_eq=delta2_eq=%0.1fmm, 中：delta1_eq=%0.1fmm, 底部：delta3_eq=%0.1fmm\n\n',delta_eq,delta1_eq,delta3_eq);
 
 L_eq = d_target + delta3_eq + delta3_target;
-fprintf('平衡时计算底部弹簧的原长：L_eq=%0.1fmm\n',L_eq);
+fprintf('平衡时计算底部弹簧的原长：L_eq=%0.1fmm\n\n',L_eq);
+fprintf('平衡时弹簧的长度：底部：%.1fmm, 上：%.1fmm, 中：%.1fmm, 下：%.1fmm\n\n',L-delta3_eq,L1-delta_eq,L2-delta1_eq,L3-delta_eq);
 
 y_hat = linspace(-10, 10, 1000);
 
