@@ -27,10 +27,10 @@ ratio1_range = 0.28:0.01:0.5; %上&下
 ratio2_range = 0.28:0.01:0.5; %中
 
 %% load mass
-M = 2;              % kg K2
-M1 = 2;             % kg 上&下
-M2 = 2;             % kg 中
-g = 9.81;           % m/s^2
+M = 2;              % K2&kg
+M1 = 2;             % 上&下
+M2 = 2;             % 中
+g = 9.81;
 
 %% 由 â = a / sqrt(a^2 + h1^2) 反求 h1
 h1_target = sqrt(a_target^2 * (1/a_hat_target^2 - 1));
@@ -73,7 +73,7 @@ k2 = (M*g)/(1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2)); %N/m
 k1 = k2 * alpha_target;
 % k₃ = α₁_target · k₂
 k3 = alpha1_target * k2;
-fprintf('最佳的刚度系数，上&下：k1=%0.1fN/m, 支撑弹簧：k2=%0.1fN/m, 中间：k3=%0.1fN/m\n\n,',k1,k2,k3);
+fprintf('最佳的刚度系数，上&下：k1=%0.1fN/m, 底部弹簧：k2=%0.1fN/m, 中：k3=%0.1fN/m\n\n,',k1,k2,k3);
 
 %% 计算K2的预压缩量（fig.(c)）
 f1 = -(k1/1000)*delta_target*(h1_target/sqrt(a_target^2+h1_target^2));
@@ -83,18 +83,18 @@ f4 = -(k1/1000)*delta2_target*(h2_target/sqrt(a_target^2+h2_target^2));
 f2 = -(2*f1 + 2*f3 +2*f4);
 delta3_target = f2/(k2/1000); %mm
 
+fprintf('预压缩量 上：delta_target=%.1fmm, 中：delta1_target=%.1fmm, 下：delta2_target=%.1fmm, 底部：delta3_target =%.1fmm\n\n',delta_target,delta1_target,delta2_target,delta3_target);
 L = h2_target + delta3_target;
-%fprintf('delta3_target =%.3f,delta_target=%.3f,delta1_target=%.3f,delta2_target=%.3f\n',delta3_target,delta_target,delta1_target,delta2_target);
-%fprintf('预压缩计算底部弹簧的原长：L=%0.1fmm\n\n',L);
+fprintf('由预压缩计算底部弹簧的原长：L=%0.1fmm，上：L1=%0.1fmm，中：L2=%0.1fmm，下：L3=%0.1fmm\n\n',L,L1,L2,L3);
 
 %% 平衡时的压缩量（fig.(d)）
 delta_eq = L1 - sqrt(a_target^2 + d_target^2); %mm
-delta3_eq = L2 - a_target;
-delta2_eq = (M*g)/(k2/1000); %平衡时底部弹簧的压缩量
-%fprintf('计算的到平衡时的压缩量：上&下：delta_eq=%0.1fmm, 中：delta3_eq=%0.1fmm, 底部：delta2_eq=%0.1fmm\n\n',delta_eq,delta3_eq,delta2_eq);
+delta1_eq = L2 - a_target;
+delta3_eq = (M*g)/(k2/1000); %平衡时底部弹簧的压缩量
+fprintf('平衡时的压缩量：上&下：delta_eq=delta2_eq=%0.1fmm, 中：delta1_eq=%0.1fmm, 底部：delta3_eq=%0.1fmm\n\n',delta_eq,delta1_eq,delta3_eq);
 
-L_eq = d_target + delta2_eq + delta3_target;
-%fprintf('平衡时计算底部弹簧的原长：L_eq=%0.1f\n\n',L_eq);
+L_eq = d_target + delta3_eq + delta3_target;
+fprintf('平衡时计算底部弹簧的原长：L_eq=%0.1fmm\n\n',L_eq);
 
 y_hat = linspace(-10, 10, 1000);
 
@@ -118,7 +118,7 @@ for C = C_range
         k2_actual = (G*D)/(8*(C^4)*n); %N/mm
         p = ratio * D;
         k2_results = [k2_results; d_target,d,D,D_out,C,n,ratio,p,G,L,k2_actual*1000];
-        fprintf('d_target =%0.1fmm,d=%0.1fmm,D=%0.1fmm,D_out=%0.1fmm,C=%0.1f,n=%0.1f,ratio=%0.1f,p=%0.1fmm,G=%0.1fMpa,L=%0.1fmm,k2_actual=%0.1fN/m\n\n',d_target,d,D,D_out,C,n,ratio,p,G,L,k2_actual*1000);
+        %fprintf('d_target =%0.1fmm,d=%0.1fmm,D=%0.1fmm,D_out=%0.1fmm,C=%0.1f,n=%0.1f,ratio=%0.1f,p=%0.1fmm,G=%0.1fMpa,L=%0.1fmm,k2_actual=%0.1fN/m\n\n',d_target,d,D,D_out,C,n,ratio,p,G,L,k2_actual*1000);
         %end
     end
 end
@@ -137,13 +137,13 @@ for C1 = C1_range
         D_out1 = D1 + d1; %弹簧外径
         K1 = (4*C1-1)/(4*C1-4)+0.615/C1; %上&下
         d_target1 = 1.6*sqrt(K1*C1*M1*g/tau_p); %mm 上&下
-        
+
         %if d1 >= d1_target
         n1 = (G*D1)/(8*(C1^4)*(k1/1000)); %上&下（转换为N/mm）
         %% 用于检验
         k1_actual = (G*D1)/(8*(C1^4)*n1); %N/mm
         p1 = ratio1 * D1;
-        fprintf('d_target1 =%0.1fmm,d1=%0.1fmm,D1=%0.1fmm,D_out1=%0.1f,C1=%0.1f,n1=%0.1f,ratio1=%0.1f,p1=%0.1fmm,G=%0.1fMpa,L1=%0.1fmm,k1_actual=%0.1fN/m\n\n',d_target1,d1,D1,D_out1,C1,n1,ratio1,p1,G,L1,k1_actual*1000);
+        %fprintf('d_target1 =%0.1fmm,d1=%0.1fmm,D1=%0.1fmm,D_out1=%0.1f,C1=%0.1f,n1=%0.1f,ratio1=%0.1f,p1=%0.1fmm,G=%0.1fMpa,L1=%0.1fmm,k1_actual=%0.1fN/m\n\n',d_target1,d1,D1,D_out1,C1,n1,ratio1,p1,G,L1,k1_actual*1000);
         k1_results = [k1_results; d_target1,d1,D1,D_out1,C1,n1,ratio1,p1,G,L1,k1_actual*1000];
         %end
     end
@@ -163,13 +163,13 @@ for C2 = C2_range
         D_out2 = D2 + d2;
         K2 = (4*C2-1)/(4*C2-4)+0.615/C2; %中
         d_target2 = 1.6*sqrt(K2*C2*M1*g/tau_p); %mm 中
-        
+
         %if d2 >= d2_target
         n2 = (G*D2)/(8*(C2^4)*(k3/1000)); %中
         %% 用于检验
         k3_actual = (G*D2)/(8*(C2^4)*n2); %N/mm
         p2 = ratio2 * D2;
-        fprintf('d_target2 =%0.1fmm,d2=%0.1fmm,D2=%0.1fmm,D_out2=%0.1fmm,C2=%0.1f,n2=%0.1f,ratio2=%0.1f,p2=%0.1fmm,G=%0.1fMpa,L2=%0.1fmm,k3_actual=%0.1fN/m\n\n',d_target2,d2,D2,D_out2,C2,n2,ratio2,p2,G,L2,k3_actual*1000);
+        %fprintf('d_target2 =%0.1fmm,d2=%0.1fmm,D2=%0.1fmm,D_out2=%0.1fmm,C2=%0.1f,n2=%0.1f,ratio2=%0.1f,p2=%0.1fmm,G=%0.1fMpa,L2=%0.1fmm,k3_actual=%0.1fN/m\n\n',d_target2,d2,D2,D_out2,C2,n2,ratio2,p2,G,L2,k3_actual*1000);
         k3_results = [k3_results; d_target2,d2,D2,D_out2,C2,n2,ratio2,p2,G,L2,k3_actual*1000];
         %end
     end
@@ -473,7 +473,7 @@ mu3_target = 0.0017;
 mu1_target = 0.00048;
 
 %% 阻尼系数（需要根据材料修改）
-c = 20; 
+c = 20;
 
 %% 激励幅值
 Ze_mm = 3;
