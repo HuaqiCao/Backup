@@ -118,6 +118,8 @@ for C = C_range
         %% 用于检验
         k2_actual = (G*D)/(8*(C^4)*n); %N/mm
         p = ratio * D;
+        %n_test = (L-2*d)/p;
+        %fprintf('n=%0.1f\n,n=%0.1f\n\n',n,n_test);
         k2_results = [k2_results; d_target,d,D,D_out,C,n,ratio,p,G,L,k2_actual*1000];
         %fprintf('d_target =%0.1fmm,d=%0.1fmm,D=%0.1fmm,D_out=%0.1fmm,C=%0.1f,n=%0.1f,ratio=%0.1f,p=%0.1fmm,G=%0.1fMpa,L=%0.1fmm,k2_actual=%0.1fN/m\n\n',d_target,d,D,D_out,C,n,ratio,p,G,L,k2_actual*1000);
         %end
