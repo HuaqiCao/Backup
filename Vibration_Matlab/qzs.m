@@ -94,12 +94,13 @@ delta3_eq = (M*g)/(k2/1000); %平衡时底部弹簧的压缩量
 fprintf('平衡时的压缩量：上&下：delta_eq=delta2_eq=%0.1fmm, 中：delta1_eq=%0.1fmm, 底部：delta3_eq=%0.1fmm\n\n',delta_eq,delta1_eq,delta3_eq);
 
 L_eq = d_target + delta3_eq + delta3_target;
-fprintf('平衡时计算底部弹簧的原长：L_eq=%0.1fmm\n\n',L_eq);
+fprintf('平衡时计算底部弹簧的原长：L_eq=%0.1fmm\n',L_eq);
 
 y_hat = linspace(-10, 10, 1000);
 
 %% 存储弹簧参数到Excel
-path = '/Users/caohuaqi/Desktop';
+%path = '/Users/caohuaqi/Desktop';
+path = 'C:\Users\Administrator\Desktop\4.QZS';
 excel_filename = fullfile(path, 'Spring_Parameters.xlsx');
 
 % 存储K2弹簧参数
