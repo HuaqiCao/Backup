@@ -90418,3 +90418,13 @@ swModelView.RollBy 0
 
 ' Save As
 longstatus = Part.SaveAs3("D:\Backup\frame\New\支架.STEP", 0, 2)
+' MSGBOX
+' 是否将改动保存到 支架？
+
+
+' Save
+Dim swErrors As Long
+Dim swWarnings As Long
+boolstatus = Part.Save3(1, swErrors, swWarnings)
+swApp.ExitApp
+End Sub
