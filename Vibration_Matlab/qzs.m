@@ -16,7 +16,7 @@ a_target = 60;     %mm
 
 %% 弹簧材料参数（可调）
 tau_p =70; %平均许用切应力Mpa
-G=77000; %Mpa
+G=75000; %Mpa
 
 C_range = 5:1:12; %旋绕比 K2
 C1_range = 5:1:12; %旋绕比 上&下
@@ -66,7 +66,26 @@ fprintf('由 â_target & γ_target 计算得到(中间量): ρ = %.3f \n\n', rho
 fprintf('由 â_target & ρ_target & 预压缩 δ̂_target 计算得到: δ̂_1 = %.3f, δ̂_2 = %.3f, 此时, 预压缩δ_1 = %.1f mm, 预压缩δ_2 = %.1f mm, L2(中) = %.1f mm, L3(下) = %.1f mm\n\n',delta_hat1_target, delta_hat2_target, delta1_target, delta2_target, L2, L3);
 
 %% 根据1.229(paper)和load mass计算K2
-k2 = (M*g)/(1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2)); %N/m
+%k2 = (M*g)/(1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2)); %N/m
+
+%% 根据1.229(paper)和K2计算load mass
+d1 = 1.2;
+D1 = 15.6;
+n1 = 17;
+k_1 = (G*d1^4)/(8*D1^3*n1)*1000;
+
+d2 = 1.2;
+D2 = 15.6;
+n2 = 14;
+k2 = (G*d2^4)/(8*D2^3*n2)*1000;
+
+d3 = 1.2;
+D3 = 15.6;
+n3 = 32;
+k_3 = (G*d3^4)/(8*D3^3*n3)*1000;
+%k2 = 384.3; %N/m
+M = (k2*1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2))/g; %N/m
+fprintf('Load mass:M=%.1f,k1=%.1fN/m,k2=%.1fN/m,k3=%.1fN/m,比例：%.1f,%.1f\n\n',M,k_1,k2,k_3,k_1/k2,k2/k_3);
 
 %% 由 α 和 α₁ 计算 k2, k3
 % k1 = k₂ · α_target
@@ -100,8 +119,8 @@ fprintf('平衡时弹簧的长度：底部：%.1fmm, 上：%.1fmm, 中：%.1fmm,
 y_hat = linspace(-10, 10, 1000);
 
 %% 存储弹簧参数到Excel
-%path = '/Users/caohuaqi/Desktop';
-path = 'C:\Users\Administrator\Desktop\4.QZS';
+path = '/Users/caohuaqi/Desktop';
+%path = 'C:\Users\Administrator\Desktop\4.QZS';
 excel_filename = fullfile(path, 'Spring_Parameters.xlsx');
 
 % 存储K2弹簧参数
