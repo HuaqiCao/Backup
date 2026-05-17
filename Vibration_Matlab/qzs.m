@@ -63,7 +63,7 @@ L2 = sqrt(a_target^2 + h_target^2) + delta1_target; %中
 L3 = sqrt(a_target^2 + h2_target^2) + delta2_target; %下
 
 fprintf('由 â_target & γ_target 计算得到(中间量): ρ = %.3f \n\n', rho_target);
-fprintf('由 â_target & ρ_target & 预压缩 δ̂_target 计算得到: δ̂_1 = %.3f, δ̂_2 = %.3f, 此时, 预压缩δ_1 = %.1f mm, 预压缩δ_2 = %.1f mm, L2(中) = %.1f mm, L3(下) = %.1f mm\n\n',delta_hat1_target, delta_hat2_target, delta1_target, delta2_target, L2, L3);
+fprintf('由 â_target & ρ_target & 预压缩 δ̂_target 计算得到: δ̂_1 = %.3f, δ̂_2 = %.3f, 此时, 预压缩δ_1 = %.1f mm, 预压缩δ_2 = %.1f mm, L2(中) = %.1f mm, L3(下) = %.1f mm\n\n\n',delta_hat1_target, delta_hat2_target, delta1_target, delta2_target, L2, L3);
 
 %% 根据1.229(paper)和load mass计算K2
 %k2 = (M*g)/(1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2)); %N/m
@@ -71,7 +71,7 @@ fprintf('由 â_target & ρ_target & 预压缩 δ̂_target 计算得到: δ̂_1 
 %% 根据1.229(paper)和K2计算load mass
 d1 = 1.2;
 D1 = 15.6;
-n1 = 17;
+n1 = 15;
 k_1 = (G*d1^4)/(8*D1^3*n1)*1000;
 
 d2 = 1.2;
@@ -81,11 +81,11 @@ k2 = (G*d2^4)/(8*D2^3*n2)*1000;
 
 d3 = 1.2;
 D3 = 15.6;
-n3 = 32;
+n3 = 30;
 k_3 = (G*d3^4)/(8*D3^3*n3)*1000;
 %k2 = 384.3; %N/m
 M = (k2*1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2))/g; %N/m
-fprintf('Load mass:M=%.1f,k1=%.1fN/m,k2=%.1fN/m,k3=%.1fN/m,比例：%.1f,%.1f\n\n',M,k_1,k2,k_3,k_1/k2,k2/k_3);
+fprintf('由k2计算得到：Load mass:M=%.1f, 设计得到的弹簧：上&下：k1=%.1fN/m, 底部：k2=%.1fN/m, 中：k3=%.1fN/m,比例：%.2f,%.2f\n\n',M,k_1,k2,k_3,k_1/k2,k_3/k2);
 
 %% 由 α 和 α₁ 计算 k2, k3
 % k1 = k₂ · α_target
