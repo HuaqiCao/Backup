@@ -31,3 +31,44 @@ myModelView.FrameState = swWindowState_e.swWindowMaximized
 
 ' Save As
 longstatus = Part.SaveAs3("D:\Backup\frame\for ¶¨ÖÆµ¯»É\update\µ×²¿¸Ë.STL", 0, 2)
+Set Part = swApp.ActiveDoc
+Set myModelView = Part.ActiveView
+myModelView.FrameLeft = 0
+myModelView.FrameTop = 22
+Set myModelView = Part.ActiveView
+myModelView.FrameState = swWindowState_e.swWindowMaximized
+swApp.ActivateDoc2 "ÂÝÃ±", False, longstatus
+Set Part = swApp.ActiveDoc
+boolstatus = Part.Extension.SelectByID2("ÇÐ³ý-Ðý×ª1", "BODYFEATURE", 0, 0, 0, False, 0, Nothing, 0)
+Part.ActivateSelectedFeature
+boolstatus = Part.Extension.SelectByID2("²ÝÍ¼2", "SKETCH", 0, 0, 0, False, 0, Nothing, 0)
+Part.EditSketch
+Part.ClearSelection2 True
+boolstatus = Part.Extension.SelectByID2("6@²ÝÍ¼2@ÂÝÃ±.SLDPRT", "DIMENSION", 0.002757515842943779327, -0.006026545625336591008, 0, False, 0, Nothing, 0)
+Part.EditSketch
+Part.ClearSelection2 True
+Part.EditUndo2 1
+boolstatus = Part.Extension.SelectByID2("6@²ÝÍ¼2@ÂÝÃ±.SLDPRT", "DIMENSION", 0.002847419081105025812, -0.00607779995137904417, 0, False, 0, Nothing, 0)
+Dim myDimension As Object
+Set myDimension = Part.Parameter("6@²ÝÍ¼2")
+myDimension.SystemValue = 0.0055
+Part.ClearSelection2 True
+Part.SketchManager.InsertSketch True
+
+' Save As
+longstatus = Part.SaveAs3("D:\Backup\frame\for ¶¨ÖÆµ¯»É\update\ÂÝÃ±.STEP", 0, 2)
+boolstatus = Part.Extension.SelectByID2("²ÝÍ¼2", "SKETCH", 0, 0, 0, False, 0, Nothing, 0)
+Part.EditSketch
+Part.ClearSelection2 True
+' MSGBOX
+' ÊÇ·ñ½«¸Ä¶¯±£´æµ½ ÂÝÃ±£¿
+
+
+' Save
+Dim swErrors As Long
+Dim swWarnings As Long
+boolstatus = Part.Save3(1, swErrors, swWarnings)
+Set myModelView = Part.ActiveView
+myModelView.FrameState = swWindowState_e.swWindowMaximized
+swApp.ExitApp
+End Sub
