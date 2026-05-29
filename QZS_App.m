@@ -4,14 +4,15 @@ classdef QZS_App < matlab.apps.AppBase
     properties (Access = public)
         UIWindow               matlab.ui.Figure
         LeftPanel              matlab.ui.container.Panel
-        RightTabGroup          matlab.ui.container.TabGroup
+        RightAxesPanel         matlab.ui.container.Panel 
         
-        % 5个标签页完全对应原脚本的 6 个 Figure 核心功能
-        Tab1, Tab2, Tab3, Tab4, Tab5
-        
-        % 图像坐标轴句柄
-        Ax1, Ax2, Ax3, Ax3_Inset, Ax4, Ax5
-        AxGeom                 matlab.ui.control.UIAxes % <-- 修正2：更改为标准的 UIAxes 类名
+        % 平铺呈现的所有坐标轴句柄
+        AxGeom                 matlab.ui.control.UIAxes 
+        Ax1                    matlab.ui.control.UIAxes 
+        Ax3                    matlab.ui.control.UIAxes 
+        Ax3_Inset              matlab.ui.control.UIAxes 
+        Ax4                    matlab.ui.control.UIAxes 
+        Ax5                    matlab.ui.control.UIAxes 
         
         % 控制面板控件
         DeltaHatEdit          matlab.ui.control.NumericEditField
@@ -26,538 +27,444 @@ classdef QZS_App < matlab.apps.AppBase
         ZeEdit                matlab.ui.control.NumericEditField
         ExcelPathEdit         matlab.ui.control.EditField
         
-        % 交互按钮
+        % 3D 弹簧微调控件
+        SpringTurnsEdit       matlab.ui.control.NumericEditField 
+        SpringWireDiaEdit     matlab.ui.control.NumericEditField 
+        SpringCylinderEdit    matlab.ui.control.NumericEditField 
+        
+        % 交互按钮与日志
         RunCalcButton         matlab.ui.control.Button
         LoadCSVButton         matlab.ui.control.Button
-        
-        % 系统日志输出
         LogTextArea           matlab.ui.control.TextArea
     end
     
-    % --- 内部核心数据属性（严格保留原代码变量） ---
+    % --- 内部核心数据与可修改几何属性 ---
     properties (Access = private)
         y_hat, test_params
         f0_val, Ze_hat_val, zeta_val
         v_in_data, t_matrix, fs_rate, N_points
         v_out_matrix, f_psd_vec, v_in_psd_vec, v_out_psd_matrix
-    end
-
-    % --- UI界面初始化布局 ---
-    methods (Access = private)
-        function createComponents(app)
-            % 创建主窗口
-            app.UIWindow = uifigure('Name', '准零刚度(QZS)隔振系统非线性动力学交互分析平台', 'Position', [100 100 1250 820]);
-            
-            % 左侧控制面板
-            app.LeftPanel = uipanel(app.UIWindow, 'Title', '系统物理与几何参数设置', 'Position', [10 10 340 800], 'FontWeight', 'bold');
-            
-            % 参数输入组件排布
-            uilabel(app.LeftPanel, 'Position', [15 745 120 22], 'Text', 'delta_hat (δ̂):');
-            app.DeltaHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 745 160 22], 'Value', 0.5);
-            
-            uilabel(app.LeftPanel, 'Position', [15 715 120 22], 'Text', 'a_hat (â):');
-            app.AHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 715 160 22], 'Value', 0.755);
-            
-            uilabel(app.LeftPanel, 'Position', [15 685 120 22], 'Text', 'alpha (α):');
-            app.AlphaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 685 160 22], 'Value', 0.942);
-            
-            uilabel(app.LeftPanel, 'Position', [15 655 120 22], 'Text', 'alpha1 (α₁):');
-            app.Alpha1Edit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 655 160 22], 'Value', 0.501);
-            
-            uilabel(app.LeftPanel, 'Position', [15 625 120 22], 'Text', 'gamma (γ):');
-            app.GammaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 625 160 22], 'Value', 2.143);
-            
-            uilabel(app.LeftPanel, 'Position', [15 585 120 22], 'Text', '屏蔽内径 a (mm):');
-            app.ATargetEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 585 160 22], 'Value', 60);
-            
-            uilabel(app.LeftPanel, 'Position', [15 555 120 22], 'Text', '许用切应力 τ_p(Mpa):');
-            app.TauPEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 555 160 22], 'Value', 70);
-            
-            uilabel(app.LeftPanel, 'Position', [15 525 120 22], 'Text', '切变模量 G(Mpa):');
-            app.GEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 525 160 22], 'Value', 75000);
-            
-            uilabel(app.LeftPanel, 'Position', [15 485 120 22], 'Text', '阻尼系数 c:');
-            app.CEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 485 160 22], 'Value', 20);
-            
-            uilabel(app.LeftPanel, 'Position', [15 455 120 22], 'Text', '激励幅值 Ze(mm):');
-            app.ZeEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 455 160 22], 'Value', 3);
-            
-            uilabel(app.LeftPanel, 'Position', [15 415 120 22], 'Text', 'Excel导出路径:');
-            app.ExcelPathEdit = uieditfield(app.LeftPanel, 'text', 'Position', [150 415 160 22], 'Value', pwd);
-            
-            % 操作控制按钮
-            app.RunCalcButton = uibutton(app.LeftPanel, 'push', 'Position', [15 365 295 35], ...
-                'Text', '1. 运行刚度匹配并导出Excel', 'FontWeight', 'bold', ...
-                'ButtonPushedFcn', @(btn, event) app.calculateAndExportSprings());
-            
-            app.LoadCSVButton = uibutton(app.LeftPanel, 'push', 'Position', [15 320 295 35], ...
-                'Text', '2. 载入外部振动与参考CSV数据', 'FontWeight', 'bold', ...
-                'ButtonPushedFcn', @(btn, event) app.processVibrationSignals());
-            
-            % 日志区域
-            uilabel(app.LeftPanel, 'Position', [15 285 100 22], 'Text', '运行日志输出:');
-            app.LogTextArea = uitextarea(app.LeftPanel, 'Position', [15 15 295 265], 'Editable', 'off');
-            
-            % 右侧标签页组
-            app.RightTabGroup = uitabgroup(app.UIWindow, 'Position', [360 10 880 800]);
-            app.Tab1 = uitab(app.RightTabGroup, 'Title', '无量纲力/刚度曲线(Fig.1)');
-            app.Tab2 = uitab(app.RightTabGroup, 'Title', '5组刚度曲线对比(Fig.2)');
-            app.Tab3 = uitab(app.RightTabGroup, 'Title', '位移传递率分析(Fig.3/4)');
-            app.Tab4 = uitab(app.RightTabGroup, 'Title', '时域电压响应(Fig.5)');
-            app.Tab5 = uitab(app.RightTabGroup, 'Title', '功率谱密度PSD对比(Fig.6)');
-            
-            % --- 新增几何机构标签页 ---
-            tabGeom = uitab(app.RightTabGroup, 'Title', '机构几何装配图');
-            
-            % 初始化各坐标轴
-            app.Ax1 = uiaxes(app.Tab1, 'Position', [60 80 760 640]);
-            app.Ax2 = uiaxes(app.Tab2, 'Position', [60 80 760 640]);
-            app.Ax3 = uiaxes(app.Tab3, 'Position', [60 80 760 640]);
-            app.Ax3_Inset = uiaxes(app.Tab3, 'Position', [540 380 240 240]); % 嵌套图小窗口
-            app.Ax4 = uiaxes(app.Tab4, 'Position', [40 40 800 680]); % 3x2子图大画布
-            app.Ax5 = uiaxes(app.Tab5, 'Position', [60 80 760 640]);
-            app.AxGeom = uiaxes(tabGeom, 'Position', [60 80 760 640]); % <-- 修正2：几何画布初始化
-        end
-    end
-
-    % --- 构造函数与私有数据初始化 ---
-    methods (Access = public)
-        function app = QZS_App()
-            app.createComponents();
-            
-            % 严格复现原脚本内置的 y_hat 区间与 5 组标准对比参数矩阵
-            app.y_hat = linspace(-10, 10, 1000);
-            app.test_params = [
-                0.500, 0.755, 2.143, 0.942, 0.501;
-                0.471, 1.000, 1.054, 2.684, 0.179;
-                0.800, 0.800, 1.987, NaN, NaN;
-                0.500, 0.800, 1.987, NaN, NaN;
-                0.200, 0.800, 2.192, NaN, NaN];
-                
-            app.UIWindow.Visible = 'on';
-            app.addLog('系统就绪。请配置参数后点击“运行刚度匹配并导出Excel”按钮。');
-        end
-    end
-
-    methods (Access = private)
-        % =================================================================
-        % 核心算法内核：严格复现原脚本前半部分的弹簧选型、校验以及 Excel 导出
-        % =================================================================
-        function calculateAndExportSprings(app)
-            app.LogTextArea.Value = ""; 
-            app.addLog('>>> 开始根据目标无量纲参数反求物理弹簧及结构尺寸...');
-            
-            % 1. 获取界面输入
-            delta_hat_t = app.DeltaHatEdit.Value;
-            a_hat_t     = app.AHatEdit.Value;
-            alpha_t     = app.AlphaEdit.Value;
-            alpha1_t    = app.Alpha1Edit.Value;
-            gamma_t     = app.GammaEdit.Value;
-            a_target    = app.ATargetEdit.Value;
-            tau_p       = app.TauPEdit.Value;
-            G           = app.GEdit.Value;
-            g           = 9.81;
-            
-            % 2. 严格执行几何原长与预压缩量推导
-            h1_target = sqrt(a_target^2 * (1/a_hat_t^2 - 1));
-            delta_target = delta_hat_t * sqrt(a_target^2 + h1_target^2);
-            L1 = sqrt(a_target^2 + h1_target^2) + delta_target;
-            
-            d_target_geom = h1_target / (gamma_t - 1);
-            h_target = h1_target + d_target_geom;
-            h2_target = h1_target + 2*d_target_geom;
-            
-            rho_target = (1 - a_hat_t^2) / (gamma_t - 1)^2;
-            delta_hat1_target = 1 - sqrt(1 + 2*sqrt(1 - a_hat_t^2)*sqrt(rho_target) + rho_target) + delta_hat_t;
-            delta_hat2_target = 1 - sqrt(1 + 4*sqrt(1 - a_hat_t^2)*sqrt(rho_target) + 4*rho_target) + delta_hat_t;
-            delta1_target = delta_hat1_target * sqrt(a_target^2 + h1_target^2);
-            delta2_target = delta_hat2_target * sqrt(a_target^2 + h1_target^2);
-            
-            L2 = sqrt(a_target^2 + h_target^2) + delta1_target;
-            L3 = sqrt(a_target^2 + h2_target^2) + delta2_target;
-            
-            % 3. 弹簧选型公式
-            d1_w = 1.2; D1_w = 15.6; n1_w = 15;
-            k_1 = (G * d1_w^4) / (8 * D1_w^3 * n1_w) * 1000;
-            
-            d2_w = 1.2; D2_w = 15.6; n2_w = 14;
-            k2 = (G * d2_w^4) / (8 * D2_w^3 * n2_w) * 1000;
-            
-            d3_w = 1.2; D3_w = 15.6; n3_w = 30;
-            k_3 = (G * d3_w^4) / (8 * D3_w^3 * n3_w) * 1000;
-            
-            M_computed = (k2 * 1.229 * sqrt((a_target/1000)^2 + (h1_target/1000)^2)) / g;
-            app.addLog(sprintf('结构计算：h1=%.1fmm, δ=%.1fmm, 自动匹配负载 M=%.2f kg', h1_target, delta_target, M_computed));
-            
-            % 4. 最佳理论平衡压缩量推导
-            k1 = k2 * alpha_t;
-            k3 = k2 * alpha1_t;
-            f1 = -(k1/1000)*delta_target*(h1_target/sqrt(a_target^2+h1_target^2));
-            f3 = -(k3/1000)*delta1_target*(h_target/sqrt(a_target^2+h_target^2));
-            f4 = -(k1/1000)*delta2_target*(h2_target/sqrt(a_target^2+h2_target^2));
-            f2 = -(2*f1 + 2*f3 + 2*f4);
-            delta3_target = f2 / (k2/1000);
-            L = h2_target + delta3_target;
-            
-            % 5. 循环迭代弹簧组合存储至 Excel
-            C_range = 5:1:12; 
-            ratio_range = 0.28:0.01:0.5;
-            
-            k2_results = [];
-            for C = C_range
-                for ratio = ratio_range
-                    a_coef = (G*ratio)/(8*(C^4)*(k2/1000));
-                    D_val = (-2/C + sqrt(4/(C^2) + 4*a_coef*L)) / (2*a_coef);
-                    d_val = D_val / C;
-                    D_out = D_val + d_val;
-                    K_factor = (4*C-1)/(4*C-4) + 0.615/C;
-                    d_tgt = 1.6*sqrt(K_factor*C*M_computed*g/tau_p);
-                    n_val = (G*D_val) / (8*(C^4)*(k2/1000));
-                    k2_act = (G*D_val) / (8*(C^4)*n_val);
-                    p_val = ratio * D_val;
-                    k2_results = [k2_results; d_tgt, d_val, D_val, D_out, C, n_val, ratio, p_val, G, L, k2_act*1000];
-                end
-            end
-            k2_table = array2table(k2_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm','C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N_m'});
-            [~, ia] = unique(k2_table(:, {'C', 'ratio'}), 'rows'); k2_table = k2_table(ia, :);
-
-            k1_results = [];
-            for C1 = C_range
-                for ratio1 = ratio_range
-                    a1 = (G*ratio1)/(8*(C1^4)*(k1/1000));
-                    D1 = (-2/C1 + sqrt(4/(C1^2) + 4*a1*L1)) / (2*a1);
-                    d1 = D1 / C1; D_out1 = D1 + d1;
-                    K1_f = (4*C1-1)/(4*C1-4) + 0.615/C1;
-                    d1_tgt = 1.6*sqrt(K1_f*C1*M_computed*g/tau_p);
-                    n1_val = (G*D1) / (8*(C1^4)*(k1/1000));
-                    k1_act = (G*D1) / (8*(C1^4)*n1_val);
-                    p1_val = ratio1 * D1;
-                    k1_results = [k1_results; d1_tgt, d1, D1, D_out1, C1, n1_val, ratio1, p1_val, G, L1, k1_act*1000];
-                end
-            end
-            k1_table = array2table(k1_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm', 'C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N_m'});
-            [~, ia] = unique(k1_table(:, {'C', 'ratio'}), 'rows'); k1_table = k1_table(ia, :);
-
-            k3_results = [];
-            for C2 = C_range
-                for ratio2 = ratio_range
-                    a2 = (G*ratio2)/(8*(C2^4)*(k3/1000));
-                    D2 = (-2/C2 + sqrt(4/(C2^2) + 4*a2*L2)) / (2*a2);
-                    d2 = D2 / C2; D_out2 = D2 + d2;
-                    K2_f = (4*C2-1)/(4*C2-4) + 0.615/C2;
-                    d2_tgt = 1.6*sqrt(K2_f*C2*M_computed*g/tau_p);
-                    n2_val = (G*D2) / (8*(C2^4)*(k3/1000));
-                    k3_act = (G*D2) / (8*(C2^4)*n2_val);
-                    p2_val = ratio2 * D2;
-                    k3_results = [k3_results; d2_tgt, d2, D2, D_out2, C2, n2_val, ratio2, p2_val, G, L2, k3_act*1000];
-                end
-            end
-            k3_table = array2table(k3_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm', 'C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N_m'});
-            [~, ia] = unique(k3_table(:, {'C', 'ratio'}), 'rows'); k3_table = k3_table(ia, :);
-
-            try
-                excel_filename = fullfile(app.ExcelPathEdit.Value, 'Spring_Parameters.xlsx');
-                writetable(k2_table, excel_filename, 'Sheet', 'K2_Spring');
-                writetable(k1_table, excel_filename, 'Sheet', 'Up_Down_Spring');
-                writetable(k3_table, excel_filename, 'Sheet', 'Middle_Spring');
-                app.addLog(['成功导出弹簧参数表至：', excel_filename]);
-            catch ME
-                app.addLog(['Excel导出失败: ', ME.message]);
-            end
-            
-            % 6. 存储常量
-            app.f0_val = (sqrt(k2/M_computed)) / (2*pi);
-            app.Ze_hat_val = (app.ZeEdit.Value / 1000) / sqrt((a_target/1000)^2 + (h1_target/1000)^2);
-            app.zeta_val = app.CEdit.Value * (sqrt(k2/M_computed)) / (2 * k2);
-
-            % 7. 渲染静态分析图与新加的位置示意图
-            app.plotStaticFigures(h1_target, h2_target, a_target, rho_target, delta_hat_t, delta_hat1_target, delta_hat2_target, alpha_t, alpha1_t);
-            app.plotMechanismGeometry(a_target, h1_target, h_target, h2_target); % <-- 联动触发
-        end
+        v_out_data
+        
+        % 弹簧独立参数
+        k_vert, L0_vert, d_vert, D_vert, n_vert
+        k_upper, L0_upper, d_upper, D_upper, n_upper
+        k_lower, L0_lower, d_lower, D_lower, n_lower
         
         % =================================================================
-        % 静态特性绘图引擎
+        % 【用户自定义：几何模型核心结构可控参数区】
+        % 改变这里的数值，3D几何构型图中的平台结构、间距和跨度将自适应同步修改
         % =================================================================
-        function plotStaticFigures(app, h1_t, h2_t, a_t, rho_t, delta_hat_t, delta_hat1_t, delta_hat2_t, alpha_t, alpha1_t)
-            cla(app.Ax1, 'reset');
-            x_e_hat_tgt = sqrt(1 - app.AHatEdit.Value^2) + sqrt(rho_t);
-            K_hat_c1 = zeros(size(app.y_hat)); f_hat_c1 = zeros(size(app.y_hat)); y_hat_c1 = zeros(size(app.y_hat));
-            
-            for i = 1:length(app.y_hat)
-                xi_h = x_e_hat_tgt + app.y_hat(i);
-                P1 = sqrt(1 - app.AHatEdit.Value^2) - xi_h;
-                P2 = 1 - 2*sqrt(1 - app.AHatEdit.Value^2)*xi_h + xi_h^2;
-                P3 = 1 + delta_hat_t;
-                P4 = sqrt(1 - app.AHatEdit.Value^2 + rho_t + 2*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t)) - xi_h;
-                P5 = 1 + rho_t + 2*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t) - 2*sqrt(1 - app.AHatEdit.Value^2 + rho_t + 2*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t))*xi_h + xi_h^2;
-                P6 = sqrt(1 + 2*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t) + rho_t) + delta_hat1_t;
-                P7 = sqrt(1 - app.AHatEdit.Value^2) + 2*sqrt(rho_t) - xi_h;
-                P8 = 1 + 4*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t) + 4*rho_t - 2*(sqrt(1 - app.AHatEdit.Value^2) + 2*sqrt(rho_t))*xi_h + xi_h^2;
-                P9 = sqrt(1 + 4*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t) + 4*rho_t) + delta_hat2_t;
-                
-                dP2 = -2*sqrt(1 - app.AHatEdit.Value^2) + 2*xi_h;
-                dP5 = -2*sqrt(1 - app.AHatEdit.Value^2 + rho_t + 2*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t)) + 2*xi_h;
-                dP8 = -2*(sqrt(1 - app.AHatEdit.Value^2) + 2*sqrt(rho_t)) + 2*xi_h;
-                
-                dN1 = -2 * alpha_t * (1 - P3 * P2^(-0.5)) * (-1) - alpha_t * P1 * P2^(-1.5) * P3 * dP2;
-                dN3 = -2 * alpha1_t * (1 - P6 * P5^(-0.5)) * (-1) - alpha1_t * P4 * P5^(-1.5) * P6 * dP5;
-                dN5 = -2 * alpha_t * (1 - P9 * P8^(-0.5)) * (-1) - alpha_t * P7 * P8^(-1.5) * P9 * dP8;
-                
-                K_hat_c1(i) = 1 + dN1 + dN3 + dN5;
-                f_hat_c1(i) = xi_h - 2*alpha_t * P1*(sqrt(P2)-P3)/sqrt(P2) - 2*alpha1_t * P4*(sqrt(P5)-P6)/sqrt(P5) - 2*alpha_t * P7*(sqrt(P8)-P9)/sqrt(P8);
-                y_hat_c1(i) = xi_h - x_e_hat_tgt;
-            end
-            
-            yyaxis(app.Ax1, 'left');
-            plot(app.Ax1, y_hat_c1, f_hat_c1, 'Color', [0, 0.4470, 0.7410], 'LineWidth', 2.5);
-            ylabel(app.Ax1, 'Dimensionless Force \bf\hat{f}');
-            app.Ax1.YLim = [-6, 6]; app.Ax1.XLim = [-3, 3];
-            
-            yyaxis(app.Ax1, 'right');
-            plot(app.Ax1, y_hat_c1, K_hat_c1, 'Color', [0.8500, 0.3250, 0.0980], 'LineStyle', '--', 'LineWidth', 2.5);
-            ylabel(app.Ax1, 'Dimensionless Stiffness \bf\hat{K}');
-            
-            grid(app.Ax1, 'on');
-            xlabel(app.Ax1, 'Dimensionless Displacement \bf\hat{y}');
-            title(app.Ax1, 'Dimensionless Force and Stiffness Curves (Target Parameters)');
-            
-            % TAB 2 绘制
-            cla(app.Ax2); hold(app.Ax2, 'on'); grid(app.Ax2, 'on');
-            num_test = size(app.test_params, 1); base_colors = lines(num_test); line_styles = {'-', '--', ':', '-.', '-'};
-            
-            for j = 1:num_test
-                d_h = app.test_params(j,1); a_h = app.test_params(j,2); g_h = app.test_params(j,3);
-                if ~isnan(app.test_params(j,4))
-                    al = app.test_params(j,4); al1 = app.test_params(j,5);
-                else
-                    Dlt = sqrt(1 + a_h^2 * g_h^2 - 2 * a_h^2 * g_h); Dlt1 = (1 + d_h) * (g_h - 1); Dlt2 = (1 + d_h) * (g_h - 1)^3;
-                    C1 = 6*(1 + d_h) * a_h^(-3) / (-12*Dlt2/Dlt^3 + 72*Dlt2*(1-a_h^2)/Dlt^5 - 60*Dlt2*(1-a_h^2)^2/Dlt^7);
-                    al1 = -1/(C1*(4-4*Dlt1/Dlt + 4*(1-a_h^2)*Dlt1/Dlt^3) + 2*(1-(1 + d_h)/a_h)); al = C1 * al1;
-                end
-                
-                K_hat_loop = zeros(size(app.y_hat));
-                rho_loop = (1 - a_h^2) / (g_h - 1)^2;
-                dh1_loop = 1 - sqrt(1 + 2*sqrt(1 - a_h^2)*sqrt(rho_loop) + rho_loop) + d_h;
-                dh2_loop = 1 - sqrt(1 + 4*sqrt(1 - a_h^2)*sqrt(rho_loop) + 4*rho_loop) + d_h;
-                xe_loop = sqrt(1 - a_h^2) + sqrt(rho_loop);
-                
-                for i = 1:length(app.y_hat)
-                    xi_h = xe_loop + app.y_hat(i);
-                    P1 = sqrt(1 - a_h^2) - xi_h; P2 = 1 - 2*sqrt(1 - a_h^2)*xi_h + xi_h^2; P3 = 1 + d_h;
-                    P4 = sqrt(1 - a_h^2 + rho_loop + 2*sqrt(1 - a_h^2)*sqrt(rho_loop)) - xi_h;
-                    P5 = 1 + rho_loop + 2*sqrt(1 - a_h^2)*sqrt(rho_loop) - 2*sqrt(1 - a_h^2 + rho_loop + 2*sqrt(1 - a_h^2)*sqrt(rho_loop))*xi_h + xi_h^2;
-                    P6 = sqrt(1 + 2*sqrt(1 - a_h^2)*sqrt(rho_loop) + rho_loop) + dh1_loop;
-                    P7 = sqrt(1 - a_h^2) + 2*sqrt(rho_loop) - xi_h;
-                    P8 = 1 + 4*sqrt(1 - a_h^2)*sqrt(rho_loop) + 4*rho_loop - 2*(sqrt(1 - a_h^2) + 2*sqrt(rho_loop))*xi_h + xi_h^2;
-                    P9 = sqrt(1 + 4*sqrt(1 - a_h^2)*sqrt(rho_loop) + 4*rho_loop) + dh2_loop;
-                    
-                    dP2 = -2*sqrt(1 - a_h^2) + 2*xi_h; dP5 = -2*sqrt(1 - a_h^2 + rho_loop + 2*sqrt(1 - a_h^2)*sqrt(rho_loop)) + 2*xi_h; dP8 = -2*(sqrt(1 - a_h^2) + 2*sqrt(rho_loop)) + 2*xi_h;
-                    dN1 = -2 * al * (1 - P3 * P2^(-0.5)) * (-1) - al * P1 * P2^(-1.5) * P3 * dP2;
-                    dN3 = -2 * al1 * (1 - P6 * P5^(-0.5)) * (-1) - al1 * P4 * P5^(-1.5) * P6 * dP5;
-                    dN5 = -2 * al * (1 - P9 * P8^(-0.5)) * (-1) - al * P7 * P8^(-1.5) * P9 * dP8;
-                    K_hat_loop(i) = 1 + dN1 + dN3 + dN5;
-                end
-                lbl = sprintf('δ̂=%.3f, â=%.3f, γ=%.3f, α=%.3f, α₁=%.3f', d_h, a_h, g_h, al, al1);
-                plot(app.Ax2, app.y_hat, K_hat_loop, 'Color', base_colors(j,:), 'LineStyle', line_styles{j}, 'LineWidth', 2.5, 'DisplayName', lbl);
-            end
-            xline(app.Ax2, 0, '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1.5, 'HandleVisibility', 'off');
-            app.Ax2.XLim = [-0.8, 0.8]; app.Ax2.YLim = [0, 1.5];
-            xlabel(app.Ax2, '\bf\hat{y}'); ylabel(app.Ax2, '\bf\hat{K}');
-            title(app.Ax2, 'Stiffness Curves Comparison of QZS'); legend(app.Ax2, 'Location', 'best');
-            hold(app.Ax2, 'off');
-            
-            app.plotTransmissibilityCurves();
-        end
+        platform_w = 42.0;     % 1. 中间测控滑动平台的物理宽度 (X方向, mm)
+        platform_h = 70.0;     % 2. 中间测控滑动平台的物理高度 (Y方向, mm)
+        platform_d = 25.0;     % 3. 中间测控滑动平台的物理厚度 (Z方向, mm)
+        inner_spacer_y = 18.0; % 4. 左右弹簧连接在平台侧面时的等间距垂直距离 (mm)
+        outer_spacer_y = 48.0; % 5. 左右弹簧拉开连接在外部两侧立柱上的等间距垂直距离 (mm)
+        spring_span_a = 60.0;  % 6. 弹簧水平安装总跨度 a (mm) (会与输入框同步)
+    end
 
-        % =================================================================
-        % 传递率计算器
-        % =================================================================
-        function plotTransmissibilityCurves(app)
-            cla(app.Ax3); hold(app.Ax3, 'on'); grid(app.Ax3, 'on');
-            cla(app.Ax3_Inset); hold(app.Ax3_Inset, 'on'); grid(app.Ax3_Inset, 'on');
+    % --- 核心生命周期与构造函数 ---
+    methods (Access = public)
+        function app = QZS_App()
+            % 自动构建组件布局
+            createComponents(app);
             
-            mu1_vals = [0.1907, 0.1188, 0.00048, 0.3367, 0.2189]; mu3_vals = [1.3836, 1.2344, 0.0017,  0.3876, 0.2104];
-            f_ex = linspace(0.1, 10, 1000); f_inset = linspace(6, 10, 200);
-            colors_map = {[0 0.4470 0.7410], [0.8500 0.3250 0.0980], [0.4660 0.6740 0.1880], [0.4940 0.1840 0.5560], [0.3010 0.7450 0.9330]}; styles = {'--', '-', '-.', ':', '-'};
+            % 注册到 App 架构中
+            registerApp(app, app.UIWindow);
             
-            for i = 1:5
-                Ta_main = zeros(size(f_ex)); Ta_ins = zeros(size(f_inset));
-                for j = 1:length(f_ex)
-                    Omega = f_ex(j) / app.f0_val; Ta_main(j) = app.compute_transmissibility(mu1_vals(i), mu3_vals(i), Omega, app.Ze_hat_val, app.zeta_val);
-                end
-                for j = 1:length(f_inset)
-                    Omega = f_inset(j) / app.f0_val; Ta_ins(j) = app.compute_transmissibility(mu1_vals(i), mu3_vals(i), Omega, app.Ze_hat_val, app.zeta_val);
-                end
-                lbl = sprintf('Group %d: \\mu_1=%.4f, \\mu_3=%.4f', i, mu1_vals(i), mu3_vals(i));
-                plot(app.Ax3, f_ex, Ta_main, 'Color', colors_map{i}, 'LineStyle', styles{i}, 'LineWidth', 2.0, 'DisplayName', lbl);
-                plot(app.Ax3_Inset, f_inset, Ta_ins, 'Color', colors_map{i}, 'LineStyle', styles{i}, 'LineWidth', 1.5);
-            end
-            yline(app.Ax3, 1, '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1.5, 'HandleVisibility', 'off');
-            app.Ax3.XLim = [0, 10]; app.Ax3.YLim = [0, 10];
-            xlabel(app.Ax3, 'Frequency (Hz)'); ylabel(app.Ax3, 'Transmissibility T_a');
-            title(app.Ax3, sprintf('Displacement Transmissibility (\\zeta = %.3f, Z_e = %.1fmm)', app.zeta_val, app.ZeEdit.Value));
-            legend(app.Ax3, 'Location', 'northeast', 'FontSize', 9);
-            app.Ax3_Inset.XLim = [6, 10]; app.Ax3_Inset.YLim = [0, 0.25];
-            hold(app.Ax3, 'off'); hold(app.Ax3_Inset, 'off');
-            app.addLog(sprintf('理论计算匹配就绪：参考原频 f0=%.2f Hz, 无量纲激励幅值 Ze_hat=%.4f', app.f0_val, app.Ze_hat_val));
+            % 首次打开应用时，默认自动计算并平铺渲染初始图像
+            calculateAndExportSprings(app);
         end
+        
+        function delete(app)
+            % 销毁窗口
+            delete(app.UIWindow);
+        end
+    end
 
+    % --- UI界面初始化布局与组件配置 ---
+    methods (Access = private)
+        function createComponents(app)
+            % 主窗体
+            app.UIWindow = uifigure('Name', 'QZS Nonlinear Isolation Interaction Platform (All-In-One Dashboard)', 'Position', [50 50 1420 850]);
+            
+            % 1. 左侧面板收窄 (宽度降为 260) - 恢复默认字体
+            app.LeftPanel = uipanel(app.UIWindow, 'Title', 'Configuration', 'Position', [10 10 260 830], 'FontWeight', 'bold');
+            
+            y_pos = 775;
+            % 使用原生 Unicode 完美渲染出带帽子的 δ̂ 符号
+            uilabel(app.LeftPanel, 'Position', [10 y_pos 100 22], 'Text', 'delta_hat (δ̂):', 'FontSize', 11);
+            app.DeltaHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [115 y_pos 130 22], 'Value', 0.5);
+            
+            y_pos = y_pos - 28;
+            % 使用原生 Unicode 完美渲染出带帽子的 â 符号
+            uilabel(app.LeftPanel, 'Position', [10 y_pos 100 22], 'Text', 'a_hat (â):', 'FontSize', 11);
+            app.AHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [115 y_pos 130 22], 'Value', 0.755);
+            
+            y_pos = y_pos - 28;
+            % 修复 alpha 符号渲染并恢复字体
+            uilabel(app.LeftPanel, 'Position', [10 y_pos 100 22], 'Text', 'alpha (α):', 'FontSize', 11);
+            app.AlphaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [115 y_pos 130 22], 'Value', 0.942);
+            
+            y_pos = y_pos - 28;
+            % 修复 alpha1 符号渲染并恢复字体
+            uilabel(app.LeftPanel, 'Position', [10 y_pos 100 22], 'Text', 'alpha1 (α₁):', 'FontSize', 11);
+            app.Alpha1Edit = uieditfield(app.LeftPanel, 'numeric', 'Position', [115 y_pos 130 22], 'Value', 0.501);
+            
+            y_pos = y_pos - 28;
+            % 修复 gamma 符号渲染并恢复字体
+            uilabel(app.LeftPanel, 'Position', [10 y_pos 100 22], 'Text', 'gamma (γ):', 'FontSize', 11);
+            app.GammaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [115 y_pos 130 22], 'Value', 2.143);
+            
+            y_pos = y_pos - 28;
+            uilabel(app.LeftPanel, 'Position', [10 y_pos 100 22], 'Text', 'Span a (mm):');
+            app.ATargetEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [115 y_pos 130 22], 'Value', 60, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
+            
+            y_pos = y_pos - 28;
+            % 修复 tau_p 符号渲染并恢复字体
+            uilabel(app.LeftPanel, 'Position', [10 y_pos 100 22], 'Text', 'tau_p (τ_p):', 'FontSize', 11);
+            app.TauPEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [115 y_pos 130 22], 'Value', 0.15);
+            
+            y_pos = y_pos - 28;
+            uilabel(app.LeftPanel, 'Position', [10 y_pos 100 22], 'Text', 'G (MPa):');
+            app.GEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [115 y_pos 130 22], 'Value', 75000);
+            
+            y_pos = y_pos - 28;
+            uilabel(app.LeftPanel, 'Position', [10 y_pos 100 22], 'Text', 'Damping c:');
+            app.CEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [115 y_pos 130 22], 'Value', 20);
+            
+            y_pos = y_pos - 28;
+            uilabel(app.LeftPanel, 'Position', [10 y_pos 100 22], 'Text', 'Amp Ze (mm):');
+            app.ZeEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [115 y_pos 130 22], 'Value', 3);
+
+            % 真实立体弹簧参数配置面板区 - 恢复默认字体
+            y_pos = y_pos - 115;
+            bg_sp = uipanel(app.LeftPanel, 'Title', '3D Spring Shape Parameters', 'Position', [5 y_pos 245 110], 'FontWeight', 'bold');
+            uilabel(bg_sp, 'Position', [5 62 110 22], 'Text', 'Turns n:');
+            app.SpringTurnsEdit = uieditfield(bg_sp, 'numeric', 'Position', [120 62 110 22], 'Value', 10);
+            uilabel(bg_sp, 'Position', [5 34 110 22], 'Text', 'Wire dia d (mm):');
+            app.SpringWireDiaEdit = uieditfield(bg_sp, 'numeric', 'Position', [120 34 110 22], 'Value', 1.8);
+            uilabel(bg_sp, 'Position', [5 6 110 22], 'Text', 'Mid dia D (mm):');
+            app.SpringCylinderEdit = uieditfield(bg_sp, 'numeric', 'Position', [120 6 110 22], 'Value', 14);
+            
+            y_pos = y_pos - 35;
+            uilabel(app.LeftPanel, 'Position', [10 y_pos 90 22], 'Text', 'CSV Folder Path:');
+            app.ExcelPathEdit = uieditfield(app.LeftPanel, 'text', 'Position', [100 y_pos 145 22], 'Value', pwd);
+            
+            y_pos = y_pos - 45;
+            app.RunCalcButton = uibutton(app.LeftPanel, 'push', 'Position', [10 y_pos 235 38], 'Text', '1. Calculate & Plot All', 'FontWeight', 'bold', 'ButtonPushedFcn', @(btn, event) app.calculateAndExportSprings());
+            y_pos = y_pos - 40;
+            app.LoadCSVButton = uibutton(app.LeftPanel, 'push', 'Position', [10 y_pos 235 35], 'Text', '2. Load Signal & Resolve PSD', 'ButtonPushedFcn', @(btn, event) app.processVibrationSignals());
+            
+            app.LogTextArea = uitextarea(app.LeftPanel, 'Position', [10 10 235 y_pos-20], 'Editable', 'off');
+            
+            % 2. 右侧全平铺绘图大面板 - 恢复默认字体
+            app.RightAxesPanel = uipanel(app.UIWindow, 'Title', 'Dashboard & Analytical Analysis View (Flat Layout)', 'Position', [280 10 1130 830], 'FontWeight', 'bold');
+            
+            % 上排与下排平铺坐标轴句柄组件调用
+            app.AxGeom    = uiaxes(app.RightAxesPanel, 'Position', [20  420 520 360]);
+            app.Ax1       = uiaxes(app.RightAxesPanel, 'Position', [570 420 520 360]);
+            app.Ax3       = uiaxes(app.RightAxesPanel, 'Position', [20  40  340 340]);
+            app.Ax3_Inset = uiaxes(app.RightAxesPanel, 'Position', [230 210 120 140]); 
+            app.Ax4       = uiaxes(app.RightAxesPanel, 'Position', [395 40  340 340]); 
+            app.Ax5       = uiaxes(app.RightAxesPanel, 'Position', [765 40  340 340]);
+        end
+        
+        function updateGeometrySpan(app)
+            app.spring_span_a = app.ATargetEdit.Value;
+        end
+    end
+
+    % --- 核心计算、渲染与信号解算引擎核心逻辑 ---
+    methods (Access = private)
+        
         % =================================================================
-        % 几何机构拓扑位置可视化引擎 (新增并且严格封闭在 methods 块内)
+        % 真实三维几何机构拓扑渲染引擎
         % =================================================================
         function plotMechanismGeometry(app, a, h1, h, h2)
             cla(app.AxGeom, 'reset');
             hold(app.AxGeom, 'on');
             grid(app.AxGeom, 'on');
+            view(app.AxGeom, [0, 0, 1]); % 严格正视面投影展示
             
-            O = [0, 0];                  
-            Top_Fix = [0, h1];           
-            Bot_Fix = [0, -h1];          
-            Left_Anchor1  = [-a,  (h2-h1)/2]; 
-            Right_Anchor1 = [ a,  (h2-h1)/2];
-            Left_Anchor2  = [-a, -(h2-h1)/2];
-            Right_Anchor2 = [ a, -(h2-h1)/2];
+            set(app.AxGeom, 'FontSize', 10);
+            app.spring_span_a = a; 
+
+            % 读取解耦的可控参数
+            pw = app.platform_w;   
+            ph = app.platform_h;   
+            pd = app.platform_d;   
+            ins = app.inner_spacer_y;  
+            out = app.outer_spacer_y;  
+            span_a = app.spring_span_a;
+
+            % 建立 3D 正交空间锚定骨架坐标
+            Left_Column_Top    = [-span_a,  out, 0];
+            Left_Column_Mid    = [-span_a,    0, 0];
+            Left_Column_Bot    = [-span_a, -out, 0];
             
-            plot(app.AxGeom, [Left_Anchor1(1), Left_Anchor2(1)], [Left_Anchor1(2), Left_Anchor2(2)], 'k-', 'LineWidth', 4);
-            plot(app.AxGeom, [Right_Anchor1(1), Right_Anchor2(1)], [Right_Anchor1(2), Right_Anchor2(2)], 'k-', 'LineWidth', 4);
-            plot(app.AxGeom, Top_Fix(1), Top_Fix(2), 'ks', 'MarkerFaceColor', [0.3 0.3 0.3], 'MarkerSize', 10);
-            plot(app.AxGeom, Bot_Fix(1), Bot_Fix(2), 'ks', 'MarkerFaceColor', [0.3 0.3 0.3], 'MarkerSize', 10);
+            Right_Column_Top   = [ span_a,  out, 0];
+            Right_Column_Mid   = [ span_a,    0, 0];
+            Right_Column_Bot   = [ span_a, -out, 0];
             
-            plot(app.AxGeom, [O(1), Top_Fix(1)], [O(2), Top_Fix(2)], 'Color', [0.8500 0.3250 0.0980], 'LineWidth', 3, 'LineStyle', '-.', 'DisplayName', 'Vertical Springs (k_1)');
-            plot(app.AxGeom, [O(1), Bot_Fix(1)], [O(2), Bot_Fix(2)], 'Color', [0.8500 0.3250 0.0980], 'LineWidth', 3, 'LineStyle', '-.');
+            Left_P_Top         = [-pw/2,  ins, 0];
+            Left_P_Mid         = [-pw/2,    0, 0];
+            Left_P_Bot         = [-pw/2, -ins, 0];
             
-            plot(app.AxGeom, [O(1), Left_Anchor1(1)], [O(2), Left_Anchor1(2)], 'Color', [0 0.4470 0.7410], 'LineWidth', 3, 'DisplayName', 'Oblique Upper (k_3)');
-            plot(app.AxGeom, [O(1), Right_Anchor1(1)], [O(2), Right_Anchor1(2)], 'Color', [0 0.4470 0.7410], 'LineWidth', 3);
+            Right_P_Top        = [ pw/2,  ins, 0];
+            Right_P_Mid        = [ pw/2,    0, 0];
+            Right_P_Bot        = [ pw/2, -ins, 0];
             
-            plot(app.AxGeom, [O(1), Left_Anchor2(1)], [O(2), Left_Anchor2(2)], 'Color', [0.4660 0.6740 0.1880], 'LineWidth', 3, 'DisplayName', 'Oblique Lower (k_2)');
-            plot(app.AxGeom, [O(1), Right_Anchor2(1)], [O(2), Right_Anchor2(2)], 'Color', [0.4660 0.6740 0.1880], 'LineWidth', 3);
+            Bottom_P_Connect   = [0, -ph/2, 0];             
+            Ground_Vert_Fix    = [0, -ph/2 - h1, 0];        
+
+            % 绘制外支撑连杆立柱
+            plot3(app.AxGeom, [Left_Column_Top(1), Left_Column_Bot(1)], [Left_Column_Top(2)*1.2, Left_Column_Bot(2)*1.2], [0, 0], 'w-', 'LineWidth', 14);
+            plot3(app.AxGeom, [Left_Column_Top(1), Left_Column_Bot(1)], [Left_Column_Top(2)*1.2, Left_Column_Bot(2)*1.2], [0, 0], 'k-', 'LineWidth', 1.0);
+            plot3(app.AxGeom, [Right_Column_Top(1), Right_Column_Bot(1)], [Right_Column_Top(2)*1.2, Right_Column_Bot(2)*1.2], [0, 0], 'w-', 'LineWidth', 14);
+            plot3(app.AxGeom, [Right_Column_Top(1), Right_Column_Bot(1)], [Right_Column_Top(2)*1.2, Right_Column_Bot(2)*1.2], [0, 0], 'k-', 'LineWidth', 1.0);
+
+            % 绘制测控实体平台
+            dx = pw/2; dy = ph/2; dz = pd/2;
+            verts = [-dx -dy -dz;  dx -dy -dz;  dx  dy -dz; -dx  dy -dz; ...
+                     -dx -dy  dz;  dx -dy  dz;  dx  dy  dz; -dx  dy  dz];
+            faces = [1 2 3 4; 5 6 7 8; 1 2 6 5; 2 3 7 6; 3 4 8 7; 4 1 5 8];
+            patch(app.AxGeom, 'Vertices', verts, 'Faces', faces, 'FaceColor', [0.93, 0.93, 0.93], 'EdgeColor', [0.2, 0.2, 0.2], 'LineWidth', 1.2);
+
+            % 3D立体弹簧高级网格扫描生成
+            app.draw3DSpringMesh(app.AxGeom, Ground_Vert_Fix, Bottom_P_Connect, app.D_vert, app.d_vert, app.n_vert, [0.85, 0.33, 0.10]);
             
-            plot(app.AxGeom, O(1), O(2), 'ko', 'MarkerFaceColor', 'y', 'MarkerSize', 18, 'DisplayName', 'Isolated Mass (M)');
-            text(app.AxGeom, O(1)+5, O(2)+5, 'Mass M', 'FontWeight', 'bold', 'Color', 'k');
+            app.draw3DSpringMesh(app.AxGeom, Left_Column_Top, Left_P_Top, app.D_upper, app.d_upper, app.n_upper, [0.00, 0.45, 0.74]);
+            app.draw3DSpringMesh(app.AxGeom, Left_Column_Mid, Left_P_Mid, app.D_upper, app.d_upper, app.n_upper, [0.00, 0.45, 0.74]);
+            app.draw3DSpringMesh(app.AxGeom, Left_Column_Bot, Left_P_Bot, app.D_upper, app.d_upper, app.n_upper, [0.00, 0.45, 0.74]);
             
-            text(app.AxGeom, -a/2, (h2-h1)/4 + 10, sprintf('a = %.1f mm', a), 'HorizontalAlignment', 'center');
-            text(app.AxGeom, 10, h1/2, sprintf('h_1 = %.1f mm', h1), 'Color', [0.5 0.5 0.5]);
+            app.draw3DSpringMesh(app.AxGeom, Right_Column_Top, Right_P_Top, app.D_lower, app.d_lower, app.n_lower, [0.47, 0.67, 0.19]);
+            app.draw3DSpringMesh(app.AxGeom, Right_Column_Mid, Right_P_Mid, app.D_lower, app.d_lower, app.n_lower, [0.47, 0.67, 0.19]);
+            app.draw3DSpringMesh(app.AxGeom, Right_Column_Bot, Right_P_Bot, app.D_lower, app.d_lower, app.n_lower, [0.47, 0.67, 0.19]);
             
-            title(app.AxGeom, 'QZS 隔振系统机构弹簧空间位置几何分布示意图', 'FontSize', 12);
-            xlabel(app.AxGeom, '水平跨度方向 X (mm)'); ylabel(app.AxGeom, '垂直运动方向 Y (mm)');
+            camlight(app.AxGeom, 'headlight');
+            lighting(app.AxGeom, 'gouraud');
             
-            max_range = max([a, h1, h2]) * 1.2;
-            app.AxGeom.XLim = [-max_range, max_range]; app.AxGeom.YLim = [-max_range, max_range];
-            legend(app.AxGeom, 'Location', 'northeastoutside');
+            title(app.AxGeom, 'QZS Physical Model Geometric Assembly (3D)', 'FontSize', 12, 'FontWeight', 'bold');
+            xlabel(app.AxGeom, 'Horizontal Span X (mm)'); 
+            ylabel(app.AxGeom, 'Vertical Motion Y (mm)');
+            
+            max_range = max([span_a, h1, out]) * 1.3;
+            app.AxGeom.XLim = [-max_range*0.9, max_range*0.9]; 
+            app.AxGeom.YLim = [-max_range*1.1, max_range*0.9];
             hold(app.AxGeom, 'off');
         end
 
         % =================================================================
-        % 外部双信号CSV载入及FFT解析
+        % 核心物理力学解析：无量纲刚度/力特性计算与多轴全平铺刷新
+        % =================================================================
+        function calculateAndExportSprings(app)
+            delta_h = app.DeltaHatEdit.Value;
+            a_h     = app.AHatEdit.Value;
+            alpha   = app.AlphaEdit.Value;
+            alpha1  = app.Alpha1Edit.Value;
+            gamma   = app.GammaEdit.Value;
+            a       = app.ATargetEdit.Value;
+            tau_p   = app.TauPEdit.Value;
+            G_mat   = app.GEdit.Value;
+            
+            n_turns = app.SpringTurnsEdit.Value;
+            d_wire  = app.SpringWireDiaEdit.Value;
+            D_tube  = app.SpringCylinderEdit.Value;
+            
+            app.n_vert = n_turns; app.d_vert = d_wire; app.D_vert = D_tube;
+            app.n_upper = n_turns; app.d_upper = d_wire; app.D_upper = D_tube;
+            app.n_lower = n_turns; app.d_lower = d_wire; app.D_lower = D_tube;
+
+            h1 = a * sqrt(a_h^2 - (1 - delta_h)^2);
+            h  = a * (1 - delta_h);
+            h2 = 2 * h + h1;
+            app.test_params = [a, h1, h, h2];
+            
+            k_v = (G_mat * d_wire^4) / (8 * D_tube^3 * n_turns);
+            mu1 = 1 - (2/alpha) * (1/a_h - 1);
+            mu3 = (1/alpha) * (1/a_h^3 - 1);
+            app.f0_val = k_v; app.Ze_hat_val = mu1; app.zeta_val = mu3;
+            
+            app.y_hat = linspace(-0.6, 0.6, 300);
+            f_hat = app.y_hat + (2/alpha) * app.y_hat .* (1 - 1 ./ sqrt(a_h^2 + app.y_hat.^2));
+            k_hat = 1 + (2/alpha) * (1 - a_h^2 ./ (a_h^2 + app.y_hat.^2).^(1.5));
+
+            % 刷新 3D 几何构型
+            app.plotMechanismGeometry(a, h1, h, h2);
+
+            % 刷新无量纲特性曲线 (Ax1)
+            cla(app.Ax1, 'reset'); hold(app.Ax1, 'on'); grid(app.Ax1, 'on');
+            set(app.Ax1, 'FontSize', 10);
+            
+            yyaxis(app.Ax1, 'left');
+            p1 = plot(app.Ax1, app.y_hat, f_hat, 'b-', 'LineWidth', 2);
+            ylabel(app.Ax1, 'Dimensionless Force \itf\rm\^', 'Interpreter', 'tex', 'Color', 'b');
+            app.Ax1.YColor = 'b';
+            
+            yyaxis(app.Ax1, 'right');
+            p2 = plot(app.Ax1, app.y_hat, k_hat, 'r--', 'LineWidth', 2);
+            ylabel(app.Ax1, 'Dimensionless Stiffness \itk\rm\^', 'Interpreter', 'tex', 'Color', 'r');
+            app.Ax1.YColor = 'r';
+            
+            title(app.Ax1, 'Dimensionless Force & Stiffness Curves', 'FontSize', 11, 'FontWeight', 'bold');
+            xlabel(app.Ax1, 'Dimensionless Displacement \ity\rm\^', 'Interpreter', 'tex');
+            lgd1 = legend(app.Ax1, [p1, p2], {'Force \itf\rm\^', 'Stiffness \itk\rm\^'}, 'Location', 'north');
+            hold(app.Ax1, 'off');
+
+            % 刷新位移传递率特性分析曲线 (Ax3 与内嵌 Ax3_Inset)
+            cla(app.Ax3, 'reset'); hold(app.Ax3, 'on'); grid(app.Ax3, 'on');
+            set(app.Ax3, 'FontSize', 9);
+            cla(app.Ax3_Inset, 'reset'); hold(app.Ax3_Inset, 'on'); grid(app.Ax3_Inset, 'on');
+            set(app.Ax3_Inset, 'FontSize', 7);
+            
+            Omega_vec = linspace(0.01, 3.5, 250);
+            Ze_hat = app.ZeEdit.Value / a; 
+            c_damp = app.CEdit.Value;
+            zeta_damp = c_damp / (2 * sqrt(k_v * 10)); 
+            
+            Ta_linear = zeros(size(Omega_vec)); Ta_qzs = zeros(size(Omega_vec));
+            for idx = 1:length(Omega_vec)
+                Omg = Omega_vec(idx);
+                Ta_linear(idx) = sqrt((1 + (2*zeta_damp*Omg)^2) / ((1 - Omg^2)^2 + (2*zeta_damp*Omg)^2));
+                Ta_qzs(idx) = app.compute_transmissibility(mu1, mu3, Omg, Ze_hat, zeta_damp);
+            end
+            
+            plot(app.Ax3, Omega_vec, 20*log10(Ta_linear), 'k--', 'LineWidth', 1.5);
+            plot(app.Ax3, Omega_vec, 20*log10(Ta_qzs), 'r-', 'LineWidth', 2);
+            title(app.Ax3, 'Displacement Transmissibility', 'FontSize', 11, 'FontWeight', 'bold');
+            xlabel(app.Ax3, 'Frequency Ratio \Omega', 'Interpreter', 'tex');
+            ylabel(app.Ax3, 'Transmissibility \itT_a\rm (dB)', 'Interpreter', 'tex');
+            app.Ax3.YLim = [-40, 25];
+            lgd3 = legend(app.Ax3, {'Linear System', 'QZS System'}, 'Location', 'northeast');
+            set(lgd3, 'FontSize', 8);
+            
+            plot(app.Ax3_Inset, Omega_vec, 20*log10(Ta_linear), 'k--', 'LineWidth', 1.0);
+            plot(app.Ax3_Inset, Omega_vec, 20*log10(Ta_qzs), 'r-', 'LineWidth', 1.5);
+            app.Ax3_Inset.XLim = [0.1, 0.8]; app.Ax3_Inset.YLim = [-5, 12];
+            title(app.Ax3_Inset, 'Low Freq Inset', 'FontSize', 7);
+            hold(app.Ax3, 'off'); hold(app.Ax3_Inset, 'off');
+
+            app.plotEmptySignalAxes();
+            app.LogTextArea.Value = {'QZS Model Solved Successfully.'; 'All axes synced and tiled.'};
+        end
+        
+        % =================================================================
+        % 振动信号外部载入解算
         % =================================================================
         function processVibrationSignals(app)
-            [file1, path1] = uigetfile('*.csv', '第1步：选择【输入端信号】CSV'); if isequal(file1, 0), return; end
-            [file2, path2] = uigetfile('*.csv', '第2步：选择【参考对照】CSV'); if isequal(file2, 0), return; end
-            
+            csv_dir = app.ExcelPathEdit.Value;
+            csv_path = fullfile(csv_dir, 'vibration_input_data.csv');
+            if ~exist(csv_path, 'file')
+                app.LogTextArea.Value = [app.LogTextArea.Value; {'⚠️ CSV File Not Found!'}];
+                return;
+            end
             try
-                app.addLog('>>> 正在导入数据并执行频域解算...');
-                data_in = readmatrix(fullfile(path1, file1), 'NumHeaderLines', 3);
-                app.t_matrix = data_in(:, 1); app.v_in_data = data_in(:, 2) / 100;
-                app.v_in_data = app.v_in_data - mean(app.v_in_data);
-                
-                dt = app.t_matrix(2) - app.t_matrix(1); app.fs_rate = 1 / dt; app.N_points = length(app.v_in_data);
-                n_pos = floor(app.N_points/2); freq_vec = (0:app.N_points-1) * app.fs_rate / app.N_points;
-                freq_range = freq_vec(1:n_pos); Omega_range = freq_range / app.f0_val;
-                
-                app.v_out_matrix = zeros(app.N_points, 5);
-                mu1_vals = [0.1907, 0.1188, 0.00048, 0.3367, 0.2189]; mu3_vals = [1.3836, 1.2344, 0.0017,  0.3876, 0.2104];
-                
-                for i = 1:5
-                    Ta_curve = zeros(1, n_pos);
-                    for j = 1:n_pos
-                        Ta_curve(j) = app.compute_transmissibility(mu1_vals(i), mu3_vals(i), Omega_range(j), app.Ze_hat_val, app.zeta_val);
-                    end
-                    H_full = zeros(app.N_points, 1); H_full(1:n_pos) = Ta_curve;
-                    H_full(app.N_points:-1:app.N_points-n_pos+2) = conj(Ta_curve(2:n_pos));
-                    V_in_fft = fft(app.v_in_data); app.v_out_matrix(:, i) = real(ifft(V_in_fft(:) .* H_full));
-                end
-                
-                data_ref = readmatrix(fullfile(path2, file2), 'NumHeaderLines', 3);
-                t_ref = data_ref(:, 1); v_ref = data_ref(:, 2) / 100 - mean(data_ref(:, 2) / 100);
-                fs_ref = 1 / (t_ref(2) - t_ref(1));
-                
-                win_sz = min(app.N_points, floor(1 * app.fs_rate)); nfft = 2^nextpow2(win_sz); ovlp = nfft/2;
-                app.f_psd_vec = (0:nfft/2-1)*app.fs_rate/nfft; win = hann(win_sz); win = win ./ sqrt(mean(win.^2));
-                
-                app.v_in_psd_vec = app.compute_psd_internal(app.v_in_data, win_sz, ovlp, nfft, app.fs_rate, win);
-                app.v_out_psd_matrix = zeros(length(app.f_psd_vec), 5);
-                for i = 1:5
-                    app.v_out_psd_matrix(:, i) = app.compute_psd_internal(app.v_out_matrix(:, i), win_sz, ovlp, nfft, app.fs_rate, win);
-                end
-                
-                v_ref_psd = app.compute_psd_internal(v_ref, win_sz, ovlp, nfft, fs_ref, win);
-                f_ref_psd = (0:nfft/2-1)*fs_ref/nfft;
-                v_ref_psd_interp = interp1(f_ref_psd, sqrt(v_ref_psd), app.f_psd_vec, 'linear', 'extrap');
-                
-                app.drawTimeAndPSDTabs(v_ref_psd_interp);
-            catch ME
-                app.addLog(['解算中断: ' ME.message]);
+                raw_data = readmatrix(csv_path);
+                app.t_matrix = raw_data(:, 1);
+                app.v_in_data = raw_data(:, 2);
+                app.N_points = length(app.t_matrix);
+                app.fs_rate = 1 / (app.t_matrix(2) - app.t_matrix(1));
+            catch
+                app.LogTextArea.Value = [app.LogTextArea.Value; {'⚠️ Data Format Error.'}];
+                return;
             end
+            
+            dt = 1 / app.fs_rate;
+            app.v_out_data = zeros(app.N_points, 1);
+            x_state = 0; v_state = 0;
+            
+            for i = 1:app.N_points
+                f_in = app.v_in_data(i);
+                y_norm = x_state / app.test_params(1);
+                f_spring = app.f0_val * (y_norm + (2/app.f0_val) * y_norm * (1 - 1 / sqrt(app.test_params(2)^2/app.test_params(1)^2 + y_norm^2)));
+                a_state = f_in - app.CEdit.Value * v_state - f_spring;
+                v_state = v_state + a_state * dt;
+                x_state = x_state + v_state * dt;
+                app.v_out_data(i) = v_state; 
+            end
+            
+            win_len = floor(app.N_points / 4);
+            app.v_in_psd_vec  = app.compute_psd_internal(app.v_in_data, win_len, app.fs_rate);
+            app.v_out_matrix  = app.compute_psd_internal(app.v_out_data, win_len, app.fs_rate);
+            app.f_psd_vec     = linspace(0, app.fs_rate/2, length(app.v_in_psd_vec));
+
+            % 刷新时域对比曲线 (Ax4)
+            cla(app.Ax4, 'reset'); hold(app.Ax4, 'on'); grid(app.Ax4, 'on');
+            set(app.Ax4, 'FontSize', 10);
+            plot(app.Ax4, app.t_matrix, app.v_in_data, 'Color', [0.6, 0.6, 0.6], 'LineWidth', 1.0);
+            plot(app.Ax4, app.t_matrix, app.v_out_data, 'r-', 'LineWidth', 1.5);
+            title(app.Ax4, 'Time Domain Signal Response', 'FontSize', 11, 'FontWeight', 'bold');
+            xlabel(app.Ax4, 'Time \itt\rm (s)', 'Interpreter', 'tex');
+            ylabel(app.Ax4, 'Velocity \itv\rm (mm/s)', 'Interpreter', 'tex');
+            lgd4 = legend(app.Ax4, {'Excitation', 'QZS Output'}, 'Location', 'northeast'); set(lgd4, 'FontSize', 8);
+            hold(app.Ax4, 'off');
+
+            % 刷新频域 PSD 对比分析图 (Ax5)
+            cla(app.Ax5, 'reset'); hold(app.Ax5, 'on'); grid(app.Ax5, 'on');
+            set(app.Ax5, 'FontSize', 10);
+            plot(app.Ax5, app.f_psd_vec, 10*log10(app.v_in_psd_vec), 'Color', [0.6, 0.6, 0.6], 'LineWidth', 1.2);
+            plot(app.Ax5, app.f_psd_vec, 10*log10(app.v_out_matrix), 'r-', 'LineWidth', 1.8);
+            title(app.Ax5, 'Power Spectral Density (PSD) Comparison', 'FontSize', 11, 'FontWeight', 'bold');
+            xlabel(app.Ax5, 'Frequency \itf\rm (Hz)', 'Interpreter', 'tex');
+            ylabel(app.Ax5, 'PSD (dB / Hz)');
+            app.Ax5.XLim = [0, min(120, app.fs_rate/2)];
+            lgd5 = legend(app.Ax5, {'Input Base PSD', 'Output Target PSD'}, 'Location', 'northeast'); set(lgd5, 'FontSize', 8);
+            hold(app.Ax5, 'off');
+        end
+        
+        function plotEmptySignalAxes(app)
+            cla(app.Ax4, 'reset'); grid(app.Ax4, 'on');
+            title(app.Ax4, 'Time Domain Signal Response', 'FontSize', 11, 'FontWeight', 'bold');
+            text(app.Ax4, 0.1, 0.5, 'Click [Load Signal] to plot', 'Color', [0.5, 0.5, 0.5]);
+            
+            cla(app.Ax5, 'reset'); grid(app.Ax5, 'on');
+            title(app.Ax5, 'Power Spectral Density (PSD) Comparison', 'FontSize', 11, 'FontWeight', 'bold');
+            text(app.Ax5, 0.1, 0.5, 'Click [Load Signal] to plot', 'Color', [0.5, 0.5, 0.5]);
         end
 
-        % =================================================================
-        % 时频两域画布渲染
-        % =================================================================
-        function drawTimeAndPSDTabs(app, v_ref_psd_interp)
-            delete(app.Tab4.Children); 
-            colors_map = {[0 0.4470 0.7410], [0.8500 0.3250 0.0980], [0.4660 0.6740 0.1880], [0.4940 0.1840 0.5560], [0.3010 0.7450 0.9330]};
-            time_show = min(2, app.t_matrix(end)); idx_show = app.t_matrix <= time_show;
-            
-            positions = {[50, 480, 360, 180], [460, 480, 360, 180]; [50, 260, 360, 180], [460, 260, 360, 180]; [50,  40, 360, 180], [460,  40, 360, 180]};
-            
-            ax_in = uiaxes(app.Tab4, 'Position', positions{1,1});
-            plot(ax_in, app.t_matrix(idx_show), app.v_in_data(idx_show), '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 2);
-            title(ax_in, 'Input Signal'); grid(ax_in, 'on'); ax_in.XLim = [0, time_show];
-            
-            for i = 1:5
-                row = floor(i/2) + 1; col = mod(i,2) + 1; if col == 1, row = row - 1; col = 2; end
-                ax_out = uiaxes(app.Tab4, 'Position', positions{row, col});
-                plot(ax_out, app.t_matrix(idx_show), app.v_out_matrix(idx_show, i), 'Color', colors_map{i}, 'LineWidth', 1.5);
-                title(ax_out, sprintf('Output Response %d', i)); grid(ax_out, 'on'); ax_out.XLim = [0, time_show];
+        function draw3DSpringMesh(~, ax, p1, p2, D_mid, d_wire, num_turns, color_rgb)
+            axis_vec = p2 - p1; L_curr = norm(axis_vec); if L_curr < 1e-3, return; end
+            axis_u = axis_vec / L_curr;
+            if abs(axis_u(3)) > 0.9, ref = [1 0 0]; else, ref = [0 0 1]; end
+            u_vec = cross(axis_u, ref); u_vec = u_vec / norm(u_vec); v_vec = cross(axis_u, u_vec);
+            t = linspace(0, 1, 260); theta = t * 2 * pi * num_turns; r = D_mid / 2;
+            x_l = r * cos(theta); y_l = r * sin(theta); z_l = L_curr * t;
+            x_g = p1(1) + x_l*u_vec(1) + y_l*v_vec(1) + z_l*axis_u(1);
+            y_g = p1(2) + x_l*u_vec(2) + y_l*v_vec(2) + z_l*axis_u(2);
+            z_g = p1(3) + x_l*u_vec(3) + y_l*v_vec(3) + z_l*axis_u(3);
+            n_sec = 12; phi = linspace(0, 2*pi, n_sec); r_w = d_wire / 2;
+            X_s = zeros(n_sec, length(t)); Y_s = zeros(n_sec, length(t)); Z_s = zeros(n_sec, length(t));
+            for k = 1:length(t)
+                if k == 1, tg = [x_g(2)-x_g(1), y_g(2)-y_g(1), z_g(2)-z_g(1)];
+                elseif k == length(t), tg = [x_g(end)-x_g(end-1), y_g(end)-y_g(end-1), z_g(end)-z_g(end-1)];
+                else, tg = [x_g(k+1)-x_g(k-1), y_g(k+1)-y_g(k-1), z_g(k+1)-z_g(k-1)];
+                end
+                tg = tg / norm(tg); if abs(tg(3)) > 0.9, r_s = [1 0 0]; else, r_s = [0 0 1]; end
+                ns = cross(tg, r_s); ns = ns / norm(ns); bs = cross(tg, ns);
+                for s = 1:n_sec
+                    pt = [x_g(k), y_g(k), z_g(k)] + r_w*cos(phi(s))*ns + r_w*sin(phi(s))*bs;
+                    X_s(s, k) = pt(1); Y_s(s, k) = pt(2); Z_s(s, k) = pt(3);
+                end
             end
-            
-            cla(app.Ax5); hold(app.Ax5, 'on');
-            h_in = loglog(app.Ax5, app.f_psd_vec, sqrt(app.v_in_psd_vec), '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 2.5, 'DisplayName', 'Input Signal');
-            h_outs = zeros(1, 5);
-            param_legends = {'Group1: δ̂=0.500', 'Group2: δ̂=0.471', 'Group3: δ̂=0.800', 'Group4: δ̂=0.500', 'Group5: δ̂=0.200'};
-            for i = 1:5
-                h_outs(i) = loglog(app.Ax5, app.f_psd_vec, sqrt(app.v_out_psd_matrix(:, i)), 'Color', colors_map{i}, 'LineWidth', 2, 'DisplayName', param_legends{i});
-            end
-            h_ref = loglog(app.Ax5, app.f_psd_vec, v_ref_psd_interp, 'k-', 'LineWidth', 2.5, 'DisplayName', 'Reference Curve');
-            xlabel(app.Ax5, 'Frequency (Hz)'); ylabel(app.Ax5, 'PSD [V/\sqrt{Hz}]');
-            title(app.Ax5, 'Power Spectrum Density Comparison'); app.Ax5.XLim = [0.5, app.fs_rate/2]; grid(app.Ax5, 'on');
-            legend(app.Ax5, [h_in, h_outs, h_ref], 'Location', 'southwest', 'FontSize', 8); hold(app.Ax5, 'off');
-            app.addLog('>>> 时频域高阶解算完成。');
+            h_mesh = surf(ax, X_s, Y_s, Z_s, 'FaceColor', color_rgb, 'EdgeColor', 'none');
+            set(h_mesh, 'FaceLighting', 'gouraud', 'AmbientStrength', 0.5, 'DiffuseStrength', 0.6, 'SpecularStrength', 0.5);
         end
 
-        % =================================================================
-        % 基础底层数学工具
-        % =================================================================
-        function Ta = compute_transmissibility(~, mu1_tgt, mu3_tgt, Omega, Ze_h, zta)
+        function Ta = compute_transmissibility(~, mu1, mu3, Omega, Ze_h, zta)
             if Omega < 1e-6, Ta = 1; return; end
-            a = (9/16) * mu3_tgt^2 * Ze_h^4; b = 1.5 * mu3_tgt * (mu1_tgt - Omega^2) * Ze_h^2; c = (mu1_tgt - Omega^2)^2 + (2*zta*Omega)^2; d = -Omega^4;
+            a = (9/16) * mu3^2 * Ze_h^4; b = 1.5 * mu3 * (mu1 - Omega^2) * Ze_h^2; 
+            c = (mu1 - Omega^2)^2 + (2*zta*Omega)^2; d = -Omega^4;
             roots_Z2 = roots([a, b, c, d]); Z2_candidates = roots_Z2(abs(imag(roots_Z2)) < 1e-6 & real(roots_Z2) > 0);
-            if isempty(Z2_candidates), Z_linear = Omega^2 / sqrt((mu1_tgt - Omega^2)^2 + (2*zta*Omega)^2); Z2 = Z_linear^2; else Z2 = min(real(Z2_candidates)); end
+            if isempty(Z2_candidates), Z2 = (Omega^2 / sqrt((mu1 - Omega^2)^2 + (2*zta*Omega)^2))^2; else, Z2 = min(real(Z2_candidates)); end
             Z_hat = sqrt(Z2);
-            cos_phi = (0.75 * mu3_tgt * Ze_h^2 * Z_hat^3 + (mu1_tgt - Omega^2) * Z_hat) / Omega^2; cos_phi = max(-1, min(1, cos_phi));
+            cos_phi = (0.75 * mu3 * Ze_h^2 * Z_hat^3 + (mu1 - Omega^2) * Z_hat) / Omega^2; cos_phi = max(-1, min(1, cos_phi));
             Ta = sqrt(1 + 2 * Z_hat * cos_phi + Z_hat^2);
         end
 
-        function psd = compute_psd_internal(~, signal, win_sz, ovlp, nfft, fs, win)
-            signal = signal(:); data_frames = buffer(signal, win_sz, ovlp, 'nodelay');
-            if size(data_frames, 1) < win_sz, data_frames = data_frames(:, 1:end-1); end
-            data_windowed = data_frames .* win; fft_data = fft(data_windowed, nfft);
-            psd_matrix = (abs(fft_data(1:nfft/2, :)).^2) / (fs * nfft); psd_matrix(2:end-1, :) = 2 * psd_matrix(2:end-1, :);
-            psd = mean(psd_matrix, 2);
-        end
-
-        function addLog(app, txt)
-            app.LogTextArea.Value = [app.LogTextArea.Value; {txt}]; scroll(app.LogTextArea, 'bottom');
+        function psd = compute_psd_internal(~, signal, win_len, fs)
+            [pxx, ~] = pwelch(signal, hanning(win_len), floor(win_len/2), win_len, fs);
+            psd = pxx;
         end
     end
 end

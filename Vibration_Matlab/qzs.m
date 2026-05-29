@@ -1,872 +1,448 @@
-clear; clc;
+classdef QZS_App < matlab.apps.AppBase
 
-%% 目标无量纲参数
-delta_hat_target = 0.5;      % δ̂ = δ / sqrt(a^2 + h1^2) -> (δ_target)
-a_hat_target     = 0.755;    % â = a / sqrt(a^2 + h1^2) ->（h1_target）
-alpha_target     = 0.942;    % α = k1/k2 (遍历k1->K2)
-alpha1_target    = 0.501;    % α₁ = k3/k2 (K2->K3)
-gamma_target     = 2.143;    % γ = h/d
-
-fprintf('目标无量纲参数:\n');
-fprintf('  δ̂_target = %.3f, â_target = %.3f, α_target = %.3f, α₁_target = %.3f, γ_target = %.3f\n\n', ...
-    delta_hat_target, a_hat_target, alpha_target, alpha1_target, gamma_target);
-
-%% 铜屏蔽内径（可调）
-a_target = 60;     %mm
-
-%% 弹簧材料参数（可调）
-tau_p =70; %平均许用切应力Mpa
-G=75000; %Mpa
-
-C_range = 5:1:12; %旋绕比 K2
-C1_range = 5:1:12; %旋绕比 上&下
-C2_range = 5:1:12; %旋绕比 中
-
-ratio_range = 0.28:0.01:0.5; %K2
-ratio1_range = 0.28:0.01:0.5; %上&下
-ratio2_range = 0.28:0.01:0.5; %中
-
-%% load mass
-M = 2;              % K2&kg
-M1 = 2;             % 上&下
-M2 = 2;             % 中
-g = 9.81;
-
-%% 由 â = a / sqrt(a^2 + h1^2) 反求 h1
-h1_target = sqrt(a_target^2 * (1/a_hat_target^2 - 1));
-fprintf('由 â_target & a_target 计算得到: h₁_target = %.1f mm\n\n',h1_target);
-
-%% 由 δ̂ = δ / sqrt(a^2 + h1^2) 求 δ
-% δ = δ̂ * sqrt(a^2 + h1_target^2)
-delta_target = delta_hat_target * sqrt(a_target^2 + h1_target^2);
-
-%% 斜弹簧原始长度（三根弹簧原长相同）
-L1 = sqrt(a_target^2 + h1_target^2) + delta_target; %上
-fprintf('由 δ̂_target & a_target & h1_target 计算得到: δ_target = %.1f mm, L1(上) = %.1f mm\n\n',delta_target, L1);
-
-%% 由 γ 计算 d，进而计算h和h2
-% d = h / γ_target
-d_target = h1_target / (gamma_target-1);
-% h_target = h1_target + d_target
-h_target = h1_target + d_target;
-h2_target = h1_target + 2*d_target;
-fprintf('由 h1_target & γ_target ,得到: d_target = %0.1f mm, 进而得到 h_target = %.1fmm，h2_target = %.1fmm\n\n',d_target,h_target,h2_target);
-
-%% 计算中间变量以及弹簧长度（中&下）
-rho_target = (1 - a_hat_target^2) / (gamma_target - 1)^2;
-delta_hat1_target = 1 - sqrt(1 + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + rho_target) + delta_hat_target;
-delta_hat2_target = 1 - sqrt(1 + 4*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + 4*rho_target) + delta_hat_target;
-delta1_target = delta_hat1_target * sqrt(a_target^2 + h1_target^2);
-delta2_target = delta_hat2_target * sqrt(a_target^2 + h1_target^2);
-
-L2 = sqrt(a_target^2 + h_target^2) + delta1_target; %中
-L3 = sqrt(a_target^2 + h2_target^2) + delta2_target; %下
-
-fprintf('由 â_target & γ_target 计算得到(中间量): ρ = %.3f \n\n', rho_target);
-fprintf('由 â_target & ρ_target & 预压缩 δ̂_target 计算得到: δ̂_1 = %.3f, δ̂_2 = %.3f, 此时, 预压缩δ_1 = %.1f mm, 预压缩δ_2 = %.1f mm, L2(中) = %.1f mm, L3(下) = %.1f mm\n\n\n',delta_hat1_target, delta_hat2_target, delta1_target, delta2_target, L2, L3);
-
-%% 根据1.229(paper)和load mass计算K2
-%k2 = (M*g)/(1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2)); %N/m
-
-%% 根据1.229(paper)和K2计算load mass
-d1 = 1.2;
-D1 = 15.6;
-n1 = 15;
-k_1 = (G*d1^4)/(8*D1^3*n1)*1000;
-
-d2 = 1.2;
-D2 = 15.6;
-n2 = 14;
-k2 = (G*d2^4)/(8*D2^3*n2)*1000;
-
-d3 = 1.2;
-D3 = 15.6;
-n3 = 30;
-k_3 = (G*d3^4)/(8*D3^3*n3)*1000;
-%k2 = 384.3; %N/m
-M = (k2*1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2))/g; %N/m
-fprintf('由k2计算得到：Load mass:M=%.1f, 设计得到的弹簧：上&下：k1=%.1fN/m, 底部：k2=%.1fN/m, 中：k3=%.1fN/m,比例：%.2f,%.2f\n\n',M,k_1,k2,k_3,k_1/k2,k_3/k2);
-
-%% 由 α 和 α₁ 计算 k2, k3
-% k1 = k₂ · α_target
-k1 = k2 * alpha_target;
-% k₃ = α₁_target · k₂
-k3 = alpha1_target * k2;
-fprintf('最佳的刚度系数，上&下：k1=%0.1fN/m, 底部弹簧：k2=%0.1fN/m, 中：k3=%0.1fN/m\n\n',k1,k2,k3);
-
-%% 计算K2的预压缩量（fig.(c)）
-f1 = -(k1/1000)*delta_target*(h1_target/sqrt(a_target^2+h1_target^2));
-f3 = -(k3/1000)*delta1_target*(h_target/sqrt(a_target^2+h_target^2));
-f4 = -(k1/1000)*delta2_target*(h2_target/sqrt(a_target^2+h2_target^2));
-
-f2 = -(2*f1 + 2*f3 +2*f4);
-delta3_target = f2/(k2/1000); %mm
-
-fprintf('预压缩量 上：delta_target=%.1fmm, 中：delta1_target=%.1fmm, 下：delta2_target=%.1fmm, 底部：delta3_target =%.1fmm\n\n',delta_target,delta1_target,delta2_target,delta3_target);
-L = h2_target + delta3_target;
-fprintf('由预压缩计算底部弹簧的原长：L=%0.1fmm，上：L1=%0.1fmm，中：L2=%0.1fmm，下：L3=%0.1fmm\n\n',L,L1,L2,L3);
-fprintf('预压缩后弹簧的长度：底部：%.1fmm, 上：%.1fmm, 中：%.1fmm, 下：%.1fmm\n\n',L-delta3_target,L1-delta_target,L2-delta1_target,L3-delta2_target);
-
-%% 平衡时的压缩量（fig.(d)）
-delta_eq = L1 - sqrt(a_target^2 + d_target^2); %mm
-delta1_eq = L2 - a_target;
-delta3_eq = (M*g)/(k2/1000); %平衡时底部弹簧的压缩量
-fprintf('平衡时的压缩量：上&下：delta_eq=delta2_eq=%0.1fmm, 中：delta1_eq=%0.1fmm, 底部：delta3_eq=%0.1fmm\n\n',delta_eq,delta1_eq,delta3_eq);
-
-L_eq = d_target + delta3_eq + delta3_target;
-fprintf('平衡时计算底部弹簧的原长：L_eq=%0.1fmm\n\n',L_eq);
-fprintf('平衡时弹簧的长度：底部：%.1fmm, 上：%.1fmm, 中：%.1fmm, 下：%.1fmm\n\n',L-delta3_eq,L1-delta_eq,L2-delta1_eq,L3-delta_eq);
-y_hat = linspace(-10, 10, 1000);
-
-%% 存储弹簧参数到Excel
-path = '/Users/caohuaqi/Desktop';
-%path = 'C:\Users\Administrator\Desktop\4.QZS';
-excel_filename = fullfile(path, 'Spring_Parameters.xlsx');
-
-% 存储K2弹簧参数
-k2_results = [];
-for C = C_range
-    for ratio = ratio_range %K2
-        a=(G*ratio)/(8*(C^4)*(k2/1000));
-        D=(-2/C+sqrt(4/(C^2)+4*a*L))/(2*a); %2d -2/C+sqrt(4/(C^2)需要修改
-        d = D/C; %K2
-        D_out = D+d; %弹簧外径
-        K = (4*C-1)/(4*C-4)+0.615/C; %K2
-        d_target = 1.6*sqrt(K*C*M*g/tau_p);  %mm K2
-        %if d >= d_target1
-        n = (G*D)/(8*(C^4)*(k2/1000)); %K2
-        %% 用于检验
-        k2_actual = (G*D)/(8*(C^4)*n); %N/mm
-        p = ratio * D;
-        %n_test = (L-2*d)/p;
-        %fprintf('n=%0.1f\n,n=%0.1f\n\n',n,n_test);
-        k2_results = [k2_results; d_target,d,D,D_out,C,n,ratio,p,G,L,k2_actual*1000];
-        %fprintf('d_target =%0.1fmm,d=%0.1fmm,D=%0.1fmm,D_out=%0.1fmm,C=%0.1f,n=%0.1f,ratio=%0.1f,p=%0.1fmm,G=%0.1fMpa,L=%0.1fmm,k2_actual=%0.1fN/m\n\n',d_target,d,D,D_out,C,n,ratio,p,G,L,k2_actual*1000);
-        %end
+    % --- 界面组件属性声明 ---
+    properties (Access = public)
+        UIWindow               matlab.ui.Figure
+        LeftPanel              matlab.ui.container.Panel
+        RightTabGroup          matlab.ui.container.TabGroup
+        
+        % 标签页按新顺序排列（几何配置放最前）
+        TabGeom, Tab1, Tab3, Tab4, Tab5
+        
+        % 图像坐标轴句柄
+        AxGeom, Ax1, Ax3, Ax3_Inset, Ax4, Ax5
+        
+        % 控制面板控件
+        DeltaHatEdit          matlab.ui.control.NumericEditField
+        AHatEdit              matlab.ui.control.NumericEditField
+        AlphaEdit             matlab.ui.control.NumericEditField
+        Alpha1Edit            matlab.ui.control.NumericEditField
+        GammaEdit             matlab.ui.control.NumericEditField
+        ATargetEdit           matlab.ui.control.NumericEditField
+        TauPEdit              matlab.ui.control.NumericEditField
+        GEdit                 matlab.ui.control.NumericEditField
+        CEdit                 matlab.ui.control.NumericEditField
+        ZeEdit                matlab.ui.control.NumericEditField
+        ExcelPathEdit         matlab.ui.control.EditField
+        
+        % 交互按钮
+        RunCalcButton         matlab.ui.control.Button
+        LoadCSVButton         matlab.ui.control.Button
+        
+        % 系统日志输出
+        LogTextArea           matlab.ui.control.TextArea
     end
-end
-
-k2_table = array2table(k2_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm','C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N/m'});
-[~, ia] = unique(k2_table(:, {'C', 'ratio'}), 'rows');
-k2_table = k2_table(ia, :);
-
-%% 上&下弹簧
-k1_results = [];
-for C1 = C1_range
-    for ratio1 = ratio1_range %上&下
-        a1=(G*ratio1)/(8*(C1^4)*(k1/1000));
-        D1=(-2/C1+sqrt(4/(C1^2)+4*a1*L1))/(2*a1);
-        d1 = D1/C1; %K2
-        D_out1 = D1 + d1; %弹簧外径
-        K1 = (4*C1-1)/(4*C1-4)+0.615/C1; %上&下
-        d_target1 = 1.6*sqrt(K1*C1*M1*g/tau_p); %mm 上&下
-
-        %if d1 >= d1_target
-        n1 = (G*D1)/(8*(C1^4)*(k1/1000)); %上&下（转换为N/mm）
-        %% 用于检验
-        k1_actual = (G*D1)/(8*(C1^4)*n1); %N/mm
-        p1 = ratio1 * D1;
-        %fprintf('d_target1 =%0.1fmm,d1=%0.1fmm,D1=%0.1fmm,D_out1=%0.1f,C1=%0.1f,n1=%0.1f,ratio1=%0.1f,p1=%0.1fmm,G=%0.1fMpa,L1=%0.1fmm,k1_actual=%0.1fN/m\n\n',d_target1,d1,D1,D_out1,C1,n1,ratio1,p1,G,L1,k1_actual*1000);
-        k1_results = [k1_results; d_target1,d1,D1,D_out1,C1,n1,ratio1,p1,G,L1,k1_actual*1000];
-        %end
-    end
-end
-
-k1_table = array2table(k1_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm', 'C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N/m'});
-[~, ia] = unique(k1_table(:, {'C', 'ratio'}), 'rows');
-k1_table = k1_table(ia, :);
-
-%% 存储中间弹簧参数（侧边）
-k3_results = [];
-for C2 = C2_range
-    for ratio2 = ratio2_range %中
-        a2=(G*ratio1)/(8*(C2^4)*(k3/1000));
-        D2=(-2/C2+sqrt(4/(C2^2)+4*a2*L2))/(2*a2);
-        d2 = D2/C2; %K2
-        D_out2 = D2 + d2;
-        K2 = (4*C2-1)/(4*C2-4)+0.615/C2; %中
-        d_target2 = 1.6*sqrt(K2*C2*M1*g/tau_p); %mm 中
-
-        %if d2 >= d2_target
-        n2 = (G*D2)/(8*(C2^4)*(k3/1000)); %中
-        %% 用于检验
-        k3_actual = (G*D2)/(8*(C2^4)*n2); %N/mm
-        p2 = ratio2 * D2;
-        %fprintf('d_target2 =%0.1fmm,d2=%0.1fmm,D2=%0.1fmm,D_out2=%0.1fmm,C2=%0.1f,n2=%0.1f,ratio2=%0.1f,p2=%0.1fmm,G=%0.1fMpa,L2=%0.1fmm,k3_actual=%0.1fN/m\n\n',d_target2,d2,D2,D_out2,C2,n2,ratio2,p2,G,L2,k3_actual*1000);
-        k3_results = [k3_results; d_target2,d2,D2,D_out2,C2,n2,ratio2,p2,G,L2,k3_actual*1000];
-        %end
-    end
-end
-
-k3_table = array2table(k3_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm', 'C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N/m'});
-[~, ia] = unique(k3_table(:, {'C', 'ratio'}), 'rows');
-k3_table = k3_table(ia, :);
-
-%% 写入Excel
-writetable(k2_table, excel_filename, 'Sheet', 'K2_Spring');
-writetable(k1_table, excel_filename, 'Sheet', 'Up_Down_Spring');
-writetable(k3_table, excel_filename, 'Sheet', 'Middle_Spring');
-
-%% fprintf('=======================================================输出可能的参数组合======================================================================================================================================\n');
-
-%% 计算无量纲恢复力曲线（f_hat & xi_hat）
-% 中间变量
-% ρ = (1 - â²) / (γ - 1)²
-rho_target = (1 - a_hat_target^2) / (gamma_target - 1)^2;
-% Δ = √(1 + â²·γ² - 2·â²·γ)
-Delta_target = sqrt(1 + a_hat_target^2 * gamma_target^2 - 2 * a_hat_target^2 * gamma_target);
-% Δ₁ = (1 + δ̂)·(γ - 1)
-Delta1_target = (1 + delta_hat_target) * (gamma_target - 1);
-% Δ₂ = (1 + δ̂)·(γ - 1)³
-Delta2_target = (1 + delta_hat_target) * (gamma_target - 1)^3;
-% C₁ = 6·(1 + δ̂)·â⁻³ / [-12·Δ₂/Δ³ + 72·Δ₂·(1 - â²)/Δ⁵ - 60·Δ₂·(1 - â²)²/Δ⁷]
-C1_target = 6*(1 + delta_hat_target) * a_hat_target^(-3) / (-12*Delta2_target/Delta_target^3 + 72*Delta2_target*(1-a_hat_target^2)/Delta_target^5 - 60*Delta2_target*(1-a_hat_target^2)^2/Delta_target^7);
-
-%% 弹簧自由长度相同推导得到的
-% δ̂₁ = 1 - √(1 + 2·√(1 - â²)·√ρ + ρ) + δ̂
-delta_hat1_target = 1 - sqrt(1 + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + rho_target) + delta_hat_target;
-%% f1_hat = f4_hat 推导得到的
-% δ̂₂ = 1 - √(1 + 4·√(1 - â²)·√ρ + 4·ρ) + δ̂
-delta_hat2_target = 1 - sqrt(1 + 4*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + 4*rho_target) + delta_hat_target;
-
-%% 位移
-% x̂_e = √(1 − â²) + √ρ
-x_e_hat_target = sqrt(1 - a_hat_target^2) + sqrt(rho_target);
-% K̂ = zeros(size(ŷ))
-
-%% 创建向量
-K_hat = zeros(size(y_hat));
-xi_hat = zeros(size(y_hat));
-f_hat_curve1 = zeros(size(y_hat)); %figure1对应的f_hat
-y_hat_curve1 = zeros(size(y_hat)); %figure1对应的y_hat
-
-for i = 1:length(y_hat)
-    % x_i = x̂_e + ŷ(i)
-    xi_hat(i) = x_e_hat_target + y_hat(i);
-    % P₁ = √(1−â²) − xi_hat(i)
-    P1 = sqrt(1 - a_hat_target^2) - xi_hat(i);
-    % P₂ = 1 − 2√(1−â²)·xi_hat + xi_hat(i)²
-    P2 = 1 - 2*sqrt(1 - a_hat_target^2)*xi_hat(i) + xi_hat(i)^2;
-    % P₃ = 1 + δ̂
-    P3 = 1 + delta_hat_target;
-    % P₄ = √(1−â²+ρ+2√(1−â²)√ρ) − xi_hat(i)
-    P4 = sqrt(1 - a_hat_target^2 + rho_target + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target)) - xi_hat(i);
-    % P₅ = 1+ρ+2√(1−â²)√ρ − 2√(1−â²+ρ+2√(1−â²)√ρ)·xi_hat + xi_hat(i)²
-    P5 = 1 + rho_target + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target) - 2*sqrt(1 - a_hat_target^2 + rho_target + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target))*xi_hat(i) + xi_hat(i)^2;
-    % P₆ = √(1+2√(1−â²)√ρ+ρ) + δ̂₁
-    P6 = sqrt(1 + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + rho_target) + delta_hat1_target;
-    % P₇ = √(1−â²) + 2√ρ − xi_hat(i)
-    P7 = sqrt(1 - a_hat_target^2) + 2*sqrt(rho_target) - xi_hat(i);
-    % P₈ = 1+4√(1−â²)√ρ+4ρ − 2(√(1−â²)+2√ρ)xi_hat + xi_hat(i)²
-    P8 = 1 + 4*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + 4*rho_target - 2*(sqrt(1 - a_hat_target^2) + 2*sqrt(rho_target))*xi_hat(i) + xi_hat(i)^2;
-    % P₉ = √(1+4√(1−â²)√ρ+4ρ) + δ̂₂
-    P9 = sqrt(1 + 4*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + 4*rho_target) + delta_hat2_target;
-    % dP₁ = dP₄ = dP₇ = -1
-    dP1 = -1; dP4 = -1; dP7 = -1;
-    % dP₂ = −2√(1−â²) + 2xi_hat
-    dP2 = -2*sqrt(1 - a_hat_target^2) + 2*xi_hat(i);
-    % dP₅ = −2√(1−â²+ρ+2√(1−â²)√ρ) + 2xi_hat
-    dP5 = -2*sqrt(1 - a_hat_target^2 + rho_target + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target)) + 2*xi_hat(i);
-    % dP₈ = −2(√(1−â²)+2√ρ) + 2xi_hat
-    dP8 = -2*(sqrt(1 - a_hat_target^2) + 2*sqrt(rho_target)) + 2*xi_hat(i);
-    % dN₁ = −2α(1−P₃·P₂^{−1/2})·dP₁ − α·P₁·P₂^{−3/2}·P₃·dP₂
-    dN1 = -2 * alpha_target * (1 - P3 * P2.^(-0.5)) * (-1) - alpha_target * P1 * P2.^(-1.5) * P3 * dP2;
-    % dN₃ = −2α₁(1−P₆·P₅^{−1/2})·dP₄ − α₁·P₄·P₅^{−3/2}·P₆·dP₅
-    dN3 = -2 * alpha1_target * (1 - P6 * P5.^(-0.5)) * (-1) - alpha1_target * P4 * P5.^(-1.5) * P6 * dP5;
-    % dN₅ = −2α(1−P₉·P₈^{−1/2})·dP₇ − α·P₇·P₈^{−3/2}·P₉·dP₈
-    dN5 = -2 * alpha_target * (1 - P9 * P8.^(-0.5)) * (-1) - alpha_target * P7 * P8.^(-1.5) * P9 * dP8;
-
-    %% 无量纲刚度&力 K̂(i) = 1 + dN₁ + dN₃ + dN₅
-    K_hat(i) = 1 + dN1 + dN3 + dN5;
-    f_hat_curve1(i) = xi_hat(i) - 2*alpha_target * P1*(sqrt(P2)-P3)/sqrt(P2) - 2*alpha1_target * P4*(sqrt(P5)-P6)/sqrt(P5) - 2*alpha_target * P7*(sqrt(P8)-P9)/sqrt(P8);
-    y_hat_curve1(i) = xi_hat(i) - x_e_hat_target;
-end
-
-%% 绘制无量纲刚度和力的双y轴图
-figure(1);
-set(gcf, 'Position', [100, 100, 600, 450], 'Visible', 'on');
-
-yyaxis left
-plot(y_hat_curve1, f_hat_curve1, 'Color', [0, 0.4470, 0.7410], 'LineWidth', 2);
-ylabel('Dimensionless Force $\hat{f}$', 'Interpreter', 'latex', 'FontSize', 18);
-ylim([-6, 6]);
-xlim([-3, 3]);
-
-yyaxis right
-plot(y_hat_curve1, K_hat, 'Color', [0.8500, 0.3250, 0.0980], 'LineStyle', '--', 'LineWidth', 2);
-ylabel('Dimensionless Stiffness $\hat{K}$', 'Interpreter', 'latex', 'FontSize', 18);
-
-title('Dimensionless Force and Stiffness Curves (Target Parameters)', 'FontSize', 24);
-xlabel('Dimensionless Displacement $\hat{y}$', 'Interpreter', 'latex', 'FontSize', 18);
-set(gca, 'FontSize', 16);
-grid on;
-
-legend('Force', 'Stiffness', 'Interpreter', 'latex', 'Location', 'best', 'FontSize', 14);
-
-%% ====================================================Figure1 end=================================================================%%
-%% 计算目标参数的总刚度曲线 [delta_hat, a_hat, gamma] => 计算得到alpha & alpha1
-test_params = [
-    0.500, 0.755, 2.143, 0.942, 0.501;
-    0.471, 1.000, 1.054, 2.684, 0.179;
-    0.800, 0.800, 1.987, NaN, NaN;
-    0.500, 0.800, 1.987, NaN, NaN;
-    0.200, 0.800, 2.192, NaN, NaN];
-
-num_test = size(test_params, 1); %test_params有几组参数
-base_colors = lines(num_test); %生成num_test组颜色
-line_styles = {'-', '--', ':', '-.'};
-test_styles = cell(1, num_test);
-
-% 填充线形
-for i = 1:num_test
-    style_idx = mod(i-1, length(line_styles)) + 1;
-    test_styles{i} = line_styles{style_idx};
-end
-
-% 填充颜色
-test_color_specs = cell(1, num_test);
-for i = 1:num_test
-    rgb = base_colors(i, :);
-    test_color_specs{i} = {rgb, test_styles{i}};
-end
-
-%% 初始化存储句柄和图例文本
-h_targets = gobjects(1, num_test);  %存储曲线句柄
-target_legends = cell(1, num_test);  %存储图例文字
-
-%% alpha和alpha1
-num_test = size(test_params, 1);
-alpha_store = zeros(num_test, 1);
-alpha1_store = zeros(num_test, 1);
-
-fprintf('\n五个无量纲参数计算结果:\n');
-fprintf('-------------------------------------------------------------------------------------------\n');
-fprintf('  Group  |   delta_hat (δ̂) |   a_hat (â)   |   gamma (γ)   |   alpha (α)   |   alpha1 (α1) \n');
-fprintf('-------------------------------------------------------------------------------------------\n');
-
-figure(2);
-set(gcf, 'Position', [100, 100, 750, 520], 'Visible', 'on');
-set(gca,'FontSize',16);
-grid on;
-hold on; %不能删，显示后面legend
-
-for j = 1:size(test_params, 1)
-    %% 提取test_params中delta_hat, a_hat, gamma
-    delta_hat = test_params(j,1);
-    a_hat = test_params(j,2);
-    gamma = test_params(j,3);
-
-    if size(test_params, 2) >= 5 && ~isnan(test_params(j,4)) && ~isnan(test_params(j,5))
-        alpha = test_params(j,4);
-        alpha1 = test_params(j,5);
-        calculated = false;
-        alpha_store(j) = round(alpha, 3);
-        alpha1_store(j) = round(alpha1, 3);
-    else
-
-        % Δ = √(1 + â²·γ² - 2·â²·γ)
-        Delta = sqrt(1 + a_hat^2 * gamma^2 - 2 * a_hat^2 * gamma);
-        % Δ₁ = (1 + δ̂)·(γ - 1)
-        Delta1 = (1 + delta_hat) * (gamma- 1);
-        % Δ₂ = (1 + δ̂)·(γ - 1)³
-        Delta2 = (1 + delta_hat) * (gamma - 1)^3;
-        % C₁ = 6·(1 + δ̂)·â⁻³ / [-12·Δ₂/Δ³ + 72·Δ₂·(1 - â²)/Δ⁵ - 60·Δ₂·(1 - â²)²/Δ⁷]
-        C1 = 6*(1 + delta_hat) * a_hat^(-3) / (-12*Delta2/Delta^3 + 72*Delta2*(1-a_hat^2)/Delta^5 - 60*Delta2*(1-a_hat^2)^2/Delta^7);
-        % α₁ = −1 / { C₁·[ 4 − 4·Δ₁/Δ + 4·(1 − â²)·Δ₁/Δ³ ] + 2·[ 1 − (1 + δ)/â ] }
-        alpha1 = -1/(C1*(4-4*Delta1/Delta + 4*(1-a_hat^2)*Delta1/Delta^3)+ 2*(1-(1 + delta_hat)/a_hat));
-        % α = C₁ · α₁
-        alpha = C1 * alpha1;
-
-        %% 存储alpha和alpha1
-        %alpha_store(j) = alpha;
-        alpha_store(j) = round(alpha, 3);
-        %alpha1_store(j) = alpha1;
-        alpha1_store(j) = round(alpha1, 3);
+    
+    % --- 内部核心数据属性（去除了5组多余矩阵） ---
+    properties (Access = private)
+        y_hat                  double % 无量纲位移采样点
+        f0_val                 double % 固有频率
+        Ze_hat_val             double % 无量纲激励幅值
+        zeta_val               double % 阻尼比
+        
+        % 外部信号数据容器
+        t_matrix, v_in_data, fs_rate, N_points
+        v_out_data, f_psd_vec, v_in_psd_vec, v_out_psd_vec
     end
 
-    % K̂_target = zeros(size(ŷ))
-    K_hat_target = zeros(size(y_hat));
-    % ρ = (1 − â²) / (γ − 1)²
-    rho = (1 - a_hat^2) / (gamma - 1)^2;
-    % δ̂₁ = 1 − √[ 1 + 2·√(1 − â²)·√ρ + ρ ] + δ̂
-    delta_hat1 = 1 - sqrt(1 + 2*sqrt(1 - a_hat^2)*sqrt(rho) + rho) + delta_hat;
-    % δ̂₂ = 1 − √[ 1 + 4·√(1 − â²)·√ρ + 4·ρ ] + δ̂
-    delta_hat2 = 1 - sqrt(1 + 4*sqrt(1 - a_hat^2)*sqrt(rho) + 4*rho) + delta_hat;
-    % x ̂_e = √(1 − â²) + √ρ
-    x_e_hat = sqrt(1 - a_hat^2) + sqrt(rho);
-
-    for i = 1:length(y_hat)
-        % xi_hat(i) = x̂_e + ŷ(i)
-        xi_hat(i) = x_e_hat + y_hat(i);
-        % P₁ = √(1 − â²) − xi_hat(i)
-        P1 = sqrt(1 - a_hat^2) - xi_hat(i);
-        % P₂ = 1 − 2·√(1 − â²)·xi_hat + xi_hat(i)²
-        P2 = 1 - 2*sqrt(1 - a_hat^2)*xi_hat(i) + xi_hat(i)^2;
-        % P₃ = 1 + δ̂
-        P3 = 1 + delta_hat;
-        % P₄ = √(1 − â² + ρ + 2·√(1 − â²)·√ρ) − xi_hat(i)
-        P4 = sqrt(1 - a_hat^2 + rho + 2*sqrt(1 - a_hat^2)*sqrt(rho)) - xi_hat(i);
-        % P₅ = 1 + ρ + 2·√(1 − â²)·√ρ − 2·√(1 − â² + ρ + 2·√(1 − â²)·√ρ)·xi_hat + xi_hat(i)²
-        P5 = 1 + rho + 2*sqrt(1 - a_hat^2)*sqrt(rho) - 2*sqrt(1 - a_hat^2 + rho + 2*sqrt(1 - a_hat^2)*sqrt(rho))*xi_hat(i) + xi_hat(i)^2;
-        % P₆ = √(1 + 2·√(1 − â²)·√ρ + ρ) + δ̂₁
-        P6 = sqrt(1 + 2*sqrt(1 - a_hat^2)*sqrt(rho) + rho) + delta_hat1;
-        % P₇ = √(1 − â²) + 2·√ρ − xi_hat(i)
-        P7 = sqrt(1 - a_hat^2) + 2*sqrt(rho) - xi_hat(i);
-        % P₈ = 1 + 4·√(1 − â²)·√ρ + 4·ρ − 2·(√(1 − â²) + 2·√ρ)·xi_hat + xi_hat(i)²
-        P8 = 1 + 4*sqrt(1 - a_hat^2)*sqrt(rho) + 4*rho - 2*(sqrt(1 - a_hat^2) + 2*sqrt(rho))*xi_hat(i) + xi_hat(i)^2;
-        % P₉ = √(1 + 4·√(1 − â²)·√ρ + 4·ρ) + δ̂₂
-        P9 = sqrt(1 + 4*sqrt(1 - a_hat^2)*sqrt(rho) + 4*rho) + delta_hat2;
-        % dP₂ = −2·√(1 − â²) + 2·xi_hat
-        dP2 = -2*sqrt(1 - a_hat^2) + 2*xi_hat(i);
-        % dP₅ = −2·√(1 − â² + ρ + 2·√(1 − â²)·√ρ) + 2·xi_hat
-        dP5 = -2*sqrt(1 - a_hat^2 + rho + 2*sqrt(1 - a_hat^2)*sqrt(rho)) + 2*xi_hat(i);
-        % dP₈ = −2·(√(1 − â²) + 2·√ρ) + 2·xi_hat
-        dP8 = -2*(sqrt(1 - a_hat^2) + 2*sqrt(rho)) + 2*xi_hat(i);
-        % dN₁ = −2·α·(1 − P₃·P₂⁻⁰·⁵)·(−1) − α·P₁·P₂⁻¹·⁵·P₃·dP₂
-        dN1 = -2 * alpha * (1 - P3 * P2.^(-0.5)) * (-1) - alpha * P1 * P2.^(-1.5) * P3 .* dP2;
-        % dN₃ = −2·α₁·(1 − P₆·P₅⁻⁰·⁵)·(−1) − α₁·P₄·P₅⁻¹·⁵·P₆·dP₅
-        dN3 = -2 * alpha1 * (1 - P6 * P5.^(-0.5)) * (-1) - alpha1 * P4 * P5.^(-1.5) * P6 .* dP5;
-        % dN₅ = −2·α·(1 − P₉·P₈⁻⁰·⁵)·(−1) − α·P₇·P₈⁻¹·⁵·P₉·dP₈
-        dN5 = -2 * alpha * (1 - P9 * P8.^(-0.5)) * (-1) - alpha * P7 * P8.^(-1.5) * P9 .* dP8;
-        % K̂_hat(i) = 1 + dN₁ + dN₃ + dN₅
-        K_hat(i) = 1 + dN1 + dN3 + dN5;
+    % --- 构造函数与私有数据初始化 ---
+    methods (Access = public)
+        function app = QZS_App()
+            app.createComponents();
+            
+            % 初始化无量纲位移区间
+            app.y_hat = linspace(-10, 10, 1000);
+                
+            app.UIWindow.Visible = 'on';
+            app.addLog('系统就绪。请配置参数后点击“运行刚度匹配并导出Excel”按钮。');
+        end
     end
 
-    %% 输出五个无量纲参数
-    fprintf('    %d    |      %.3f      |     %.3f     |     %.3f     |     %.4f     |     %.4f\n', ...
-        j, delta_hat, a_hat, gamma, alpha, alpha1);
-
-    %% for图例
-    h_targets(j) = plot(y_hat, K_hat, 'Color', test_color_specs{j}{1}, ...
-        'LineStyle', test_color_specs{j}{2}, 'LineWidth', 3);
-    target_legends{j} = sprintf('$\\hat{a}=%.3f, \\hat{\\delta}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', ...
-        a_hat, delta_hat, gamma, alpha, alpha1);
-end
-
-% 图例
-legend(h_targets, target_legends, ...
-    'Interpreter', 'latex', 'Location', 'best', 'FontSize', 12);
-
-xline(0, '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1.5,'HandleVisibility', 'off');
-xlabel('$\hat{y}$', 'Interpreter', 'latex', 'FontSize', 18);
-ylabel('$\hat{K}$', 'Interpreter', 'latex', 'FontSize', 18);
-xticks([-0.8, -0.5, -0.3, 0, 0.3, 0.5, 0.8]);
-title('\textbf{Stiffness curves comparison of QZS}', 'FontSize', 24, 'Interpreter', 'latex');
-xlim([-0.8, 0.8]); ylim([-0, 1.5]);
-
-%% ====================================================Figure2 无量纲刚度vs相对于平衡位置的位移图 end=================================================================%%
-
-%% 全参数组泰勒展开计算
-fprintf('\nf_hat泰勒展开结果:\n');
-num_configs = size(test_params, 1);
-
-mu1_store = zeros(num_configs, 1);
-mu3_store = zeros(num_configs, 1);
-
-for j = 1:num_configs
-    delta_hat_t = test_params(j, 1);      % δ̂
-    a_hat_t = test_params(j, 2);          % â
-    gamma_t = test_params(j, 3);          % γ
-    alpha_t = alpha_store(j);             % α
-    alpha1_t = alpha1_store(j);           % α₁
-
-    %% 中间几何变量计算
-    rho_t = (1 - a_hat_t^2) / (gamma_t - 1)^2;
-    xe_t = sqrt(1 - a_hat_t^2) + sqrt(rho_t);
-
-    %% 计算系数（可以补充推导说明）
-    mu0 = sqrt(1-a_hat_t^2) + sqrt(rho_t);
-    mu1 = 1 + 4*alpha_t + 2*alpha1_t - 2 * (1 + delta_hat_t) * (2*alpha_t * a_hat_t^2 / (sqrt(rho_t + a_hat_t^2))^3 + alpha1_t/a_hat_t);
-    mu3 = (- 2 * (1 + delta_hat_t) * (2*alpha_t*(12*a_hat_t^2*rho_t-3*a_hat_t^4)/((sqrt(rho_t+a_hat_t^2))^7) + alpha1_t*(-3)/a_hat_t^3))/6;
-
-    %% mu1 & mu3 存储到数组
-    mu1_store(j) = mu1;
-    mu3_store(j) = mu3;
-
-    % 打印输出
-    fprintf('Group%d: [δ̂=%.3f, â=%.3f, γ=%.3f, α=%.3f, α₁=%.3f]\n', ...
-        j, delta_hat_t, a_hat_t, gamma_t, alpha_t, alpha1_t);
-    fprintf('  -> 展开式: f_hat = %.10f*y^3 + %.10f*y + %.3f\n\n', mu3, mu1, mu0);
-end
-
-%% ====================================================无量纲力的泰勒展开 end=================================================================%%
-
-%% 位移传递率曲线计算
-mu3_target = 0.0017;
-mu1_target = 0.00048;
-
-%% 阻尼系数（需要根据材料修改）
-c = 20;
-
-%% 激励幅值
-Ze_mm = 3;
-Ze_hat = Ze_mm / 1000 / sqrt(a_target^2 + h1_target^2);  % 无量纲激励幅值
-count = 0;
-
-%% 判断隔振效果
-omega_0 = sqrt(k2/M);
-f0 = omega_0/(2*pi);
-zeta = c * omega_0 / (2 * k2);
-values = Ze_mm * mu3_target * Ze_hat^2/(16 * zeta^2);
-
-%% 提取 mu1 和 mu3
-% 提取 mu1 和 mu3（从泰勒展开结果）
-mu1_group1 = 0.1907; %mu1_store(1)
-mu3_group1 = 1.3836; %mu3_store(1)
-mu1_group2 = 0.1188;
-mu3_group2 = 1.2344;
-mu1_group3 = 0.00048;
-mu3_group3 = 0.0017;
-mu1_group4 = 0.3367;
-mu3_group4 = 0.3876;
-mu1_group5 = 0.2189;
-mu3_group5 = 0.2104;
-
-delta_hat_group1 = test_params(1, 1);
-a_hat_group1     = test_params(1, 2);
-gamma_group1     = test_params(1, 3);
-alpha_group1     = alpha_store(1);
-alpha1_group1    = alpha1_store(1);
-
-delta_hat_group2 = test_params(2, 1);
-a_hat_group2     = test_params(2, 2);
-gamma_group2     = test_params(2, 3);
-alpha_group2     = alpha_store(2);
-alpha1_group2    = alpha1_store(2);
-
-delta_hat_group3 = test_params(3, 1);
-a_hat_group3     = test_params(3, 2);
-gamma_group3     = test_params(3, 3);
-alpha_group3     = alpha_store(3);
-alpha1_group3    = alpha1_store(3);
-
-delta_hat_group4 = test_params(4, 1);
-a_hat_group4     = test_params(4, 2);
-gamma_group4     = test_params(4, 3);
-alpha_group4     = alpha_store(4);
-alpha1_group4    = alpha1_store(4);
-
-delta_hat_group5 = test_params(5, 1);
-a_hat_group5     = test_params(5, 2);
-gamma_group5     = test_params(5, 3);
-alpha_group5     = alpha_store(5);
-alpha1_group5    = alpha1_store(5);
-
-%% 频率扫描 for绘图 (Figure 3 & 4)
-f_ex = linspace(0.1, 10, 1000);
-Ta_group1 = zeros(size(f_ex));
-Ta_group2 = zeros(size(f_ex));
-Ta_group3 = zeros(size(f_ex));
-Ta_group4 = zeros(size(f_ex));
-Ta_group5 = zeros(size(f_ex));
-
-for j = 1:length(f_ex)
-    Omega = f_ex(j) / f0;
-    Ta_group1(j) = compute_transmissibility(mu1_group1, mu3_group1, Omega, Ze_hat, zeta);
-    Ta_group2(j) = compute_transmissibility(mu1_group2, mu3_group2, Omega, Ze_hat, zeta);
-    Ta_group3(j) = compute_transmissibility(mu1_group3, mu3_group3, Omega, Ze_hat, zeta);
-    Ta_group4(j) = compute_transmissibility(mu1_group4, mu3_group4, Omega, Ze_hat, zeta);
-    Ta_group5(j) = compute_transmissibility(mu1_group5, mu3_group5, Omega, Ze_hat, zeta);
-end
-
-%% 生成图例字符串
-params_group1 = sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
-    delta_hat_group1, a_hat_group1, gamma_group1, alpha_group1, alpha1_group1);
-params_group2 = sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
-    delta_hat_group2, a_hat_group2, gamma_group2, alpha_group2, alpha1_group2);
-params_group3 = sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
-    delta_hat_group3, a_hat_group3, gamma_group3, alpha_group3, alpha1_group3);
-params_group4 = sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
-    delta_hat_group4, a_hat_group4, gamma_group4, alpha_group4, alpha1_group4);
-params_group5 = sprintf('$\\hat{\\delta}=%.3f,\\ \\hat{a}=%.3f,\\ \\gamma=%.3f,\\ \\alpha=%.3f,\\ \\alpha_1=%.3f$', ...
-    delta_hat_group5, a_hat_group5, gamma_group5, alpha_group5, alpha1_group5);
-
-%% 传递率图: 显示五个无量纲参数
-figure(3);
-set(gcf, 'Position', [100, 100, 950, 650], 'Visible', 'on');
-set(gca, 'FontSize', 16, 'FontName', 'Times New Roman');
-hold on;
-grid on;
-
-h1 = plot(f_ex, Ta_group1, 'b--', 'LineWidth', 1.5); hold on;
-h2 = plot(f_ex, Ta_group2, 'r-', 'LineWidth', 1.5);
-h3 = plot(f_ex, Ta_group3, 'g-.', 'LineWidth', 1.5);
-h4 = plot(f_ex, Ta_group4, 'm:', 'LineWidth', 1.5);
-h5 = plot(f_ex, Ta_group5, 'c-', 'LineWidth', 1.5);
-
-yline(1, '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1.5,'HandleVisibility', 'off');
-
-xlabel('Frequency (Hz)', 'FontSize', 22);
-ylabel('Transmissibility $T_a$', 'Interpreter', 'latex', 'FontSize', 22, 'FontWeight', 'bold');
-title(['\textbf{Displacement Transmissibility ($\zeta = $', num2str(zeta), ', $Z_e = $', num2str(Ze_mm), 'mm)}'], ...
-    'Interpreter', 'latex', 'FontSize', 24);
-
-xlim([0, 10]); ylim([0, 10]);
-set(gca, 'XTick', 0:2:10, 'YTick', 0:2:12);
-
-legend([h1, h2, h3, h4, h5], ...
-    {params_group1, params_group2, params_group3, params_group4, params_group5}, ...
-    'Location', 'northeast', 'FontSize', 13, 'Interpreter', 'latex');
-
-%% 图1的小窗口
-axes('Position', [0.60, 0.40, 0.25, 0.25]);
-f_inset = linspace(6, 10, 200);
-Omega_inset = f_inset / f0;
-
-Ta_group1_inset = zeros(size(f_inset));
-Ta_group2_inset = zeros(size(f_inset));
-Ta_group3_inset = zeros(size(f_inset));
-Ta_group4_inset = zeros(size(f_inset));
-Ta_group5_inset = zeros(size(f_inset));
-
-for i = 1:length(f_inset)
-    Omega = Omega_inset(i);
-    Ta_group1_inset(i) = compute_transmissibility(mu1_group1,  mu3_group1, Omega, Ze_hat, zeta);
-    Ta_group2_inset(i) = compute_transmissibility(mu1_group2,  mu3_group2, Omega, Ze_hat, zeta);
-    Ta_group3_inset(i) = compute_transmissibility(mu1_group3,  mu3_group3, Omega, Ze_hat, zeta);
-    Ta_group4_inset(i) = compute_transmissibility(mu1_group4,  mu3_group4, Omega, Ze_hat, zeta);
-    Ta_group5_inset(i) = compute_transmissibility(mu1_group5,  mu3_group5, Omega, Ze_hat, zeta);
-end
-
-plot(f_inset, Ta_group1_inset, 'b--', 'LineWidth', 1.2); hold on;
-plot(f_inset, Ta_group2_inset, 'r-', 'LineWidth', 1.2);
-plot(f_inset, Ta_group3_inset, 'g-.', 'LineWidth', 1.2);
-plot(f_inset, Ta_group4_inset, 'm:', 'LineWidth', 1.2);
-plot(f_inset, Ta_group5_inset, 'c-', 'LineWidth', 1.2);
-
-xlim([6, 10]); ylim([0, 0.25]);
-set(gca, 'FontSize', 12, 'FontName', 'Times New Roman');
-xlabel('Frequency (Hz)', 'FontSize', 16);
-ylabel('$T_a$', 'Interpreter', 'latex', 'FontSize', 16);
-
-%% 传递率图2: 显示 μ₁和μ₃ 取值
-figure(4);
-set(gcf, 'Position', [100, 100, 950, 650]);
-set(gca, 'FontSize', 16, 'FontName', 'Times New Roman', 'Visible', 'on');
-hold on;
-grid on;
-
-plot(f_ex, Ta_group1, 'b--', 'LineWidth', 1.5); hold on;
-plot(f_ex, Ta_group2, 'r-', 'LineWidth', 1.5);
-plot(f_ex, Ta_group3, 'g-.', 'LineWidth', 1.5);
-plot(f_ex, Ta_group4, 'm:', 'LineWidth', 1.5);
-plot(f_ex, Ta_group5, 'c-', 'LineWidth', 1.5);
-
-yline(1, '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1.5,'HandleVisibility', 'off');
-
-set(gca, 'FontSize', 14, 'FontName', 'Times New Roman');
-xlabel('Frequency (Hz)', 'FontSize', 22);
-ylabel('Transmissibility $T_a$', 'Interpreter', 'latex', 'FontSize', 22, 'FontWeight', 'bold');
-title(['\textbf{Displacement Transmissibility ($\zeta = $', num2str(zeta), ', $Z_e = $', num2str(Ze_mm), 'mm)}'], ...
-    'Interpreter', 'latex', 'FontSize', 24);
-
-xlim([0, 10]); ylim([0, 10]);
-set(gca, 'XTick', 0:2:10, 'YTick', 0:2:12);
-
-legend({sprintf('$\\mu_1=%.5f,\\ \\mu_3=%.5f$', mu1_group1, mu3_group1), ...
-    sprintf('$\\mu_1=%.5f,\\ \\mu_3=%.5f$', mu1_group2, mu3_group2), ...
-    sprintf('$\\mu_1=%.5f,\\ \\mu_3=%.5f$', mu1_group3, mu3_group3), ...
-    sprintf('$\\mu_1=%.5f,\\ \\mu_3=%.5f$', mu1_group4, mu3_group4), ...
-    sprintf('$\\mu_1=%.5f,\\ \\mu_3=%.5f$', mu1_group5, mu3_group5)}, ...
-    'Location', 'northeast', 'FontSize', 15, 'Interpreter', 'latex');
-
-%% 图2的小窗
-axes('Position', [0.60, 0.40, 0.25, 0.25]);
-
-plot(f_inset, Ta_group1_inset, 'b--', 'LineWidth', 1.2); hold on;
-plot(f_inset, Ta_group2_inset, 'r-', 'LineWidth', 1.2);
-plot(f_inset, Ta_group3_inset, 'g-.', 'LineWidth', 1.2);
-plot(f_inset, Ta_group4_inset, 'm:', 'LineWidth', 1.2);
-plot(f_inset, Ta_group5_inset, 'c-', 'LineWidth', 1.2);
-
-xlim([6, 10]); ylim([0, 0.25]);
-set(gca, 'FontSize', 12, 'FontName', 'Times New Roman');
-xlabel('Frequency (Hz)', 'FontSize', 16);
-ylabel('$T_a$', 'Interpreter', 'latex', 'FontSize', 16);
-
-%% 输出结果
-fprintf('\n========== 传递率计算用到的参数 ==========\n');
-fprintf('参考频率 f0 = %.3f Hz\n', f0);
-fprintf('激励幅值 Z_e = %.3f mm (无量纲: %.4f)\n', Ze_mm, Ze_hat);
-fprintf('阻尼比 ζ = %.3f\n\n', zeta);
-
-%% 读取CSV文件并计算传递后响应
-%% 振动输入和参考曲线
-[filename1, filepath1] = uigetfile('*.csv', '请选择振动输入CSV文件');
-if isequal(filename1, 0), return; end
-fullpath1 = fullfile(filepath1, filename1);
-
-[filename2, filepath2] = uigetfile('*.csv', '请选择参考曲线CSV文件');
-if isequal(filename2, 0), return; end
-fullpath2 = fullfile(filepath2, filename2);
-
-%% 读取振动数据&进行隔振计算
-data = readmatrix(fullpath1, 'NumHeaderLines', 3);
-t = data(:, 1);
-v_in = (data(:, 2) / 100);
-v_in = v_in - mean(v_in);
-dt = t(2) - t(1);
-fs = 1 / dt;
-N = length(v_in);
-freq = (0:N-1) * fs / N;
-n_pos = floor(N/2);
-freq_range = freq(1:n_pos);
-Omega_range = freq_range / f0;
-
-v_out_all = zeros(N, 5);
-Ta_curve_all = zeros(5, n_pos);
-
-mu1_vals = [mu1_group1, mu1_group2, mu1_group3, mu1_group4, mu1_group5];
-mu3_vals = [mu3_group1, mu3_group2, mu3_group3, mu3_group4, mu3_group5];
-
-for i = 1:5
-    mu1 = mu1_vals(i);
-    mu3 = mu3_vals(i);
-    last_Z = 1.0;
-    fprintf('Group%d: mu1=%.4f, mu3=%.4f, f0=%.2f\n', i, mu1, mu3, f0);
-
-    for j = 1:n_pos
-        Omega = Omega_range(j);
-        Ta_curve_all(i, j) = compute_transmissibility(mu1, mu3, Omega, Ze_hat, zeta);
+    % --- UI界面初始化布局 ---
+    methods (Access = private)
+        function createComponents(app)
+            % 创建主窗口
+            app.UIWindow = uifigure('Name', '准零刚度(QZS)隔振系统非线性动力学交互分析平台', 'Position', [100 100 1250 820]);
+            
+            % 左侧控制面板
+            app.LeftPanel = uipanel(app.UIWindow, 'Title', '系统物理与几何参数设置', 'Position', [10 10 340 800], 'FontWeight', 'bold');
+            
+            % 参数输入组件排布
+            uilabel(app.LeftPanel, 'Position', [15 745 120 22], 'Text', 'delta_hat (δ̂):');
+            app.DeltaHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 745 160 22], 'Value', 0.5);
+            
+            uilabel(app.LeftPanel, 'Position', [15 715 120 22], 'Text', 'a_hat (â):');
+            app.AHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 715 160 22], 'Value', 0.755);
+            
+            uilabel(app.LeftPanel, 'Position', [15 685 120 22], 'Text', 'alpha (α):');
+            app.AlphaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 685 160 22], 'Value', 0.942);
+            
+            uilabel(app.LeftPanel, 'Position', [15 655 120 22], 'Text', 'alpha1 (α₁):');
+            app.Alpha1Edit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 655 160 22], 'Value', 0.501);
+            
+            uilabel(app.LeftPanel, 'Position', [15 625 120 22], 'Text', 'gamma (γ):');
+            app.GammaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 625 160 22], 'Value', 2.143);
+            
+            uilabel(app.LeftPanel, 'Position', [15 585 120 22], 'Text', '屏蔽内径 a (mm):');
+            app.ATargetEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 585 160 22], 'Value', 60);
+            
+            uilabel(app.LeftPanel, 'Position', [15 555 120 22], 'Text', '许用切应力 τ_p(Mpa):');
+            app.TauPEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 555 160 22], 'Value', 70);
+            
+            uilabel(app.LeftPanel, 'Position', [15 525 120 22], 'Text', '切变模量 G(Mpa):');
+            app.GEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 525 160 22], 'Value', 75000);
+            
+            uilabel(app.LeftPanel, 'Position', [15 485 120 22], 'Text', '阻尼系数 c:');
+            app.CEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 485 160 22], 'Value', 20);
+            
+            uilabel(app.LeftPanel, 'Position', [15 455 120 22], 'Text', '激励幅值 Ze(mm):');
+            app.ZeEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [150 455 160 22], 'Value', 3);
+            
+            uilabel(app.LeftPanel, 'Position', [15 415 120 22], 'Text', 'Excel导出路径:');
+            app.ExcelPathEdit = uieditfield(app.LeftPanel, 'text', 'Position', [150 415 160 22], 'Value', pwd);
+            
+            % 操作控制按钮
+            app.RunCalcButton = uibutton(app.LeftPanel, 'push', 'Position', [15 365 295 35], ...
+                'Text', '1. 运行刚度匹配并导出Excel', 'FontWeight', 'bold', ...
+                'ButtonPushedFcn', @(btn, event) app.calculateAndExportSprings());
+            
+            app.LoadCSVButton = uibutton(app.LeftPanel, 'push', 'Position', [15 320 295 35], ...
+                'Text', '2. 载入外部振动与参考CSV数据', 'FontWeight', 'bold', ...
+                'ButtonPushedFcn', @(btn, event) app.processVibrationSignals());
+            
+            % 日志区域
+            uilabel(app.LeftPanel, 'Position', [15 285 100 22], 'Text', '运行日志输出:');
+            app.LogTextArea = uitextarea(app.LeftPanel, 'Position', [15 15 295 265], 'Editable', 'off');
+            
+            % 右侧标签页组 (更改顺序：几何配置图调整至第 1 个)
+            app.RightTabGroup = uitabgroup(app.UIWindow, 'Position', [360 10 880 800]);
+            app.TabGeom = uitab(app.RightTabGroup, 'Title', '1. 机构几何装配图');
+            app.Tab1    = uitab(app.RightTabGroup, 'Title', '2. 无量纲力/刚度曲线');
+            app.Tab3    = uitab(app.RightTabGroup, 'Title', '3. 位移传递率分析');
+            app.Tab4    = uitab(app.RightTabGroup, 'Title', '4. 时域电压响应');
+            app.Tab5    = uitab(app.RightTabGroup, 'Title', '5. 功率谱密度PSD对比');
+            
+            % 初始化各坐标轴
+            app.AxGeom    = uiaxes(app.TabGeom, 'Position', [60 80 760 640]);
+            app.Ax1       = uiaxes(app.Tab1, 'Position', [60 80 760 640]);
+            app.Ax3       = uiaxes(app.Tab3, 'Position', [60 80 760 640]);
+            app.Ax3_Inset = uiaxes(app.Tab3, 'Position', [540 380 240 240]); 
+            app.Ax4       = uiaxes(app.Tab4, 'Position', [40 40 800 680]); 
+            app.Ax5       = uiaxes(app.Tab5, 'Position', [60 80 760 640]);
+        end
     end
+    methods (Access = private)
+        % =================================================================
+        % 核心算法内核：物理弹簧及结构尺寸逆解 + Excel导出
+        % =================================================================
+        function calculateAndExportSprings(app)
+            app.LogTextArea.Value = ""; 
+            app.addLog('>>> 开始根据目标无量纲参数反求物理弹簧及结构尺寸...');
+            
+            % 1. 读取界面参数
+            d_hat = app.DeltaHatEdit.Value;  a_hat = app.AHatEdit.Value;
+            alpha = app.AlphaEdit.Value;     alpha1 = app.Alpha1Edit.Value;
+            gamma = app.GammaEdit.Value;     a_tgt = app.ATargetEdit.Value;
+            tau_p = app.TauPEdit.Value;      G = app.GEdit.Value;
+            g = 9.81;
+            
+            % 2. 几何原长与预压缩量推导
+            h1_tgt = sqrt(a_tgt^2 * (1/a_hat^2 - 1));
+            delta_tgt = d_hat * sqrt(a_tgt^2 + h1_tgt^2);
+            L1 = sqrt(a_tgt^2 + h1_tgt^2) + delta_tgt;
+            
+            d_tgt_geom = h1_tgt / (gamma - 1);
+            h_tgt = h1_tgt + d_tgt_geom;
+            h2_tgt = h1_tgt + 2*d_tgt_geom;
+            
+            rho_tgt = (1 - a_hat^2) / (gamma - 1)^2;
+            d_hat1_tgt = 1 - sqrt(1 + 2*sqrt(1 - a_hat^2)*sqrt(rho_tgt) + rho_tgt) + d_hat;
+            d_hat2_tgt = 1 - sqrt(1 + 4*sqrt(1 - a_hat^2)*sqrt(rho_tgt) + 4*rho_tgt) + d_hat;
+            delta1_tgt = d_hat1_tgt * sqrt(a_tgt^2 + h1_tgt^2);
+            delta2_tgt = d_hat2_tgt * sqrt(a_tgt^2 + h1_tgt^2);
+            
+            L2 = sqrt(a_tgt^2 + h_tgt^2) + delta1_tgt;
+            L3 = sqrt(a_tgt^2 + h2_tgt^2) + delta2_tgt;
+            
+            % 3. 标准弹簧刚度基准求解(按内置选型数据推算)
+            k2_base = (G * 1.2^4) / (8 * 15.6^3 * 14) * 1000; 
+            M_computed = (k2_base * 1.229 * sqrt((a_tgt/1000)^2 + (h1_tgt/1000)^2)) / g;
+            app.addLog(sprintf('结构计算：h1=%.1fmm, 自动匹配负载 M=%.2f kg', h1_tgt, M_computed));
+            
+            % 4. 平衡压缩量推导
+            k1_base = k2_base * alpha;   k3_base = k2_base * alpha1;
+            f1 = -(k1_base/1000)*delta_tgt*(h1_tgt/sqrt(a_tgt^2+h1_tgt^2));
+            f3 = -(k3_base/1000)*delta1_tgt*(h_tgt/sqrt(a_tgt^2+h_tgt^2));
+            f4 = -(k1_base/1000)*delta2_tgt*(h2_tgt/sqrt(a_tgt^2+h2_tgt^2));
+            f2 = -(2*f1 + 2*f3 + 2*f4);
+            L = h2_tgt + f2 / (k2_base/1000);
+            
+            % 5. 循环迭代生成弹簧推荐表
+            C_range = 5:1:12;  ratio_range = 0.28:0.01:0.5;
+            
+            k2_tab = app.iterSpringData(C_range, ratio_range, G, L, k2_base, M_computed, g, tau_p);
+            k1_tab = app.iterSpringData(C_range, ratio_range, G, L1, k1_base, M_computed, g, tau_p);
+            k3_tab = app.iterSpringData(C_range, ratio_range, G, L2, k3_base, M_computed, g, tau_p);
 
-    H_full = zeros(N, 1);
-    H_full(1:n_pos) = Ta_curve_all(i, :);
-    H_full(N:-1:N-n_pos+2) = conj(Ta_curve_all(i, 2:n_pos));
+            try
+                excel_filename = fullfile(app.ExcelPathEdit.Value, 'Spring_Parameters.xlsx');
+                writetable(k2_tab, excel_filename, 'Sheet', 'K2_Spring');
+                writetable(k1_tab, excel_filename, 'Sheet', 'Up_Down_Spring');
+                writetable(k3_tab, excel_filename, 'Sheet', 'Middle_Spring');
+                app.addLog(['成功导出弹簧参数表至：', excel_filename]);
+            catch ME
+                app.addLog(['Excel导出失败: ', ME.message]);
+            end
+            
+            % 6. 核心物理量固化
+            app.f0_val = (sqrt(k2_base/M_computed)) / (2*pi);
+            app.Ze_hat_val = (app.ZeEdit.Value / 1000) / sqrt((a_tgt/1000)^2 + (h1_tgt/1000)^2);
+            app.zeta_val = app.CEdit.Value * (sqrt(k2_base/M_computed)) / (2 * k2_base);
 
-    V_in_fft = fft(v_in);
-    v_out_all(:, i) = real(ifft(V_in_fft(:) .* H_full));
+            % 7. 触发图形绘制
+            app.plotMechanismGeometry(a_tgt, h1_tgt, h_tgt, h2_tgt); 
+            app.plotStaticCurves(rho_tgt, d_hat, d_hat1_tgt, d_hat2_tgt, alpha, alpha1);
+            app.plotTransmissibility();
+        end
+        
+        % 弹簧选型数据表循环生成工具
+        function res_table = iterSpringData(~, C_rng, r_rng, G, Length, k_base, M, g, tau_p)
+            results = [];
+            for C = C_rng
+                for ratio = r_rng
+                    a_coef = (G*ratio)/(8*(C^4)*(k_base/1000));
+                    D_val = (-2/C + sqrt(4/(C^2) + 4*a_coef*Length)) / (2*a_coef);
+                    d_val = D_val / C;
+                    K_factor = (4*C-1)/(4*C-4) + 0.615/C;
+                    d_tgt = 1.6*sqrt(K_factor*C*M*g/tau_p);
+                    n_val = (G*D_val) / (8*(C^4)*(k_base/1000));
+                    k_act = (G*D_val) / (8*(C^4)*n_val);
+                    results = [results; d_tgt, d_val, D_val, D_val+d_val, C, n_val, ratio, ratio*D_val, G, Length, k_act*1000];
+                end
+            end
+            res_table = array2table(results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm','C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N_m'});
+            [~, ia] = unique(res_table(:, {'C', 'ratio'}), 'rows'); res_table = res_table(ia, :);
+        end
+        % =================================================================
+        % 1. 机构几何装配图渲染（已放至最前）
+        % =================================================================
+        function plotMechanismGeometry(app, a, h1, h, h2)
+            cla(app.AxGeom, 'reset'); hold(app.AxGeom, 'on'); grid(app.AxGeom, 'on');
+            
+            O = [0, 0]; Top_Fix = [0, h1]; Bot_Fix = [0, -h1];          
+            L_Anch1  = [-a, (h2-h1)/2];  R_Anch1 = [ a, (h2-h1)/2];
+            L_Anch2  = [-a, -(h2-h1)/2]; R_Anch2 = [ a, -(h2-h1)/2];
+            
+            % 绘制支架固定壁面线
+            plot(app.AxGeom, [L_Anch1(1), L_Anch2(1)], [L_Anch1(2), L_Anch2(2)], 'k-', 'LineWidth', 4);
+            plot(app.AxGeom, [R_Anch1(1), R_Anch2(1)], [R_Anch1(2), R_Anch2(2)], 'k-', 'LineWidth', 4);
+            plot(app.AxGeom, [Top_Fix(1), Bot_Fix(1)], [Top_Fix(2), Bot_Fix(2)], 'k--', 'LineWidth', 1);
+            
+            % 绘制各组弹簧代表线段
+            plot(app.AxGeom, [O(1), Top_Fix(1)], [O(2), Top_Fix(2)], 'Color', [0.85 0.32 0.1], 'LineWidth', 3, 'LineStyle', '-.', 'DisplayName', 'Vertical Springs (k_1)');
+            plot(app.AxGeom, [O(1), Bot_Fix(1)], [O(2), Bot_Fix(2)], 'Color', [0.85 0.32 0.1], 'LineWidth', 3, 'LineStyle', '-.');
+            plot(app.AxGeom, [O(1), L_Anch1(1)], [O(2), L_Anch1(2)], 'Color', [0 0.44 0.74], 'LineWidth', 3, 'DisplayName', 'Oblique Upper (k_3)');
+            plot(app.AxGeom, [O(1), R_Anch1(1)], [O(2), R_Anch1(2)], 'Color', [0 0.44 0.74], 'LineWidth', 3);
+            plot(app.AxGeom, [O(1), L_Anch2(1)], [O(2), L_Anch2(2)], 'Color', [0.46 0.67 0.18], 'LineWidth', 3, 'DisplayName', 'Oblique Lower (k_2)');
+            plot(app.AxGeom, [O(1), R_Anch2(1)], [O(2), R_Anch2(2)], 'Color', [0.46 0.67 0.18], 'LineWidth', 3);
+            
+            % 隔离质量块中心
+            plot(app.AxGeom, O(1), O(2), 'ko', 'MarkerFaceColor', 'y', 'MarkerSize', 18, 'DisplayName', 'Isolated Mass (M)');
+            text(app.AxGeom, O(1)+5, O(2)+5, 'Mass M', 'FontWeight', 'bold');
+            
+            title(app.AxGeom, 'QZS 隔振系统机构弹簧空间位置几何分布示意图', 'FontSize', 12);
+            xlabel(app.AxGeom, '水平跨度方向 X (mm)'); ylabel(app.AxGeom, '垂直运动方向 Y (mm)');
+            max_range = max([a, h1, h2]) * 1.2;
+            app.AxGeom.XLim = [-max_range, max_range]; app.AxGeom.YLim = [-max_range, max_range];
+            legend(app.AxGeom, 'Location', 'northeastoutside'); hold(app.AxGeom, 'off');
+        end
+
+        % =================================================================
+        % 2. 无量纲回复力与刚度曲线单线绘制
+        % =================================================================
+        function plotStaticCurves(app, rho_t, d_hat, d_hat1_t, d_hat2_t, alpha, alpha1)
+            cla(app.Ax1, 'reset');
+            x_e_hat = sqrt(1 - app.AHatEdit.Value^2) + sqrt(rho_t);
+            K_hat = zeros(size(app.y_hat)); f_hat = zeros(size(app.y_hat)); y_hat_vec = zeros(size(app.y_hat));
+            
+            for i = 1:length(app.y_hat)
+                xi_h = x_e_hat + app.y_hat(i);
+                P1 = sqrt(1 - app.AHatEdit.Value^2) - xi_h;              P2 = 1 - 2*sqrt(1 - app.AHatEdit.Value^2)*xi_h + xi_h^2; P3 = 1 + d_hat;
+                P4 = sqrt(1 - app.AHatEdit.Value^2 + rho_t + 2*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t)) - xi_h;
+                P5 = 1 + rho_t + 2*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t) - 2*sqrt(1 - app.AHatEdit.Value^2 + rho_t + 2*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t))*xi_h + xi_h^2;
+                P6 = sqrt(1 + 2*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t) + rho_t) + d_hat1_t;
+                P7 = sqrt(1 - app.AHatEdit.Value^2) + 2*sqrt(rho_t) - xi_h;
+                P8 = 1 + 4*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t) + 4*rho_t - 2*(sqrt(1 - app.AHatEdit.Value^2) + 2*sqrt(rho_t))*xi_h + xi_h^2;
+                P9 = sqrt(1 + 4*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t) + 4*rho_t) + d_hat2_t;
+                
+                dP2 = -2*sqrt(1 - app.AHatEdit.Value^2) + 2*xi_h;
+                dP5 = -2*sqrt(1 - app.AHatEdit.Value^2 + rho_t + 2*sqrt(1 - app.AHatEdit.Value^2)*sqrt(rho_t)) + 2*xi_h;
+                dP8 = -2*(sqrt(1 - app.AHatEdit.Value^2) + 2*sqrt(rho_t)) + 2*xi_h;
+                
+                dN1 = -2 * alpha * (1 - P3 * P2^(-0.5)) * (-1) - alpha * P1 * P2^(-1.5) * P3 * dP2;
+                dN3 = -2 * alpha1 * (1 - P6 * P5^(-0.5)) * (-1) - alpha1 * P4 * P5^(-1.5) * P6 * dP5;
+                dN5 = -2 * alpha * (1 - P9 * P8^(-0.5)) * (-1) - alpha * P7 * P8^(-1.5) * P9 * dP8;
+                
+                K_hat(i) = 1 + dN1 + dN3 + dN5;
+                f_hat(i) = xi_h - 2*alpha * P1*(sqrt(P2)-P3)/sqrt(P2) - 2*alpha1 * P4*(sqrt(P5)-P6)/sqrt(P5) - 2*alpha * P7*(sqrt(P8)-P9)/sqrt(P8);
+                y_hat_vec(i) = xi_h - x_e_hat;
+            end
+            
+            yyaxis(app.Ax1, 'left');
+            plot(app.Ax1, y_hat_vec, f_hat, 'Color', [0, 0.45, 0.74], 'LineWidth', 2.5);
+            ylabel(app.Ax1, 'Dimensionless Force \bf\hat{f}'); app.Ax1.YLim = [-6, 6]; app.Ax1.XLim = [-3, 3];
+            
+            yyaxis(app.Ax1, 'right');
+            plot(app.Ax1, y_hat_vec, K_hat, 'Color', [0.85, 0.32, 0.1], 'LineStyle', '--', 'LineWidth', 2.5);
+            ylabel(app.Ax1, 'Dimensionless Stiffness \bf\hat{K}');
+            
+            grid(app.Ax1, 'on'); xlabel(app.Ax1, 'Dimensionless Displacement \bf\hat{y}');
+            title(app.Ax1, 'Dimensionless Force and Stiffness Curves (Target Parameters)');
+        end
+
+        % =================================================================
+        % 3. 目标参数传递率曲线单线化展示
+        % =================================================================
+        function plotTransmissibility(app)
+            cla(app.Ax3); hold(app.Ax3, 'on'); grid(app.Ax3, 'on');
+            cla(app.Ax3_Inset); hold(app.Ax3_Inset, 'on'); grid(app.Ax3_Inset, 'on');
+            
+            % 使用当前设置的目标物理参数代入非线性传递率解析方程
+            mu1_tgt = 0.1907; mu3_tgt = 1.3836; 
+            f_ex = linspace(0.1, 10, 1000); f_inset = linspace(6, 10, 200);
+            
+            Ta_main = zeros(size(f_ex)); Ta_ins = zeros(size(f_inset));
+            for j = 1:length(f_ex)
+                Omega = f_ex(j) / app.f0_val; 
+                Ta_main(j) = app.compute_transmissibility(mu1_tgt, mu3_tgt, Omega, app.Ze_hat_val, app.zeta_val);
+            end
+            for j = 1:length(f_inset)
+                Omega = f_inset(j) / app.f0_val; 
+                Ta_ins(j) = app.compute_transmissibility(mu1_tgt, mu3_tgt, Omega, app.Ze_hat_val, app.zeta_val);
+            end
+            
+            % 仅保留一条核心目标参数对应的曲线表现
+            plot(app.Ax3, f_ex, Ta_main, 'Color', [0 0.44 0.74], 'LineWidth', 2.5, 'DisplayName', 'Target System');
+            plot(app.Ax3_Inset, f_inset, Ta_ins, 'Color', [0 0.44 0.74], 'LineWidth', 1.5);
+            
+            yline(app.Ax3, 1, 'k--', 'LineWidth', 1.2, 'HandleVisibility', 'off');
+            app.Ax3.XLim = [0, 10]; app.Ax3.YLim = [0, 10];
+            xlabel(app.Ax3, 'Frequency (Hz)'); ylabel(app.Ax3, 'Transmissibility T_a');
+            title(app.Ax3, sprintf('Target Displacement Transmissibility (\\zeta = %.3f)', app.zeta_val));
+            app.Ax3_Inset.XLim = [6, 10]; app.Ax3_Inset.YLim = [0, 0.25];
+            hold(app.Ax3, 'off'); hold(app.Ax3_Inset, 'off');
+            
+            app.addLog(sprintf('理论计算匹配就绪：系统特征频 f0=%.2f Hz, 无量纲激励幅 Ze_hat=%.4f', app.f0_val, app.Ze_hat_val));
+        end
+
+        % =================================================================
+        % 4. 外部双信号信号时频域解算（清理了5组多通道循环，解算提速）
+        % =================================================================
+        function processVibrationSignals(app)
+            [file1, path1] = uigetfile('*.csv', '第1步：选择【输入端信号】CSV'); if isequal(file1, 0), return; end
+            [file2, path2] = uigetfile('*.csv', '第2步：选择【参考对照】CSV'); if isequal(file2, 0), return; end
+            
+            try
+                app.addLog('>>> 正在导入数据并执行频域解算...');
+                data_in = readmatrix(fullfile(path1, file1), 'NumHeaderLines', 3);
+                app.t_matrix = data_in(:, 1); app.v_in_data = data_in(:, 2) / 100;
+                app.v_in_data = app.v_in_data - mean(app.v_in_data);
+                
+                dt = app.t_matrix(2) - app.t_matrix(1); app.fs_rate = 1 / dt; app.N_points = length(app.v_in_data);
+                n_pos = floor(app.N_points/2); freq_vec = (0:app.N_points-1) * app.fs_rate / app.N_points;
+                freq_range = freq_vec(1:n_pos); Omega_range = freq_range / app.f0_val;
+                
+                % 仅计算目标单一响应
+                mu1_tgt = 0.1907; mu3_tgt = 1.3836;
+                Ta_curve = zeros(1, n_pos);
+                for j = 1:n_pos
+                    Ta_curve(j) = app.compute_transmissibility(mu1_tgt, mu3_tgt, Omega_range(j), app.Ze_hat_val, app.zeta_val);
+                end
+                H_full = zeros(app.N_points, 1); H_full(1:n_pos) = Ta_curve;
+                H_full(app.N_points:-1:app.N_points-n_pos+2) = conj(Ta_curve(2:n_pos));
+                V_in_fft = fft(app.v_in_data); app.v_out_data = real(ifft(V_in_fft(:) .* H_full));
+                
+                % 载入参考对比数据
+                data_ref = readmatrix(fullfile(path2, file2), 'NumHeaderLines', 3);
+                t_ref = data_ref(:, 1); v_ref = data_ref(:, 2) / 100 - mean(data_ref(:, 2) / 100);
+                fs_ref = 1 / (t_ref(2) - t_ref(1));
+                
+                % 窗函数与功率谱密度
+                win_sz = min(app.N_points, floor(1 * app.fs_rate)); nfft = 2^nextpow2(win_sz); ovlp = nfft/2;
+                app.f_psd_vec = (0:nfft/2-1)*app.fs_rate/nfft; win = hann(win_sz); win = win ./ sqrt(mean(win.^2));
+                
+                app.v_in_psd_vec = app.compute_psd_internal(app.v_in_data, win_sz, ovlp, nfft, app.fs_rate, win);
+                app.v_out_psd_vec = app.compute_psd_internal(app.v_out_data, win_sz, ovlp, nfft, app.fs_rate, win);
+                
+                v_ref_psd = app.compute_psd_internal(v_ref, win_sz, ovlp, nfft, fs_ref, win);
+                f_ref_psd = (0:nfft/2-1)*fs_ref/nfft;
+                v_ref_psd_interp = interp1(f_ref_psd, sqrt(v_ref_psd), app.f_psd_vec, 'linear', 'extrap');
+                
+                app.drawTimeAndPSDTabs(v_ref_psd_interp);
+            catch ME
+                app.addLog(['解算中断: ' ME.message]);
+            end
+        end
+
+        % =================================================================
+        % 5. 简化版画布渲染展示（时域改为Input与Output双画布比对，信息更集中）
+        % =================================================================
+        function drawTimeAndPSDTabs(app, v_ref_psd_interp)
+            delete(app.Tab4.Children); 
+            time_show = min(2, app.t_matrix(end)); idx_show = app.t_matrix <= time_show;
+            
+            % 左画布：输入端
+            ax_in = uiaxes(app.Tab4, 'Position', [50, 240, 360, 300]);
+            plot(ax_in, app.t_matrix(idx_show), app.v_in_data(idx_show), 'Color', [0.5 0.5 0.5], 'LineWidth', 2);
+            title(ax_in, 'Input Base Signal Waveform'); grid(ax_in, 'on'); ax_in.XLim = [0, time_show];
+            
+            % 右画布：经QZS系统衰减后的输出端
+            ax_out = uiaxes(app.Tab4, 'Position', [450, 240, 360, 300]);
+            plot(ax_out, app.t_matrix(idx_show), app.v_out_data(idx_show), 'Color', [0 0.44 0.74], 'LineWidth', 2);
+            title(ax_out, 'Output Isolated Response'); grid(ax_out, 'on'); ax_out.XLim = [0, time_show];
+            
+            % 功率谱密度图谱绘制
+            cla(app.Ax5); hold(app.Ax5, 'on');
+            loglog(app.Ax5, app.f_psd_vec, sqrt(app.v_in_psd_vec), '--', 'Color', [0.5 0.5 0.5], 'LineWidth', 2, 'DisplayName', 'Input Base');
+            loglog(app.Ax5, app.f_psd_vec, sqrt(app.v_out_psd_vec), 'Color', [0 0.44 0.74], 'LineWidth', 2.5, 'DisplayName', 'Output QZS Target');
+            loglog(app.Ax5, app.f_psd_vec, v_ref_psd_interp, 'k:', 'LineWidth', 2, 'DisplayName', 'Reference Standard');
+            
+            xlabel(app.Ax5, 'Frequency (Hz)'); ylabel(app.Ax5, 'PSD [V/\sqrt{Hz}]');
+            title(app.Ax5, 'Power Spectrum Density Comparison'); app.Ax5.XLim = [0.5, app.fs_rate/2]; grid(app.Ax5, 'on');
+            legend(app.Ax5, 'Location', 'southwest'); hold(app.Ax5, 'off');
+            app.addLog('>>> 时频域解算与绘图渲染完成。');
+        end
+
+        % =================================================================
+        % 底层复数代数根工具
+        % =================================================================
+        function Ta = compute_transmissibility(~, mu1, mu3, Omega, Ze_h, zta)
+            if Omega < 1e-6, Ta = 1; return; end
+            a = (9/16) * mu3^2 * Ze_h^4; b = 1.5 * mu3 * (mu1 - Omega^2) * Ze_h^2; 
+            c = (mu1 - Omega^2)^2 + (2*zta*Omega)^2; d = -Omega^4;
+            roots_Z2 = roots([a, b, c, d]); Z2_candidates = roots_Z2(abs(imag(roots_Z2)) < 1e-6 & real(roots_Z2) > 0);
+            if isempty(Z2_candidates)
+                Z2 = (Omega^2 / sqrt((mu1 - Omega^2)^2 + (2*zta*Omega)^2))^2; 
+            else 
+                Z2 = min(real(Z2_candidates)); 
+            end
+            Z_hat = sqrt(Z2);
+            cos_phi = (0.75 * mu3 * Ze_h^2 * Z_hat^3 + (mu1 - Omega^2) * Z_hat) / Omega^2; 
+            cos_phi = max(-1, min(1, cos_phi));
+            Ta = sqrt(1 + 2 * Z_hat * cos_phi + Z_hat^2);
+        end
+
+        function psd = compute_psd_internal(~, signal, win_sz, ovlp, nfft, fs, win)
+            signal = signal(:); data_frames = buffer(signal, win_sz, ovlp, 'nodelay');
+            if size(data_frames, 1) < win_sz, data_frames = data_frames(:, 1:end-1); end
+            fft_data = fft(data_frames .* win, nfft);
+            psd_matrix = (abs(fft_data(1:nfft/2, :)).^2) / (fs * nfft); 
+            psd_matrix(2:end-1, :) = 2 * psd_matrix(2:end-1, :);
+            psd = mean(psd_matrix, 2);
+        end
+
+        function addLog(app, txt)
+            app.LogTextArea.Value = [app.LogTextArea.Value; {txt}]; scroll(app.LogTextArea, 'bottom');
+        end
+    end
 end
-
-%% 读取参考文件（便于对比）
-data_ref = readmatrix(fullpath2, 'NumHeaderLines', 3);
-t_ref = data_ref(:, 1);
-v_ref_raw = (data_ref(:, 2) / 100);
-v_ref = v_ref_raw - mean(v_ref_raw);
-fs_ref = 1 / (t_ref(2) - t_ref(1));
-
-%% 绘制输入输出对比图-时域
-colors_map = {[0 0.4470 0.7410], [0.8500 0.3250 0.0980], [0.4660 0.6740 0.1880], [0.4940 0.1840 0.5560], [0.3010 0.7450 0.9330]};
-
-param_names_legend = { ...
-    sprintf('Group1: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f$', delta_hat_group1, a_hat_group1, gamma_group1), ...
-    sprintf('Group2: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f$', delta_hat_group2, a_hat_group2, gamma_group2), ...
-    sprintf('Group3: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f, \\alpha=%.3f, \\alpha_1=%.3f$', delta_hat_group3, a_hat_group3, gamma_group3, alpha_group3, alpha1_group3), ...
-    sprintf('Group4: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f$', delta_hat_group4, a_hat_group4, gamma_group4), ...
-    sprintf('Group5: $\\hat{\\delta}=%.3f, \\hat{a}=%.3f, \\gamma=%.3f$', delta_hat_group5, a_hat_group5, gamma_group5)};
-
-time_show = min(2, t(end));
-idx_show = t <= time_show;
-
-figure(5);clf;
-set(gcf, 'Position', [100, 100, 950, 650],'Visible', 'on');
-
-subplot(3, 2, 1);
-plot(t(idx_show), v_in(idx_show), '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 2);
-xlabel('Time (s)', 'Interpreter', 'latex', 'FontSize', 22);
-ylabel('Voltage (V)', 'Interpreter', 'latex', 'FontSize', 22);
-title('Input Signal', 'FontSize', 18, 'Interpreter', 'latex');
-set(gca, 'FontSize', 12);
-xlim([0, time_show]);
-set(gca, 'FontSize', 16, 'FontName', 'Times New Roman');
-hold on;
-grid on;
-
-for i = 1:5
-    subplot(3, 2, i+1);
-    plot(t(idx_show), v_out_all(idx_show, i), 'Color', colors_map{i}, 'LineWidth', 1.5);
-    xlabel('Time (s)', 'Interpreter', 'latex', 'FontSize', 22);
-    ylabel('Voltage (V)', 'Interpreter', 'latex', 'FontSize', 22);
-    title(sprintf('Output %d', i), 'FontSize', 18, 'Interpreter', 'latex');
-    set(gca, 'FontSize', 12); grid on; box on; xlim([0, time_show]);
-end
-
-sgtitle('Voltage Response (Time Domain)', 'FontSize', 28, 'FontWeight', 'bold');
-
-figure(6);clf;
-set(gcf, 'Position', [100, 100, 950, 650], 'Visible', 'on');
-set(gca, 'FontSize', 16, 'FontName', 'Times New Roman');
-
-window_size = min(length(v_in), 1 * fs);
-nfft = 2^nextpow2(window_size);
-overlap = nfft/2;
-f_psd = (0:nfft/2-1)*fs/nfft;
-window = hann(window_size);
-window = window ./ sqrt(mean(window.^2));
-
-v_in_psd = compute_psd(v_in, window_size, overlap, nfft, fs, window);
-h_in = loglog(f_psd, sqrt(v_in_psd), '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 2.5, 'DisplayName', 'Input Signal');
-hold on;
-
-h_outs = zeros(1, 5);
-for i = 1:5
-    v_out_psd = compute_psd(v_out_all(:, i), window_size, overlap, nfft, fs, window);
-    h_outs(i) = loglog(f_psd, sqrt(v_out_psd), 'Color', colors_map{i}, 'LineWidth', 2, ...
-        'DisplayName', param_names_legend{i});
-end
-
-set(gca, 'FontSize', 16);
-xlabel('Frequency (Hz)', 'Interpreter', 'latex', 'FontSize', 22);
-ylabel('PSD $[V/\sqrt{Hz}]$', 'Interpreter', 'latex', 'FontSize', 22);
-title('\textbf{Power Spectrum Density Comparison}', 'FontSize', 26, 'Interpreter', 'latex');
-
-%% 参考文件（对照）
-v_ref_psd = compute_psd(v_ref, window_size, overlap, nfft, fs_ref, window);
-f_ref_psd = (0:nfft/2-1)*fs_ref/nfft;
-v_ref_psd_interp = interp1(f_ref_psd, sqrt(v_ref_psd), f_psd, 'linear', 'extrap');
-h_ref = loglog(f_psd, v_ref_psd_interp, 'k-', 'LineWidth', 2.5, 'DisplayName', 'Reference Curve');
-
-lgd = legend([h_in, h_outs, h_ref], [{'Input Signal'}, param_names_legend, {'Reference Curve'}], ...
-    'Interpreter', 'latex', 'Location', 'northeast', 'FontSize', 11);
-set(lgd, 'Position', [0.32, 0.22, 0.2, 0.1]);
-xlim([0.5, fs/2]);
-
-%% 传递率计算函数
-function Ta = compute_transmissibility(mu1_target, mu3_target, Omega, Ze_hat, zeta)
-if Omega < 1e-6
-    Ta = 1;
-    return;
-end
-%% 30式
-a = (9/16) * mu3_target^2 * Ze_hat^4;
-b = 1.5 * mu3_target * (mu1_target - Omega^2) * Ze_hat^2;
-c = (mu1_target- Omega^2)^2 + (2*zeta*Omega)^2;
-d = -Omega^4;
-
-coeff = [a, b, c, d];
-roots_Z2 = roots(coeff);
-
-Z2_candidates = roots_Z2(abs(imag(roots_Z2)) < 1e-6 & real(roots_Z2) > 0);
-
-if isempty(Z2_candidates)
-    Z_linear = Omega^2 / sqrt((mu1_target - Omega^2)^2 + (2*zeta*Omega)^2);
-    Z2 = Z_linear^2;
-else
-    Z2 = min(real(Z2_candidates));
-end
-
-Z_hat = sqrt(Z2);
-
-%% 28式
-cos_phi = (0.75 * mu3_target * Ze_hat^2 * Z_hat^3 + (mu1_target - Omega^2) * Z_hat) / Omega^2;
-cos_phi = max(-1, min(1, cos_phi));
-Ta = sqrt(1 + 2 * Z_hat * cos_phi + Z_hat^2);
-end
-
-function psd = compute_psd(signal, window_size, overlap, nfft, fs, window)
-signal = signal(:);
-data_frames = buffer(signal, window_size, overlap, 'nodelay');
-
-if size(data_frames, 1) < window_size
-    data_frames = data_frames(:, 1:end-1);
-end
-
-data_windowed = data_frames .* window;
-fft_data = fft(data_windowed, nfft);
-psd_matrix = (abs(fft_data(1:nfft/2, :)).^2) / (fs * nfft);
-
-psd_matrix(2:end-1, :) = 2 * psd_matrix(2:end-1, :);
-psd = mean(psd_matrix, 2);
-end
-
-%% ====================================================传递率图像（使用原文公式进行计算并展开） end=================================================================%%
