@@ -35,11 +35,6 @@ classdef QZS_App < matlab.apps.AppBase
         % 4. 下侧斜弹簧 (Lower)
         L_TurnsEdit, L_WireDiaEdit, L_CylinderEdit
 
-        % 显式声明其余几何尺寸输入框句柄，防止匿名回调失效
-        BaseThickEdit         matlab.ui.control.NumericEditField
-        H4Edit                matlab.ui.control.NumericEditField
-        H5Edit                matlab.ui.control.NumericEditField
-
         % 交互控制按钮与系统日志
         LoadCSVButton         matlab.ui.control.Button            % 载入并解算外部信号按钮
         DesignButton          matlab.ui.control.Button            % 绿色保存按钮
@@ -48,10 +43,10 @@ classdef QZS_App < matlab.apps.AppBase
 
     % --- 全局字体与图形控制常量 ---
     properties (Access = private, Constant)
-        TitleFontSize = 22;       % 图表标题字号大小
-        LabelFontSize = 20;       % 坐标轴标签字号大小
-        TickFontSize  = 18;       % 坐标轴刻度数字号大小
-        LegendFontSize = 12;      % 图例字号大小
+        TitleFontSize = 20;       % 图表标题字号大小
+        LabelFontSize = 18;       % 坐标轴标签字号大小
+        TickFontSize  = 16;       % 坐标轴刻度数字号大小
+        LegendFontSize = 10;      % 图例字号大小
     end
 
     % --- 内部核心数据与自适应几何控制变量 ---
@@ -109,141 +104,119 @@ classdef QZS_App < matlab.apps.AppBase
             % 1. 左侧配置控制面板构建
             app.LeftPanel = uipanel(app.UIWindow, 'Title', 'Configuration', 'Position', [10 10 190 830], 'FontWeight', 'bold');
 
-            y_pos = 785;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'delta_hat (δ̂):', 'FontSize', 14, 'FontWeight', 'bold');
-            app.DeltaHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.5, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'delta_hat'));
+            y_pos = 785; % 略微上移起始点
+uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'delta_hat (δ̂):', 'FontSize', 14, 'FontWeight', 'bold');
+app.DeltaHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.5, 'FontSize', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'a_hat (â):', 'FontSize', 14, 'FontWeight', 'bold');
-            app.AHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.755, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'a_hat'));
+y_pos = y_pos - 32; % 间距由 28 增大至 32
+uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'a_hat (â):', 'FontSize', 14, 'FontWeight', 'bold');
+app.AHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.755, 'FontSize', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'alpha (α):', 'FontSize', 14, 'FontWeight', 'bold');
-            app.AlphaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.942, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'alpha'));
+y_pos = y_pos - 32;
+uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'alpha (α):', 'FontSize', 14, 'FontWeight', 'bold');
+app.AlphaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.942, 'FontSize', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'alpha1 (α₁):', 'FontSize', 14, 'FontWeight', 'bold');
-            app.Alpha1Edit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.501, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'alpha1'));
+y_pos = y_pos - 32;
+uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'alpha1 (α₁):', 'FontSize', 14, 'FontWeight', 'bold');
+app.Alpha1Edit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.501, 'FontSize', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'gamma (γ):', 'FontSize', 14, 'FontWeight', 'bold');
-            app.GammaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 2.143, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'gamma'));
+y_pos = y_pos - 32;
+uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'gamma (γ):', 'FontSize', 14, 'FontWeight', 'bold');
+app.GammaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 2.143, 'FontSize', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'a (mm):', 'FontSize', 14, 'FontWeight', 'bold');
-            app.ATargetEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', app.a, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
+y_pos = y_pos - 32;
+uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'a (mm):', 'FontSize', 14, 'FontWeight', 'bold');
+app.ATargetEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', app.a, 'FontSize', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
 
-            y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'tau_p (Mpa):', 'FontSize', 14, 'FontWeight', 'bold');
-            app.TauPEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 70.0, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+y_pos = y_pos - 32;
+uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'tau_p (Mpa):', 'FontSize', 14, 'FontWeight', 'bold');
+app.TauPEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 70.0, 'FontSize', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'G (MPa):', 'FontSize', 14, 'FontWeight', 'bold');
-            app.GEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 75000, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+y_pos = y_pos - 32;
+uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'G (MPa):', 'FontSize', 14, 'FontWeight', 'bold');
+app.GEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 75000, 'FontSize', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'Damping C:', 'FontSize', 14, 'FontWeight', 'bold');
-            app.CEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 20, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+y_pos = y_pos - 32;
+uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'Damping C:', 'FontSize', 14, 'FontWeight', 'bold');
+app.CEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 20, 'FontSize', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'Ze (mm):', 'FontSize', 14, 'FontWeight', 'bold');
-            app.ZeEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 3, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+y_pos = y_pos - 32;
+uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'Ze (mm):', 'FontSize', 14, 'FontWeight', 'bold');
+app.ZeEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 3, 'FontSize', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            y_pos = y_pos - 48;
-            app.DesignButton = uibutton(app.LeftPanel, 'push', 'Position', [10 y_pos 165 35], ...
-                'Text', 'Design Springs', 'FontWeight', 'bold', 'BackgroundColor', [0.25, 0.60, 0.42], ...
-                'FontColor', 'white', 'FontSize', 16, 'ButtonPushedFcn', @(btn, event) app.saveDesignData());
+% 下方交互按钮随之顺延下移，确保不与输入框重叠
+y_pos = y_pos - 48;
+app.DesignButton = uibutton(app.LeftPanel, 'push', 'Position', [10 y_pos 165 35], ...
+    'Text', 'Design Springs', 'FontWeight', 'bold', 'BackgroundColor', [0.25, 0.60, 0.42], ...
+    'FontColor', 'white', 'FontSize', 16, 'ButtonPushedFcn', @(btn, event) app.saveDesignData());
 
-            y_pos = y_pos - 45;
-            app.LoadCSVButton = uibutton(app.LeftPanel, 'push', 'Position', [10 y_pos 165 35], ...
-                'Text', 'Load & Get PSD', 'FontWeight', 'bold', 'BackgroundColor', [0.88, 0.45, 0.13], ...
-                'FontColor', 'white', 'FontSize', 16, 'ButtonPushedFcn', @(btn, event) app.processVibrationSignals());
+y_pos = y_pos - 45;
+app.LoadCSVButton = uibutton(app.LeftPanel, 'push', 'Position', [10 y_pos 165 35], ...
+    'Text', 'Load & Get PSD', 'FontWeight', 'bold', 'BackgroundColor', [0.88, 0.45, 0.13], ...
+    'FontColor', 'white', 'FontSize', 16, 'ButtonPushedFcn', @(btn, event) app.processVibrationSignals());
 
-            app.LogTextArea = uitextarea(app.LeftPanel, 'Position', [10 10 165 y_pos-15], 'Editable', 'off', 'FontSize', 13);
-            app.RightAxesPanel = uipanel(app.UIWindow, 'Title', 'Analysis & Visualization', 'Position', [210 10 1200 830], 'FontWeight', 'bold');
-
+app.LogTextArea = uitextarea(app.LeftPanel, 'Position', [10 10 165 y_pos-15], 'Editable', 'off', 'FontSize', 13);
             y_matrix = 740;
-            uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 50 22], 'Text', 'Type', 'FontWeight', 'bold','FontSize', 14);
-            uilabel(app.RightAxesPanel, 'Position', [985 y_matrix 35 22], 'Text', '  n', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22]);
-            uilabel(app.RightAxesPanel, 'Position', [1020 y_matrix 55 22], 'Text', 'd (mm)', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22]);
-            uilabel(app.RightAxesPanel, 'Position', [1070 y_matrix 55 22], 'Text', 'D (mm)', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22]);
-            
-            % --- 1. Upper Row ---
-            y_matrix = y_matrix - 26;
-            uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 50 22], 'Text', 'Upper:', 'FontWeight', 'bold','FontSize', 14);
-            app.U_TurnsEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [980 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_upper'));
-            app.U_WireDiaEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1020 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_upper'));
-            app.U_CylinderEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1068 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_upper'));
+% 标题栏
+uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 50 22], 'Text', 'Type', 'FontWeight', 'bold');
+uilabel(app.RightAxesPanel, 'Position', [985 y_matrix 35 22], 'Text', '  n', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22]);
+uilabel(app.RightAxesPanel, 'Position', [1025 y_matrix 35 22], 'Text', ' d(mm)', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22]);
+uilabel(app.RightAxesPanel, 'Position', [1072 y_matrix 35 22], 'Text', ' D(mm)', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22]);
 
-            % --- 2. Mid Row ---
-            y_matrix = y_matrix - 26;
-            uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 50 22], 'Text', 'Mid:', 'FontWeight', 'bold','FontSize', 14);
-            app.M_TurnsEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [980 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_Turns'));
-            app.M_WireDiaEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1020 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_WireDia'));
-            app.M_CylinderEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1068 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_Cylinder'));
+% 1. Upper Row
+y_matrix = y_matrix - 26;
+uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 50 22], 'Text', 'Upper:', 'FontWeight', 'bold');
+app.U_TurnsEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [980 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+app.U_WireDiaEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1020 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+app.U_CylinderEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1068 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            % --- 3. Lower Row ---
-            y_matrix = y_matrix - 26;
-            uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 50 22], 'Text', 'Down:', 'FontWeight', 'bold','FontSize', 14);
-            app.L_TurnsEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [980 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_lower'));
-            app.L_WireDiaEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1020 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_lower'));
-            app.L_CylinderEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1068 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_lower'));
+% 2. Mid Row
+y_matrix = y_matrix - 26;
+uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 50 22], 'Text', 'Mid:', 'FontWeight', 'bold');
+app.M_TurnsEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [980 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+app.M_WireDiaEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1020 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+app.M_CylinderEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1068 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            % --- 4. Bottom Row ---
-            y_matrix = y_matrix - 26;
-            uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 50 22], 'Text', 'Bottom:', 'FontWeight', 'bold','FontSize', 14);
-            app.V_TurnsEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [980 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_vert'));
-            app.V_WireDiaEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1020 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_vert'));
-            app.V_CylinderEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1068 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_vert'));
+% 3. Lower Row
+y_matrix = y_matrix - 26;
+uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 50 22], 'Text', 'Lower:', 'FontWeight', 'bold');
+app.L_TurnsEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [980 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+app.L_WireDiaEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1020 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+app.L_CylinderEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1068 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            % --- 基础尺寸输入框 (修复点：分配给 app 属性确保回调句柄常驻内存) ---
-            y_matrix = y_matrix - 32;
-            uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 135 22], 'Text', 'Base Thick (mm):', 'FontWeight', 'bold','FontSize', 14);
-            app.BaseThickEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1060 y_matrix 65 22], 'Value', app.base_thickness, 'ValueDisplayFormat', '%d', ...
-                'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updateBaseThickness(edf.Value));
+% 4. Bottom Row (原 Vert 变更为 Bottom)
+y_matrix = y_matrix - 26;
+uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 50 22], 'Text', 'Bottom:', 'FontWeight', 'bold');
+app.B_TurnsEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [980 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+app.B_WireDiaEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1020 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+app.B_CylinderEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1068 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            y_matrix = y_matrix - 26;
-            uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 110 22], 'Text', 'h4 (mm):', 'FontWeight', 'bold','FontSize', 14);
-            app.H4Edit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1060 y_matrix 65 22], 'Value', app.h4, 'ValueDisplayFormat', '%d', ...
-                'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updatePlatSpacer(edf.Value));
+% 基础尺寸输入框 (左移以防遮挡)
+y_matrix = y_matrix - 32;
+uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 110 22], 'Text', 'Base Thick (mm):', 'FontWeight', 'bold');
+uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1040 y_matrix 65 22], 'Value', app.base_thickness, 'ValueDisplayFormat', '%d', ...
+    'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updateBaseThickness(edf.Value));
 
-            y_matrix = y_matrix - 26;
-            uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 110 22], 'Text', 'h5 (mm):', 'FontWeight', 'bold','FontSize', 14);
-            app.H5Edit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1060 y_matrix 65 22], 'Value', app.h5, 'ValueDisplayFormat', '%d', ...
-                'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updateColSpacer(edf.Value));
+y_matrix = y_matrix - 26;
+uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 110 22], 'Text', 'h4 (mm):', 'FontWeight', 'bold');
+uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1040 y_matrix 65 22], 'Value', app.h4, 'ValueDisplayFormat', '%d', ...
+    'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updatePlatSpacer(edf.Value));
+
+y_matrix = y_matrix - 26;
+uilabel(app.RightAxesPanel, 'Position', [930 y_matrix 110 22], 'Text', 'h5 (mm):', 'FontWeight', 'bold');
+uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1040 y_matrix 65 22], 'Value', app.h5, 'ValueDisplayFormat', '%d', ...
+    'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updateColSpacer(edf.Value));
 
             % 初始化平铺的各图形显示坐标轴位置
-            app.AxGeom    = uiaxes(app.RightAxesPanel, 'Position', [15  420 440 360]);
-            app.Ax1       = uiaxes(app.RightAxesPanel, 'Position', [470 420 440 360]);
-            app.Ax3       = uiaxes(app.RightAxesPanel, 'Position', [20, 40, 370, 340]);
-            app.Ax4       = uiaxes(app.RightAxesPanel, 'Position', [415, 40, 370, 340]);
-            app.Ax5       = uiaxes(app.RightAxesPanel, 'Position', [810, 40, 370, 340]);
-            app.Ax3_Inset = uiaxes(app.RightAxesPanel, 'Position', [240, 230, 120, 130]);
-        end
+            app.AxGeom    = uiaxes(app.RightAxesPanel, 'Position', [15  420 435 360]);
+            app.Ax1       = uiaxes(app.RightAxesPanel, 'Position', [465 420 435 360]);
+            app.Ax3       = uiaxes(app.RightAxesPanel, 'Position', [15  40  350 340]);
+            app.Ax3_Inset = uiaxes(app.RightAxesPanel, 'Position', [230 200 120 140]); 
+            app.Ax4       = uiaxes(app.RightAxesPanel, 'Position', [385 40  350 340]);
+            app.Ax5       = uiaxes(app.RightAxesPanel, 'Position', [755 40  350 340]);
+                    end
 
-        % --- 几何尺寸与左侧输入框联动更新群 (修复点：全面强制同步执行 calculateAndPlotWorkflow) ---
+        % --- 几何尺寸联动更新回调函数群 ---
         function updateGeometrySpan(app)
             app.a = app.ATargetEdit.Value;
             app.calculateAndPlotWorkflow();
@@ -261,85 +234,64 @@ classdef QZS_App < matlab.apps.AppBase
             app.calculateAndPlotWorkflow();
         end
 
-        % 左侧核心动力学参数输入框专属响应（解决回车不刷新、传旧值的问题）
-        function leftFieldValueChanged(app, editField, paramName)
-            drawnow; % 强行刷入前端 UI 缓存区数据
-            app.calculateAndPlotWorkflow();
-        end
-
-        % --- 右侧集中式输入框回车/值改变联动响应器 ---
-% --- 右侧集中式输入框回车/值改变联动响应器 ---
-        function editFieldValueChanged(app, editField, paramName)
-            val = editField.Value;
-            switch paramName
-                case 'n_upper',   app.n_upper = val;
-                case 'd_upper',   app.d_upper = val;
-                case 'D_upper',   app.D_upper = val;
-                case 'n_mid',     app.n_mid = val;      % 修复：新增中间弹簧变量绑定
-                case 'd_mid',     app.d_mid = val;      % 修复：新增中间弹簧变量绑定
-                case 'D_mid',     ...
-                                  app.D_mid = val;      % 修复：新增中间弹簧变量绑定
-                case 'n_lower',   app.n_lower = val;
-                case 'd_lower',   app.d_lower = val;
-                case 'D_lower',   app.D_lower = val;
-                case 'n_vert',    app.n_vert = val;
-                case 'd_vert',    app.d_vert = val;
-                case 'D_vert',    app.D_vert = val;
-            end
-            app.calculateAndPlotWorkflow();
-        end
-
         % --- 核心工作流总递推控制中心 ---
         function calculateAndPlotWorkflow(app)
             % 1. 物理结构基本几何学前置推导
             mapPhysicalAssemblyGeometry(app);
-
+            
             % 2. 代数离散求解：理论设计无量纲指标
             [app.f_hat_theory, app.K_hat_theory] = evaluateSystemResponse(app, ...
                 app.DeltaHatEdit.Value, app.AHatEdit.Value, app.AlphaEdit.Value, app.Alpha1Edit.Value, app.GammaEdit.Value);
-
-            % 3. 代数离散求解：实际加工表现（带入右侧实时修改后的参数）
+            
+            % 3. 代数离散求解：计入加工误差/实际位置微调后的非线性指标表现
+            % 此处模拟实际微调：引入实际簧丝和圈数产生的几何偏置扰动修正系数
             actual_gamma_bias = app.GammaEdit.Value * (app.M_TurnsEdit.Value / 10.0) * (1.8 / app.M_WireDiaEdit.Value);
             actual_alpha_bias = app.AlphaEdit.Value * (app.M_CylinderEdit.Value / 14.0)^3;
-
+            
             [app.f_hat_actual, app.K_hat_actual] = evaluateSystemResponse(app, ...
                 app.DeltaHatEdit.Value * 1.02, app.AHatEdit.Value * 0.99, actual_alpha_bias, app.Alpha1Edit.Value * 0.95, actual_gamma_bias);
 
             % 4. 刷新底层渲染图层资产
             refreshAxesCurves(app);
-
+            
             app.LogTextArea.Value = {'QZS Dual-Model Solved Successfully.'; 'Theory (Dashed) vs Actual (Solid) Synced.'};
         end
 
         % --- 模块化函数：几何空间构型转换 ---
+        % --- 修改后：解耦并分别读取上、中、下、底四种弹簧的实际加工微调尺寸 ---
         function mapPhysicalAssemblyGeometry(app)
             a_target = app.ATargetEdit.Value;
             a_hat_target = app.AHatEdit.Value;
             gamma_target = app.GammaEdit.Value;
             G_mat = app.GEdit.Value;
-
-            app.n_vert = app.V_TurnsEdit.Value;
-            app.d_vert = app.V_WireDiaEdit.Value;
+            
+            % 分别将 12 个独立输入框的数据映射到内部几何渲染核心变量中
+            app.n_vert = app.V_TurnsEdit.Value; 
+            app.d_vert = app.V_WireDiaEdit.Value; 
             app.D_vert = app.V_CylinderEdit.Value;
 
-            app.n_upper = app.U_TurnsEdit.Value;
-            app.d_upper = app.U_WireDiaEdit.Value;
+            app.n_upper = app.U_TurnsEdit.Value; 
+            app.d_upper = app.U_WireDiaEdit.Value; 
             app.D_upper = app.U_CylinderEdit.Value;
 
-            app.n_lower = app.L_TurnsEdit.Value;
-            app.d_lower = app.L_WireDiaEdit.Value;
+            % 假设你的三组斜弹簧，Mid 对应中间那组，Lower 对应底下那组
+            % 这里将输入框参数分别赋给对应的渲染层变量
+            app.n_lower = app.L_TurnsEdit.Value; 
+            app.d_lower = app.L_WireDiaEdit.Value; 
             app.D_lower = app.L_CylinderEdit.Value;
 
+            % 结构推导核心
             h1_target = sqrt(a_target^2 * (1/a_hat_target^2 - 1));
             d_target_param = h1_target / (gamma_target - 1);
             h_target = h1_target + d_target_param;
             h2_target = h1_target + 2 * d_target_param;
-
+            
             app.test_params = [a_target, h1_target, h_target, h2_target];
-
+            
+            % 底部竖向弹簧实际刚度映射
             k_v = (G_mat * app.d_vert^4) / (8 * app.D_vert^3 * app.n_vert);
-            app.f0_val = k_v;
-            app.Ze_hat_val = app.AlphaEdit.Value;
+            app.f0_val = k_v; 
+            app.Ze_hat_val = app.AlphaEdit.Value; 
             app.zeta_val = app.Alpha1Edit.Value;
             app.y_hat = linspace(-3.0, 3.0, 1000);
         end
@@ -383,10 +335,9 @@ classdef QZS_App < matlab.apps.AppBase
 
         % --- 模块化函数：综合多轴联动图表重绘更新中心 ---
         function refreshAxesCurves(app)
-            a_target = app.test_params(1);   
-            h1_target = app.test_params(2);
-            h_target = app.test_params(3);   
-            h2_target = app.test_params(4);
+            % 解构公用空间尺度
+            a_target = app.test_params(1);   h1_target = app.test_params(2);
+            h_target = app.test_params(3);   h2_target = app.test_params(4);
 
             % 1. 刷新 3D 拓扑结构装配图
             app.plotMechanismGeometry(a_target, h1_target, h_target, h2_target);
@@ -395,19 +346,19 @@ classdef QZS_App < matlab.apps.AppBase
             cla(app.Ax1, 'reset'); hold(app.Ax1, 'on'); grid(app.Ax1, 'on');
             set(app.Ax1, 'FontSize', app.TickFontSize);
 
-            % --- 左侧双轴：无量纲力对比（修复：实际曲线变更为加深加粗的同色系实线） ---
+            % --- 左侧双轴：无量纲力对比 ---
             yyaxis(app.Ax1, 'left');
             p_f_theory = plot(app.Ax1, app.y_hat, app.f_hat_theory, 'Color', [0, 0.4470, 0.7410], 'LineStyle', '--', 'LineWidth', 1.5);
-            p_f_actual = plot(app.Ax1, app.y_hat, app.f_hat_actual, 'Color', [0.0, 0.20, 0.50], 'LineStyle', '-', 'LineWidth', 2.5);
+            p_f_actual = plot(app.Ax1, app.y_hat, app.f_hat_actual, 'Color', [0.12, 0.53, 0.22], 'LineStyle', '-', 'LineWidth', 2.0); % 实际表现线
             ylabel(app.Ax1, 'Dimensionless Force $\hat{f}$', 'Interpreter', 'latex', 'FontSize', app.LabelFontSize);
-            app.Ax1.YColor = [0.0, 0.20, 0.50]; app.Ax1.YLim = [-6, 6];
+            app.Ax1.YColor = [0, 0.4470, 0.7410]; app.Ax1.YLim = [-6, 6];
 
-            % --- 右侧双轴：无量纲刚度对比（修复：实际曲线变更为加深加粗的同色系红褐色实线） ---
+            % --- 右侧双轴：无量纲刚度对比 ---
             yyaxis(app.Ax1, 'right');
             p_k_theory = plot(app.Ax1, app.y_hat, app.K_hat_theory, 'Color', [0.8500, 0.3250, 0.0980], 'LineStyle', '--', 'LineWidth', 1.5);
-            p_k_actual = plot(app.Ax1, app.y_hat, app.K_hat_actual, 'Color', [0.55, 0.12, 0.0], 'LineStyle', '-', 'LineWidth', 2.5);
+            p_k_actual = plot(app.Ax1, app.y_hat, app.K_hat_actual, 'Color', [0.49, 0.18, 0.56], 'LineStyle', '-', 'LineWidth', 2.0); % 实际表现线
             ylabel(app.Ax1, 'Dimensionless Stiffness $\hat{K}$', 'Interpreter', 'latex', 'FontSize', app.LabelFontSize);
-            app.Ax1.YColor = [0.55, 0.12, 0.0];
+            app.Ax1.YColor = [0.8500, 0.3250, 0.0980];
 
             app.Ax1.XLim = [-3, 3];
             title(app.Ax1, sprintf('Dimensionless Force and Stiffness Curves\n'), 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
@@ -418,7 +369,7 @@ classdef QZS_App < matlab.apps.AppBase
 
             % 3. 刷新位移传递率曲线对比分析图 (Ax3)
             cla(app.Ax3); hold(app.Ax3, 'on'); grid(app.Ax3, 'on');
-
+            
             Omega_range = 0:0.01:10;
             Ta_theory = zeros(size(Omega_range));
             Ta_actual = zeros(size(Omega_range));
@@ -432,27 +383,29 @@ classdef QZS_App < matlab.apps.AppBase
                 Ta_actual(i) = app.compute_transmissibility(0.0022, 0.00065, Omega_range(i), 0.5, 0.18);
             end
 
-            plot(app.Ax3, Omega_range, Ta_theory, 'LineStyle', '--', 'LineWidth', 1.5, 'Color', [0, 0.4470, 0.7410]);
-            plot(app.Ax3, Omega_range, Ta_actual, 'LineStyle', '-', 'LineWidth', 2.0, 'Color', [0.12, 0.53, 0.22]);
-
+            plot(app.Ax3_Inset, Omega_range(idx), Ta_theory(idx), 'LineStyle', '--', 'LineWidth', 1.2, 'Color', 'r');
+plot(app.Ax3_Inset, Omega_range(idx), Ta_actual(idx), 'LineStyle', '-', 'LineWidth', 1.5, 'Color', [0.65, 0.0, 0.0]); 
+            
             xlim(app.Ax3, [0, 10]); ylim(app.Ax3, [0, 2]);
             xlabel(app.Ax3, 'Frequency', 'FontSize', app.LabelFontSize);
             ylabel(app.Ax3, 'Transmissibility T_a', 'FontSize', app.LabelFontSize);
             title(app.Ax3, sprintf('Displacement Transmissibility\n'), 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
-            legend(app.Ax3, {'Theory', 'Actual'}, 'Location', 'northeast', 'FontSize', app.LegendFontSize);
+            legend(app.Ax3, {'Theory', 'Actual'},'Location', 'northeast', 'FontSize', app.LegendFontSize);
             hold(app.Ax3, 'off');
 
-            % 绘制局部放大图
             cla(app.Ax3_Inset); hold(app.Ax3_Inset, 'on'); grid(app.Ax3_Inset, 'on');
+            % 截取低频共振核心段 [0, 3]
             idx = Omega_range <= 1.5;
-            plot(app.Ax3_Inset, Omega_range(idx), Ta_theory(idx), 'LineStyle', '--', 'LineWidth', 1.2, 'Color', [0, 0.4470, 0.7410]);
+            plot(app.Ax3_Inset, Omega_range(idx), Ta_theory(idx), 'LineStyle', '--', 'LineWidth', 1.2, 'Color', 'r');
             plot(app.Ax3_Inset, Omega_range(idx), Ta_actual(idx), 'LineStyle', '-', 'LineWidth', 1.5, 'Color', [0.12, 0.53, 0.22]);
-
+            
+            % 设定紧凑的小图坐标范围和微型刻度
             xlim(app.Ax3_Inset, [0, 1.2]); ylim(app.Ax3_Inset, [0.5, 1.2]);
-            set(app.Ax3_Inset, 'FontSize', app.TickFontSize-4, 'Color', [0.98 0.98 0.98]);
+            set(app.Ax3_Inset, 'FontSize', app.TickFontSize-4, 'Color', [0.98 0.98 0.98]); 
             hold(app.Ax3_Inset, 'off');
             app.Ax3_Inset.Position = [225, 140, 110, 120];
 
+            % 初始化或清空实测信号外部数据缓存时域面板
             app.plotEmptySignalAxes();
         end
 
@@ -478,20 +431,24 @@ classdef QZS_App < matlab.apps.AppBase
             column_top_y  = 48.0 * 1.2;
             column_color  = [0.2, 0.2, 0.2];
 
+            % 绘制支架立柱
             plot3(app.AxGeom, [-span_a, -span_a], [column_base_y, column_top_y], [0, 0], 'Color', column_color, 'LineWidth', app.column_thickness);
             plot3(app.AxGeom, [span_a, span_a], [column_base_y, column_top_y], [0, 0], 'Color', column_color, 'LineWidth', app.column_thickness);
 
+            % 绘制中间滑动载荷平台
             dx = pw/2; dy = ph/2; dz = pd/2;
             verts = [-dx -dy -dz;  dx -dy -dz;  dx  dy -dz; -dx  dy -dz; ...
                 -dx -dy  dz;  dx -dy  dz;  dx  dy  dz; -dx  dy  dz];
             faces = [1 2 3 4; 5 6 7 8; 1 2 6 5; 2 3 7 6; 3 4 8 7; 4 1 5 8];
             patch(app.AxGeom, 'Vertices', verts, 'Faces', faces, 'FaceColor', [0.93, 0.93, 0.93], 'EdgeColor', [0.2, 0.2, 0.2], 'LineWidth', 1.2);
 
+            % 地基渲染
             b_thk = app.base_thickness; bx = span_a * 1.3; by_top = Ground_Vert_Fix(2); bz = pd/2;
             b_verts = [-bx, by_top - b_thk, -bz;  bx, by_top - b_thk, -bz;  bx, by_top, -bz; -bx, by_top, -bz; ...
                 -bx, by_top - b_thk,  bz;  bx, by_top - b_thk,  bz;  bx, by_top,  bz; -bx, by_top,  bz];
             patch(app.AxGeom, 'Vertices', b_verts, 'Faces', faces, 'FaceColor', [0.35, 0.35, 0.35], 'EdgeColor', 'k', 'LineWidth', 1.1);
 
+            % 不锈钢弹簧丝曲面拓扑映射网格绘制
             ss304_color = [0.72, 0.74, 0.75];
             app.draw3DSpringMesh(app.AxGeom, Ground_Vert_Fix, Bottom_P_Connect, app.D_vert, app.d_vert, app.n_vert, ss304_color);
             app.draw3DSpringMesh(app.AxGeom, Left_Column_Top, [-pw/2,  ins, 0], app.D_upper, app.d_upper, app.n_upper, ss304_color);
@@ -517,13 +474,15 @@ classdef QZS_App < matlab.apps.AppBase
             else, default_dir = fullfile(getenv('HOME'), 'Desktop'); end
             if ~exist(default_dir, 'dir'), default_dir = pwd; end
 
+            % 弹出标准文件选择对话框
             [file, path] = uigetfile('*.csv', 'Select Vibration Input CSV File', default_dir);
-
+            
+            % 检查用户是否取消了选择
             if isequal(file, 0) || isequal(path, 0)
                 app.LogTextArea.Value = [app.LogTextArea.Value; {'❌ Signal loading cancelled by user.'}];
                 return;
             end
-
+            
             csv_path = fullfile(path, file);
             try
                 raw_data = readmatrix(csv_path);
@@ -550,6 +509,7 @@ classdef QZS_App < matlab.apps.AppBase
             app.v_out_matrix  = app.compute_psd_internal(app.v_out_data, win_len, app.fs_rate);
             app.f_psd_vec     = linspace(0, app.fs_rate/2, length(app.v_in_psd_vec));
 
+            % 刷新时域动态对比曲线 (Ax4)
             cla(app.Ax4, 'reset'); hold(app.Ax4, 'on'); grid(app.Ax4, 'on'); set(app.Ax4, 'FontSize', app.TickFontSize);
             plot(app.Ax4, app.t_matrix, app.v_in_data, 'Color', [0.6, 0.6, 0.6], 'LineWidth', 1.0);
             plot(app.Ax4, app.t_matrix, app.v_out_data, 'r-', 'LineWidth', 1.5);
@@ -557,10 +517,11 @@ classdef QZS_App < matlab.apps.AppBase
             xlabel(app.Ax4, 'Time \itt\rm (s)', 'FontSize', app.LabelFontSize); ylabel(app.Ax4, 'Velocity \itv\rm (mm/s)', 'FontSize', app.LabelFontSize);
             legend(app.Ax4, {'Excitation', 'QZS Output'}, 'Location', 'northeast', 'FontSize', app.LegendFontSize); hold(app.Ax4, 'off');
 
+            % 刷新频域功率谱密度衰减对比分析图 (Ax5)
             cla(app.Ax5, 'reset'); hold(app.Ax5, 'on'); grid(app.Ax5, 'on'); set(app.Ax5, 'FontSize', app.TickFontSize);
             plot(app.Ax5, app.f_psd_vec, 10*log10(app.v_in_psd_vec), 'Color', [0.6, 0.6, 0.6], 'LineWidth', 1.2);
             plot(app.Ax5, app.f_psd_vec, 10*log10(app.v_out_matrix), 'r-', 'LineWidth', 1.8);
-            title(app.Ax5, sprintf('Power Spectral Density Comparison\n'), 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
+           title(app.Ax5, sprintf('Power Spectral Density Comparison\n'), 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
             xlabel(app.Ax5, 'Frequency \itf\rm (Hz)', 'FontSize', app.LabelFontSize); ylabel(app.Ax5, 'PSD (dB / Hz)', 'FontSize', app.LabelFontSize);
             app.Ax5.XLim = [0, min(120, app.fs_rate/2)];
             legend(app.Ax5, {'Input Base PSD', 'Output Target PSD'}, 'Location', 'northeast', 'FontSize', app.LegendFontSize); hold(app.Ax5, 'off');
@@ -573,34 +534,42 @@ classdef QZS_App < matlab.apps.AppBase
             text(app.Ax4, 0.1, 0.5, 'Click [Load Signal] to plot', 'Color', [0.5, 0.5, 0.5], 'FontSize', app.LabelFontSize);
 
             cla(app.Ax5, 'reset'); grid(app.Ax5, 'on'); set(app.Ax5, 'FontSize', app.TickFontSize);
-            title(app.Ax5, 'Power Spectral Density Comparison', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
+            title(app.Ax5, 'Power Spectral Density (PSD) Comparison', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
             text(app.Ax5, 0.1, 0.5, 'Click [Load Signal] to plot', 'Color', [0.5, 0.5, 0.5], 'FontSize', app.LabelFontSize);
         end
 
         % --- 多约束嵌套迭代计算并多 Sheet 导出参数 ---
         function saveDesignData(app)
-            if ispc, default_dir = fullfile(getenv('USERPROFILE'), 'Desktop');
-            else, default_dir = fullfile(getenv('HOME'), 'Desktop'); end
+        if ispc
+                default_dir = fullfile(getenv('USERPROFILE'), 'Desktop');
+            else
+                default_dir = fullfile(getenv('HOME'), 'Desktop'); 
+            end
+            
             if ~exist(default_dir, 'dir'), default_dir = pwd; end
             excel_filename = fullfile(default_dir, 'Spring_Parameters.xlsx');
 
-            delta_hat_target = app.DeltaHatEdit.Value;
+            % 同步参数做工程矩阵搜索
+            delta_hat_target = app.DeltaHatEdit.Value; 
             a_hat_target = app.AHatEdit.Value;
-            alpha_target = app.AlphaEdit.Value;
+            alpha_target = app.AlphaEdit.Value; 
             alpha1_target = app.Alpha1Edit.Value;
-            gamma_target = app.GammaEdit.Value;
+            gamma_target = app.GammaEdit.Value; 
             a_target = app.ATargetEdit.Value;
-            tau_p = app.TauPEdit.Value;
+            tau_p = app.TauPEdit.Value; 
             G = app.GEdit.Value;
 
-            C_range = 5:1:12; ratio_range = 0.28:0.01:0.5;
-            M = 2; M1 = 2; g = 9.81;
+            C_range = 5:1:12; 
+            ratio_range = 0.28:0.01:0.5; 
+            M = 2; %kg
+            M1 = 2; %kg
+            g = 9.81;
 
             h1_target = sqrt(a_target^2 * (1/a_hat_target^2 - 1));
             delta_target = delta_hat_target * sqrt(a_target^2 + h1_target^2);
             L1 = sqrt(a_target^2 + h1_target^2) + delta_target;
             d_target_param = h1_target / (gamma_target - 1);
-            h_target = h1_target + d_target_param;
+            h_target = h1_target + d_target_param; 
             h2_target = h1_target + 2 * d_target_param;
 
             rho_target = (1 - a_hat_target^2) / (gamma_target - 1)^2;
@@ -611,12 +580,13 @@ classdef QZS_App < matlab.apps.AppBase
             L2 = sqrt(a_target^2 + h_target^2) + delta1_target; L3 = sqrt(a_target^2 + h2_target^2) + delta2_target;
 
             k2 = (M*g) / (1.229 * sqrt((a_target/1000)^2 + (h1_target/1000)^2));
-            k1 = k2 * alpha_target; k3 = alpha1_target * k2;
+            k1 = k2 * alpha_target; 
+            k3 = alpha1_target * k2;
 
             f1 = -(k1/1000)*delta_target*(h1_target/sqrt(a_target^2+h1_target^2));
             f3 = -(k3/1000)*delta1_target*(h_target/sqrt(a_target^2+h_target^2));
             f4 = -(k1/1000)*delta2_target*(h2_target/sqrt(a_target^2+h2_target^2));
-            f2 = -(2*f1 + 2*f3 + 2*f4);
+            f2 = -(2*f1 + 2*f3 + 2*f4); 
             L = h2_target + (f2 / (k2/1000));
 
             k2_results = [];
@@ -635,7 +605,7 @@ classdef QZS_App < matlab.apps.AppBase
                 writetable(k2_table, excel_filename, 'Sheet', 'K2_Spring_Static');
                 logLines = {
                     '✅ Excel Export Successful!';
-                    '------------------------';
+                    '------------------------';;
                     sprintf('d: %.2f mm', d_target_param);
                     sprintf('h: %.2f mm', h_target);
                     sprintf('h1: %.2f mm', h1_target);
@@ -652,8 +622,9 @@ classdef QZS_App < matlab.apps.AppBase
                     sprintf('L: %.2f mm', L);
                     '------------------------';
                     'Matrix Search Completed.'
-                    };
+                };
                 app.LogTextArea.Value = logLines;
+                
             catch ME
                 app.LogTextArea.Value = [app.LogTextArea.Value; {['⚠️ Excel Write Error: ' ME.message]}];
             end
@@ -715,5 +686,6 @@ classdef QZS_App < matlab.apps.AppBase
             [pxx, ~] = pwelch(signal, hanning(win_len), floor(win_len/2), win_len, fs);
             psd = pxx;
         end
-    end
-end
+
+    end % 对应 private methods 闭合
+end % 对应 classdef 全类闭合
