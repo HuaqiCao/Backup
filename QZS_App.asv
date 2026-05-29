@@ -52,7 +52,7 @@ classdef QZS_App < matlab.apps.AppBase
         y_hat, test_params
         f0_val, Ze_hat_val, zeta_val
         
-        % 存储理论分析参考曲线
+        % 存储理论分析参考曲线（对应参考代码 Figure 1）
         y_hat_curve1, f_hat_curve1, K_hat_curve1
 
         % 外部振动信号与时频域数据缓存
@@ -91,7 +91,6 @@ classdef QZS_App < matlab.apps.AppBase
 
     methods (Access = private)
 
-        % --- 前端 UI 界面组件布局构建 ---
         function createComponents(app)
             % 主窗体初始化
             app.UIWindow = uifigure('Name', 'QZS Nonlinear Isolation System', 'Position', [50 50 1420 850]);
@@ -99,7 +98,7 @@ classdef QZS_App < matlab.apps.AppBase
             % 1. 左侧配置控制面板构建
             app.LeftPanel = uipanel(app.UIWindow, 'Title', 'Configuration', 'Position', [10 10 190 830], 'FontWeight', 'bold');
 
-            % 统一配置标签与输入框：宽度收窄，数值居中
+            % 统一配置：输入框宽度收窄，且数值水平居中
             y_pos = 775;
             uilabel(app.LeftPanel, 'Position', [10 y_pos 80 22], 'Text', 'delta_hat (δ̂):', 'FontSize', 12, 'FontWeight', 'bold');
             app.DeltaHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [90 y_pos 85 22], 'Value', 0.5, 'HorizontalAlignment', 'center');
@@ -174,9 +173,8 @@ classdef QZS_App < matlab.apps.AppBase
 
             y_geom_ctrl = y_geom_ctrl - 28;
             uilabel(app.RightAxesPanel, 'Position', [940 y_geom_ctrl 110 22], 'Text', 'h5 (mm):', 'FontWeight', 'bold');
-            % 【优化说明】删除了原有的 eval('app.column_thickness=edf.Value; ...') 冗余且有风险的代码，改为直接调用类方法
             uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1050 y_geom_ctrl 65 22], 'Value', app.h5, 'ValueDisplayFormat', '%d', ...
-                'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updateColSpacer(edf.Value));
+                'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) eval('app.column_thickness=edf.Value; app.calculateAndExportSprings();'));
 
             y_geom_ctrl = y_geom_ctrl - 32;
             uilabel(app.RightAxesPanel, 'Position', [940 y_geom_ctrl 110 22], 'Text', 'n:', 'FontWeight', 'bold');
@@ -193,7 +191,7 @@ classdef QZS_App < matlab.apps.AppBase
             app.SpringCylinderEdit = uieditfield(app.RightAxesPanel, 'numeric', 'Position', [1050 y_geom_ctrl 65 22], 'Value', 14, ...
                 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.calculateAndExportSprings());
 
-            % 初始化平铺的各图形显示坐标轴位置
+            % 精细缩放并调整平铺的坐标轴位置
             app.AxGeom    = uiaxes(app.RightAxesPanel, 'Position', [15  420 450 360]);
             app.Ax1       = uiaxes(app.RightAxesPanel, 'Position', [480 420 450 360]);
             app.Ax3       = uiaxes(app.RightAxesPanel, 'Position', [15  40  340 340]);
@@ -202,7 +200,6 @@ classdef QZS_App < matlab.apps.AppBase
             app.Ax5       = uiaxes(app.RightAxesPanel, 'Position', [735 40  340 340]);
         end
 
-        % --- 几何尺寸联动更新回调函数群 ---
         function updateGeometrySpan(app)
             app.a = app.ATargetEdit.Value;
             app.calculateAndExportSprings();
@@ -232,7 +229,6 @@ classdef QZS_App < matlab.apps.AppBase
             pw = app.a1;   ph = app.h3;   pd = app.platform_d;
             ins = app.h4;  span_a = app.a;
 
-            % 计算固定立柱与侧边连杆端点坐标
             Left_Column_Top    = [-span_a,  48.0, 0];
             Left_Column_Mid    = [-span_a,    0, 0];
             Left_Column_Bot    = [-span_a, -48.0, 0];
@@ -248,18 +244,15 @@ classdef QZS_App < matlab.apps.AppBase
             column_top_y  = 48.0 * 1.2;
             column_color  = [0.2, 0.2, 0.2];
 
-            % 绘制左右两侧支撑刚性立柱
             plot3(app.AxGeom, [-span_a, -span_a], [column_base_y, column_top_y], [0, 0], 'Color', column_color, 'LineWidth', app.column_thickness);
             plot3(app.AxGeom, [span_a, span_a], [column_base_y, column_top_y], [0, 0], 'Color', column_color, 'LineWidth', app.column_thickness);
 
-            % 构建并绘制中间滑动载荷平台 3D 框体
             dx = pw/2; dy = ph/2; dz = pd/2;
             verts = [-dx -dy -dz;  dx -dy -dz;  dx  dy -dz; -dx  dy -dz; ...
                 -dx -dy  dz;  dx -dy  dz;  dx  dy  dz; -dx  dy  dz];
             faces = [1 2 3 4; 5 6 7 8; 1 2 6 5; 2 3 7 6; 3 4 8 7; 4 1 5 8];
             patch(app.AxGeom, 'Vertices', verts, 'Faces', faces, 'FaceColor', [0.93, 0.93, 0.93], 'EdgeColor', [0.2, 0.2, 0.2], 'LineWidth', 1.2);
 
-            % 在连杆平台两侧渲染连接轴孔销钉孔
             hole_r = 3.2;  hole_len = 3.0;
             [hc_z, hc_x, hc_y] = cylinder(hole_r, 24);
             hc_z = hc_z * hole_len;
@@ -269,13 +262,11 @@ classdef QZS_App < matlab.apps.AppBase
                 surf(app.AxGeom, hc_z + dx - 0.1, hc_x, hc_y + hh, 'FaceColor', [0.15, 0.15, 0.15], 'EdgeColor', [0.3, 0.3, 0.3]);
             end
 
-            % 渲染地基基座
             b_thk = app.base_thickness; bx = span_a * 1.3; by_top = Ground_Vert_Fix(2); bz = pd/2;
             b_verts = [-bx, by_top - b_thk, -bz;  bx, by_top - b_thk, -bz;  bx, by_top, -bz; -bx, by_top, -bz; ...
                 -bx, by_top - b_thk,  bz;  bx, by_top - b_thk,  bz;  bx, by_top,  bz; -bx, by_top,  bz];
             patch(app.AxGeom, 'Vertices', b_verts, 'Faces', faces, 'FaceColor', [0.35, 0.35, 0.35], 'EdgeColor', 'k', 'LineWidth', 1.1);
 
-            % 采用不锈钢材质颜色绘制所有空间螺旋弹簧网格
             ss304_color = [0.72, 0.74, 0.75];
             app.draw3DSpringMesh(app.AxGeom, Ground_Vert_Fix, Bottom_P_Connect, app.D_vert, app.d_vert, app.n_vert, ss304_color);
 
@@ -287,7 +278,6 @@ classdef QZS_App < matlab.apps.AppBase
             app.draw3DSpringMesh(app.AxGeom, Right_Column_Mid, [ pw/2,    0, 0], app.D_lower, app.d_lower, app.n_lower, ss304_color);
             app.draw3DSpringMesh(app.AxGeom, Right_Column_Bot, [ pw/2, -ins, 0], app.D_lower, app.d_lower, app.n_lower, ss304_color);
 
-            % 灯光与视觉效果渲染设置
             camlight(app.AxGeom, 'headlight'); lighting(app.AxGeom, 'gouraud');
             title(app.AxGeom, 'QZS Model Geometric Assembly', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
             xlabel(app.AxGeom, 'x / mm', 'FontSize', app.LabelFontSize); 
@@ -298,9 +288,9 @@ classdef QZS_App < matlab.apps.AppBase
             hold(app.AxGeom, 'off');
         end
 
-        % --- 核心物理非线性解析与曲线刷新 ---
+        % --- 核心物理非线性解析与曲线刷新（匹配参考代码 Figure 1 双轴物理拓扑） ---
         function calculateAndExportSprings(app)
-            % 读取面板输入的各参数值
+            % 读取面板参数
             delta_hat_target = app.DeltaHatEdit.Value;
             a_hat_target     = app.AHatEdit.Value;
             alpha_target     = app.AlphaEdit.Value;
@@ -312,23 +302,21 @@ classdef QZS_App < matlab.apps.AppBase
             d_wire           = app.SpringWireDiaEdit.Value;
             D_tube           = app.SpringCylinderEdit.Value;
 
-            % 统一赋值弹簧微调网格属性
             app.n_vert = n_turns; app.d_vert = d_wire; app.D_vert = D_tube;
             app.n_upper = n_turns; app.d_upper = d_wire; app.D_upper = D_tube;
             app.n_lower = n_turns; app.d_lower = d_wire; app.D_lower = D_tube;
 
-            % 空间初始安装几何尺寸推导
+            % 按照参考代码重新计算空间位移及几何边界
             h1_target = sqrt(a_target^2 * (1/a_hat_target^2 - 1));
             d_target_param = h1_target / (gamma_target - 1);
             h_target = h1_target + d_target_param;
             h2_target = h1_target + 2 * d_target_param;
             app.test_params = [a_target, h1_target, h_target, h2_target];
 
-            % 计算刚度参考值
             k_v = (G_mat * d_wire^4) / (8 * D_tube^3 * n_turns);
             app.f0_val = k_v; app.Ze_hat_val = alpha_target; app.zeta_val = alpha1_target;
 
-            % 无量纲分析核心域：构建一维精细物理求解域向量
+            % 无量纲分析核心域：构建精细一维物理区间并求解目标解向量
             app.y_hat = linspace(-3.0, 3.0, 1000);
             rho_target = (1 - a_hat_target^2) / (gamma_target - 1)^2;
             delta_hat1_target = 1 - sqrt(1 + 2*sqrt(1 - a_hat_target^2)*sqrt(rho_target) + rho_target) + delta_hat_target;
@@ -339,7 +327,6 @@ classdef QZS_App < matlab.apps.AppBase
             app.f_hat_curve1 = zeros(size(app.y_hat));
             app.y_hat_curve1 = zeros(size(app.y_hat));
 
-            % 遍历求解每一项离散点处的非线性恢复力与非线性刚度值
             for i = 1:length(app.y_hat)
                 xi_h = x_e_hat_target + app.y_hat(i);
                 P1 = sqrt(1 - a_hat_target^2) - xi_h;
@@ -357,7 +344,7 @@ classdef QZS_App < matlab.apps.AppBase
                 dP8 = -2*(sqrt(1 - a_hat_target^2) + 2*sqrt(rho_target)) + 2*xi_h;
                 
                 dN1 = -2 * alpha_target * (1 - P3 * P2.^(-0.5)) * (-1) - alpha_target * P1 * P2.^(-1.5) * P3 * dP2;
-                dN3 = -2 * alpha1_target * (1 - P6 * P5.^(-0.5)) * (-1) - alpha_target * P4 * P5.^(-1.5) * P6 * dP5;
+                dN3 = -2 * alpha1_target * (1 - P6 * P5.^(-0.5)) * (-1) - alpha1_target * P4 * P5.^(-1.5) * P6 * dP5;
                 dN5 = -2 * alpha_target * (1 - P9 * P8.^(-0.5)) * (-1) - alpha_target * P7 * P8.^(-1.5) * P9 * dP8;
                 
                 app.K_hat_curve1(i) = 1 + dN1 + dN3 + dN5;
@@ -367,20 +354,17 @@ classdef QZS_App < matlab.apps.AppBase
                 app.y_hat_curve1(i) = xi_h - x_e_hat_target;
             end
 
-            % 更新3D机械结构拓扑组装图
             app.plotMechanismGeometry(a_target, h1_target, h_target, h2_target);
 
             % 刷新并重置力与刚度双 Y 轴联动曲线 (Ax1)
             cla(app.Ax1, 'reset'); hold(app.Ax1, 'on'); grid(app.Ax1, 'on');
             set(app.Ax1, 'FontSize', app.TickFontSize);
 
-            % 绘制左侧 Y 轴对应的无量纲力曲线
             yyaxis(app.Ax1, 'left');
             p1 = plot(app.Ax1, app.y_hat_curve1, app.f_hat_curve1, 'Color', [0, 0.4470, 0.7410], 'LineWidth', 2);
             ylabel(app.Ax1, 'Dimensionless Force \hat{f}', 'FontSize', app.LabelFontSize, 'Color', [0, 0.4470, 0.7410]); 
             app.Ax1.YColor = [0, 0.4470, 0.7410]; app.Ax1.YLim = [-6, 6];
 
-            % 绘制右侧 Y 轴对应的无量纲刚度曲线
             yyaxis(app.Ax1, 'right');
             p2 = plot(app.Ax1, app.y_hat_curve1, app.K_hat_curve1, 'Color', [0.8500, 0.3250, 0.0980], 'LineStyle', '--', 'LineWidth', 2);
             ylabel(app.Ax1, 'Dimensionless Stiffness \hat{K}', 'FontSize', app.LabelFontSize, 'Color', [0.8500, 0.3250, 0.0980]); 
@@ -392,42 +376,47 @@ classdef QZS_App < matlab.apps.AppBase
             legend(app.Ax1, [p1, p2], {'Force', 'Stiffness'}, 'Location', 'best', 'FontSize', app.LegendFontSize);
             hold(app.Ax1, 'off');
 
-            % 绘制理想状态下的无量纲位移传递率曲线 (Ax3)
+            % --- 严格按照 qzs.m 格式绘制理想无量纲传递率 ---
             cla(app.Ax3);
             hold(app.Ax3, 'on');
             
+            % 获取界面当前输入的参数
             mu1_target = 0.0017;
             mu3_target = 0.00048;
             zeta = 0.15;      
             
-            Omega_range = 0:0.01:10;
+            % 定义频率计算范围
+            Omega_range =0:0.01:10;
             Ta_results = zeros(size(Omega_range));
             Ze_hat = 0.5;
             
-            % 遍历计算各个频率处的非线性传递率值
+            % 遍历计算传递率
             for i = 1:length(Omega_range)
                 Ta_results(i) = app.compute_transmissibility(mu1_target, mu3_target, Omega_range(i), Ze_hat, zeta);
             end
             
-            plot(app.Ax3, Omega_range, Ta_results, 'LineWidth', 1.5, 'Color', 'R');
+            % 绘图命令
+            plot(app.Ax3, Omega_range, Ta_results, 'LineWidth', 1.5, 'Color', 'k');
             grid(app.Ax3, 'on');
             
+            % 设置坐标轴与显示范围
             xlim(app.Ax3, [0, 10]);
-            ylim(app.Ax3, [0, 10]);
+            ylim(app.Ax3, [0,2]);
             
+            % 标签设置
             xlabel(app.Ax3, 'frequency');
             ylabel(app.Ax3, 'Transmissibility');
             title(app.Ax3, 'Displacement Transmissibility');
-            hold(app.Ax3, 'off');
             
-            % 初始化或清空实测信号时频域显示区域
+            hold(app.Ax3, 'off');
+            % -----------------------------------------------------
+            
             app.plotEmptySignalAxes();
             app.LogTextArea.Value = {'QZS Model Solved Successfully.'; 'All axes synced and tiled.'};
         end
 
-        % --- 读取外部实测振动信号并执行动力学数值解算 ---
+        % --- 读取外部实测振动信号并分析 ---
         function processVibrationSignals(app)
-            % 根据操作系统类型自适应匹配桌面路径
             if ispc
                 default_dir = fullfile(getenv('USERPROFILE'), 'Desktop');
             else
@@ -455,7 +444,6 @@ classdef QZS_App < matlab.apps.AppBase
             app.v_out_data = zeros(app.N_points, 1);
             x_state = 0; v_state = 0;
 
-            % 采用时域递推差分法积分非线性方程得到输出响应
             for i = 1:app.N_points
                 f_in = app.v_in_data(i);
                 y_norm = x_state / app.test_params(1);
@@ -466,7 +454,6 @@ classdef QZS_App < matlab.apps.AppBase
                 app.v_out_data(i) = v_state;
             end
 
-            % 计算时域信号的窗长与内置 Welch 法功率谱密度 (PSD)
             win_len = floor(app.N_points / 4);
             app.v_in_psd_vec  = app.compute_psd_internal(app.v_in_data, win_len, app.fs_rate);
             app.v_out_matrix  = app.compute_psd_internal(app.v_out_data, win_len, app.fs_rate);
@@ -526,7 +513,7 @@ classdef QZS_App < matlab.apps.AppBase
             end
             excel_filename = fullfile(pathname, filename);
 
-            % 同步提取界面配置的目标无量纲以及物理边界参数
+            % 1. 同步提取界面配置的目标无量纲以及物理边界参数
             delta_hat_target = app.DeltaHatEdit.Value;
             a_hat_target     = app.AHatEdit.Value;
             alpha_target     = app.AlphaEdit.Value;
@@ -536,7 +523,7 @@ classdef QZS_App < matlab.apps.AppBase
             tau_p            = app.TauPEdit.Value;
             G                = app.GEdit.Value;
 
-            % 嵌套搜索参数循环区间定义
+            % 嵌套搜索参数区间定义
             C_range = 5:1:12; 
             C1_range = 5:1:12; 
             C2_range = 5:1:12; 
@@ -546,7 +533,7 @@ classdef QZS_App < matlab.apps.AppBase
 
             M = 2; M1 = 2; g = 9.81;
 
-            % 物理实体与无量纲之间的转换公式推导
+            % 2. 严格执行数学模型转换推导
             h1_target = sqrt(a_target^2 * (1/a_hat_target^2 - 1));
             delta_target = delta_hat_target * sqrt(a_target^2 + h1_target^2);
             L1 = sqrt(a_target^2 + h1_target^2) + delta_target; 
@@ -574,7 +561,7 @@ classdef QZS_App < matlab.apps.AppBase
             delta3_target = f2 / (k2/1000); 
             L = h2_target + delta3_target;
 
-            % 1. 运行多变量嵌套循环算法——底部弹簧 K2 优化搜索
+            % 3. 运行多变量嵌套循环算法——底部弹簧 K2
             k2_results = [];
             for C = C_range
                 for ratio = ratio_range
@@ -593,14 +580,14 @@ classdef QZS_App < matlab.apps.AppBase
             k2_table = array2table(k2_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm','C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N_m'});
             [~, ia] = unique(k2_table(:, {'C', 'ratio'}), 'rows'); k2_table = k2_table(ia, :);
 
-            % 2. 运行多变量嵌套循环算法——上&下连杆弹簧优化搜索
+            % 4. 运行多变量嵌套循环算法——上&下弹簧
             k1_results = [];
             for C1 = C1_range
                 for ratio1 = ratio1_range
                     a1_coeff = (G * ratio1) / (8 * (C1^4) * (k1/1000));
                     D1_val = (-2/C1 + sqrt(4/(C1^2) + 4 * a1_coeff * L1)) / (2 * a1_coeff);
                     d1_val = D1_val / C1;
-                    D_out1 = d1_val + D1_val;
+                    D_out1 = D1_val + d1_val;
                     K1_factor = (4*C1-1)/(4*C1-4) + 0.615/C1;
                     d_target1_limit = 1.6 * sqrt(K1_factor * C1 * M1 * g / tau_p);
                     n1_val = (G * D1_val) / (8 * (C1^4) * (k1/1000));
@@ -609,17 +596,17 @@ classdef QZS_App < matlab.apps.AppBase
                     k1_results = [k1_results; d_target1_limit, d1_val, D1_val, D_out1, C1, n1_val, ratio1, p1_val, G, L1, k1_actual*1000];
                 end
             end
-            k1_table = array2table(k1_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm', 'C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N_m'});
+            k1_table = array2table(k1_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm', 'C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N/m'});
             [~, ia] = unique(k1_table(:, {'C', 'ratio'}), 'rows'); k1_table = k1_table(ia, :);
 
-            % 3. 运行多变量嵌套循环算法——侧边中间水平弹簧优化搜索
+            % 5. 运行多变量嵌套循环算法——侧边中间弹簧
             k3_results = [];
             for C2 = C2_range
                 for ratio2 = ratio2_range
                     a2_coeff = (G * ratio2) / (8 * (C2^4) * (k3/1000));
                     D2_val = (-2/C2 + sqrt(4/(C2^2) + 4 * a2_coeff * L2)) / (2 * a2_coeff);
                     d2_val = D2_val / C2;
-                    D_out2 = d2_val + D2_val;
+                    D_out2 = D2_val + d2_val;
                     K2_factor = (4*C2-1)/(4*C2-4) + 0.615/C2;
                     d_target2_limit = 1.6 * sqrt(K2_factor * C2 * M1 * g / tau_p);
                     n2_val = (G * D2_val) / (8 * (C2^4) * (k3/1000));
@@ -628,10 +615,10 @@ classdef QZS_App < matlab.apps.AppBase
                     k3_results = [k3_results; d_target2_limit, d2_val, D2_val, D_out2, C2, n2_val, ratio2, p2_val, G, L2, k3_actual*1000];
                 end
             end
-            k3_table = array2table(k3_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm', 'C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N_m'});
+            k3_table = array2table(k3_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm', 'C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N/m'});
             [~, ia] = unique(k3_table(:, {'C', 'ratio'}), 'rows'); k3_table = k3_table(ia, :);
 
-            % 将各组表格数据持久化保存到 Excel 文件的不同 Sheet 页面中
+            % 6. 将数据持久化保存到 Excel 文件的不同 Sheet
             try
                 writetable(k2_table, excel_filename, 'Sheet', 'K2_Spring');
                 writetable(k1_table, excel_filename, 'Sheet', 'Up_Down_Spring');
@@ -641,7 +628,7 @@ classdef QZS_App < matlab.apps.AppBase
                 app.LogTextArea.Value = [app.LogTextArea.Value; {['⚠️ Excel Write Error: ' ME.message]}];
             end
 
-            % 额外弹出一个独立的标准 Figure 画布，绘制高清理想双轴特性图以便导出
+            % 7. 唤起独立的 Figure 2，绘制理想理论无量纲特性双轴曲线图
             fig2 = figure(2);
             set(fig2, 'Position', [100, 100, 600, 450], 'Visible', 'on');
             
@@ -663,7 +650,7 @@ classdef QZS_App < matlab.apps.AppBase
             legend('Force', 'Stiffness', 'Interpreter', 'latex', 'Location', 'best', 'FontSize', app.LegendFontSize);
         end
 
-        % --- 利用 Frenet-Serret 标架构建 3D 螺旋线弹簧管网格曲面 ---
+        % --- 利用 Frenet-Serret 标架构建 3D 螺旋线弹簧管网面 ---
         function draw3DSpringMesh(~, ax, p1, p2, D_mid, d_wire, num_turns, color_rgb)
             axis_vec = p2 - p1; L_curr = norm(axis_vec); if L_curr < 1e-3, return; end
             axis_u = axis_vec / L_curr;
@@ -671,14 +658,12 @@ classdef QZS_App < matlab.apps.AppBase
             u_vec = cross(axis_u, ref); u_vec = u_vec / norm(u_vec);
             v_vec = cross(axis_u, u_vec);
 
-            % 离散计算中心轴线上的空间螺旋点迹坐标
             t = linspace(0, 1, 260); theta = t * 2 * pi * num_turns; r = D_mid / 2;
             x_l = r * cos(theta); y_l = r * sin(theta); z_l = L_curr * t;
             x_g = p1(1) + x_l*u_vec(1) + y_l*v_vec(1) + z_l*axis_u(1);
             y_g = p1(2) + x_l*u_vec(2) + y_l*v_vec(2) + z_l*axis_u(2);
             z_g = p1(3) + x_l*u_vec(3) + y_l*v_vec(3) + z_l*axis_u(3);
 
-            % 沿着弹簧丝横截面展开圆周分布的 Frenet 三轴坐标管网网格
             n_sec = 12; phi = linspace(0, 2*pi, n_sec); r_w = d_wire / 2;
             X_s = zeros(n_sec, length(t)); Y_s = zeros(n_sec, length(t)); Z_s = zeros(n_sec, length(t));
             for k = 1:length(t)
@@ -698,20 +683,19 @@ classdef QZS_App < matlab.apps.AppBase
             set(h_mesh, 'FaceLighting', 'gouraud', 'AmbientStrength', 0.4, 'DiffuseStrength', 0.5, 'SpecularStrength', 0.8, 'SpecularExponent', 25);
         end
 
-        % --- 高阶非线性动力学幅频控制代数方程多项式求根判定 ---
+        % --- 高阶非线性动力学幅频代数控制方程多项式求根判定 ---
         function Ta = compute_transmissibility(~, mu1_target, mu3_target, Omega, Ze_hat, zeta)
             if Omega < 1e-6, Ta = 1; return; end
             
-            % 构建高阶非线性动力学方程的多项式系统系数
+            % 30式求根
             A = (9/16) * mu3_target^2 * Ze_hat^4; 
             B = 1.5 * mu3_target * (mu1_target - Omega^2) * Ze_hat^2;
             C = (mu1_target - Omega^2)^2 + (2*zeta*Omega)^2; 
             D = -Omega^4;
 
-            coeff = [A, B, C, D];
+            coeff = [A, B, C, d];
             roots_Z2 = roots(coeff);
 
-            % 提取其中的实根与有意义的正物理根候选集
             Z2_candidates = roots_Z2(abs(imag(roots_Z2)) < 1e-6 & real(roots_Z2) > 0);
 
             if isempty(Z2_candidates)
@@ -723,11 +707,11 @@ classdef QZS_App < matlab.apps.AppBase
 
             Z_hat = sqrt(Z2);
 
-            % 根据相位转换方程计算幅频响应与激励的夹角余弦与正弦项
+            % 28式计算响应与激励的相位关系
             cos_phi = (0.75 * mu3_target * Ze_hat^2 * Z_hat^3 + (mu1_target - Omega^2) * Z_hat) / Omega^2;
             sin_phi = -(2 * zeta * Z_hat) / Omega;
 
-            % 最终合成系统的幅值传递率结果 Ta
+            % 21式合成最终的位移传递率 Ta
             Ta = sqrt((1 + Z_hat*cos_phi)^2 + (Z_hat*sin_phi)^2);
         end
 
