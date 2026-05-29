@@ -66,26 +66,26 @@ fprintf('由 â_target & γ_target 计算得到(中间量): ρ = %.3f \n\n', rho
 fprintf('由 â_target & ρ_target & 预压缩 δ̂_target 计算得到: δ̂_1 = %.3f, δ̂_2 = %.3f, 此时, 预压缩δ_1 = %.1f mm, 预压缩δ_2 = %.1f mm, L2(中) = %.1f mm, L3(下) = %.1f mm\n\n\n',delta_hat1_target, delta_hat2_target, delta1_target, delta2_target, L2, L3);
 
 %% 根据1.229(paper)和load mass计算K2
-k2 = (M*g)/(1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2)); %N/m
+%k2 = (M*g)/(1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2)); %N/m
 
 %% 根据1.229(paper)和K2计算load mass
-%d1 = 1.2;
-%D1 = 15.6;
-%n1 = 15;
-%k_1 = (G*d1^4)/(8*D1^3*n1)*1000;
+d1 = 1.2;
+D1 = 15.6;
+n1 = 15;
+k_1 = (G*d1^4)/(8*D1^3*n1)*1000;
 
-%d2 = 1.2;
-%D2 = 15.6;
-%n2 = 14;
-%k2 = (G*d2^4)/(8*D2^3*n2)*1000;
+d2 = 1.2;
+D2 = 15.6;
+n2 = 14;
+k2 = (G*d2^4)/(8*D2^3*n2)*1000;
 
-%d3 = 1.2;
-%D3 = 15.6;
-%n3 = 30;
-%k_3 = (G*d3^4)/(8*D3^3*n3)*1000;
+d3 = 1.2;
+D3 = 15.6;
+n3 = 30;
+k_3 = (G*d3^4)/(8*D3^3*n3)*1000;
 %k2 = 384.3; %N/m
-%M = (k2*1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2))/g; %N/m
-%fprintf('由k2计算得到：Load mass:M=%.1f, 设计得到的弹簧：上&下：k1=%.1fN/m, 底部：k2=%.1fN/m, 中：k3=%.1fN/m,比例：%.2f,%.2f\n\n',M,k_1,k2,k_3,k_1/k2,k_3/k2);
+M = (k2*1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2))/g; %N/m
+fprintf('由k2计算得到：Load mass:M=%.1f, 设计得到的弹簧：上&下：k1=%.1fN/m, 底部：k2=%.1fN/m, 中：k3=%.1fN/m,比例：%.2f,%.2f\n\n',M,k_1,k2,k_3,k_1/k2,k_3/k2);
 
 %% 由 α 和 α₁ 计算 k2, k3
 % k1 = k₂ · α_target
@@ -119,8 +119,8 @@ fprintf('平衡时弹簧的长度：底部：%.1fmm, 上：%.1fmm, 中：%.1fmm,
 y_hat = linspace(-10, 10, 1000);
 
 %% 存储弹簧参数到Excel
-path = '/Users/caohuaqi/Desktop';
-%path = 'C:\Users\Administrator\Desktop';
+%path = '/Users/caohuaqi/Desktop';
+path = 'C:\Users\Administrator\Desktop';
 excel_filename = fullfile(path, 'Spring_Parameters.xlsx');
 
 % 存储K2弹簧参数
@@ -296,7 +296,7 @@ yyaxis right
 plot(y_hat_curve1, K_hat, 'Color', [0.8500, 0.3250, 0.0980], 'LineStyle', '--', 'LineWidth', 2);
 ylabel('Dimensionless Stiffness $\hat{K}$', 'Interpreter', 'latex', 'FontSize', 18);
 
-title('Dimensionless Force and Stiffness Curves (Target Parameters)', 'FontSize', 24);
+title('Dimensionless Force and Stiffness Curves', 'FontSize', 24);
 xlabel('Dimensionless Displacement $\hat{y}$', 'Interpreter', 'latex', 'FontSize', 18);
 set(gca, 'FontSize', 16);
 grid on;
