@@ -6,10 +6,10 @@ classdef QZS_App < matlab.apps.AppBase
         LeftPanel              matlab.ui.container.Panel     % 左侧配置控制面板
         RightAxesPanel         matlab.ui.container.Panel     % 右侧综合图表大面板
 
-        % 平铺布局的各坐标轴句柄
+        % 各坐标轴句柄
         AxGeom                 matlab.ui.control.UIAxes      % 3D 机械结构拓扑图
-        Ax1                    matlab.ui.control.UIAxes      % 无量纲力与刚度曲线 (双轴对比)
-        Ax3                    matlab.ui.control.UIAxes      % 位移传递率分析图 (理论 vs 实际)
+        Ax1                    matlab.ui.control.UIAxes      % 无量纲力与刚度曲线
+        Ax3                    matlab.ui.control.UIAxes      % 位移传递率分析图
         Ax3_Inset              matlab.ui.control.UIAxes      % 传递率低频放大内嵌图
         Ax4                    matlab.ui.control.UIAxes      % 时域振动响应曲线
         Ax5                    matlab.ui.control.UIAxes      % 频域功率谱密度(PSD)对比图
@@ -21,21 +21,21 @@ classdef QZS_App < matlab.apps.AppBase
         Alpha1Edit            matlab.ui.control.NumericEditField  % 辅助参数 alpha1
         GammaEdit             matlab.ui.control.NumericEditField  % 非线性系数 gamma
         ATargetEdit           matlab.ui.control.NumericEditField  % 弹簧水平安装总跨度 a
-        TauPEdit              matlab.ui.control.NumericEditField  % 时间常数/剪切关联项 tau_p
-        GEdit                 matlab.ui.control.NumericEditField  % 材料剪切模量 G
-        CEdit                 matlab.ui.control.NumericEditField  % 系统阻尼系数 c
-        ZeEdit                matlab.ui.control.NumericEditField  % 基础激振幅值 Ze
+        TauPEdit              matlab.ui.control.NumericEditField  % 剪切常数 tau_p
+        GEdit                 matlab.ui.control.NumericEditField  % 剪切模量 G
+        CEdit                 matlab.ui.control.NumericEditField  % 阻尼系数 c
+        ZeEdit                matlab.ui.control.NumericEditField  % 基础激振幅值 Ze mm
 
-        % 1. 底部/竖向弹簧 (Vert)
-        V_TurnsEdit, V_WireDiaEdit, V_CylinderEdit
+        % 1. 底部弹簧 (Bottom)
+        B_TurnsEdit, B_WireDiaEdit, B_CylinderEdit
         % 2. 上侧斜弹簧 (Upper)
         U_TurnsEdit, U_WireDiaEdit, U_CylinderEdit
         % 3. 中间斜弹簧 (Mid)
         M_TurnsEdit, M_WireDiaEdit, M_CylinderEdit
-        % 4. 下侧斜弹簧 (Lower)
-        L_TurnsEdit, L_WireDiaEdit, L_CylinderEdit
+        % 4. 下侧斜弹簧 (Down)
+        D_TurnsEdit, D_WireDiaEdit, D_CylinderEdit
 
-        % 显式声明其余几何尺寸输入框句柄，防止匿名回调失效
+        % 输入框句柄
         BaseThickEdit         matlab.ui.control.NumericEditField
         H4Edit                matlab.ui.control.NumericEditField
         H5Edit                matlab.ui.control.NumericEditField
@@ -73,7 +73,7 @@ classdef QZS_App < matlab.apps.AppBase
         % 立体弹簧独立几何尺寸
         k_vert, L0_vert, d_vert, D_vert, n_vert
         k_upper, L0_upper, d_upper, D_upper, n_upper
-        k_mid,   L0_mid,   d_mid,   D_mid,   n_mid     % 👈 新增：中间斜弹簧独立变量
+        k_mid,   L0_mid,   d_mid,   D_mid,   n_mid
         k_lower, L0_lower, d_lower, D_lower, n_lower
 
         % 3D 几何构型结构参数
@@ -90,24 +90,22 @@ classdef QZS_App < matlab.apps.AppBase
     % --- 核心生命周期与构造函数 ---
     methods (Access = public)
         function app = QZS_App()
-            createComponents(app);                  % 执行前端 UI 组件布局构建
-            registerApp(app, app.UIWindow);         % 注册当前实例到 MATLAB App 架构
-            calculateAndPlotWorkflow(app);          % 初始化加载，默认运行完整逻辑链
+            createComponents(app);
+            registerApp(app, app.UIWindow);
+            calculateAndPlotWorkflow(app);
         end
 
         function delete(app)
-            delete(app.UIWindow);                   % 显式安全销毁主窗体
+            delete(app.UIWindow);
         end
     end
 
     methods (Access = private)
 
-% --- 前端 UI 界面组件布局构建 ---
+        % --- 前端 UI 界面组件布局构建 ---
         function createComponents(app)
-            % 主窗口初始化
             app.UIWindow = uifigure('Name', 'QZS Nonlinear Isolation System Pro', 'Position', [50 50 1420 850]);
 
-            % 1. 左侧配置控制面板构建
             app.LeftPanel = uipanel(app.UIWindow, 'Title', 'Configuration', 'Position', [10 10 190 830], 'FontWeight', 'bold');
 
             y_pos = 785;
@@ -172,14 +170,13 @@ classdef QZS_App < matlab.apps.AppBase
 
             app.LogTextArea = uitextarea(app.LeftPanel, 'Position', [10 10 165 y_pos-15], 'Editable', 'off', 'FontSize', 13);
 
-            % --- 右侧无面板组件整体上移 40px ---
-            y_matrix = 740 + 40; % 原 740 -> 变为 780
+            y_matrix = 740 + 40;
             uilabel(app.UIWindow, 'Position', [210+980 y_matrix 50 22], 'Text', 'Type', 'FontWeight', 'bold','FontSize', 14);
             uilabel(app.UIWindow, 'Position', [210+1035 y_matrix 35 22], 'Text', '  n', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22]);
             uilabel(app.UIWindow, 'Position', [210+1070 y_matrix 55 22], 'Text', 'd (mm)', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22]);
             uilabel(app.UIWindow, 'Position', [210+1120 y_matrix 55 22], 'Text', 'D (mm)', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22]);
-            
-            % --- 1. Upper Row ---
+
+            % --- Upper Row ---
             y_matrix = y_matrix - 26;
             uilabel(app.UIWindow, 'Position', [210+980 y_matrix 50 22], 'Text', 'Upper:', 'FontWeight', 'bold','FontSize', 14);
             app.U_TurnsEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1030 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
@@ -188,8 +185,8 @@ classdef QZS_App < matlab.apps.AppBase
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_upper'));
             app.U_CylinderEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1118 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_upper'));
-            
-            % --- 2. Mid Row ---
+
+            % --- Mid Row ---
             y_matrix = y_matrix - 26;
             uilabel(app.UIWindow, 'Position', [210+980 y_matrix 50 22], 'Text', 'Mid:', 'FontWeight', 'bold','FontSize', 14);
             app.M_TurnsEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1030 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
@@ -198,44 +195,44 @@ classdef QZS_App < matlab.apps.AppBase
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_WireDia'));
             app.M_CylinderEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1118 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_Cylinder'));
-            
-            % --- 3. Lower Row ---
+
+            % --- Lower Row ---
             y_matrix = y_matrix - 26;
             uilabel(app.UIWindow, 'Position', [210+980 y_matrix 50 22], 'Text', 'Down:', 'FontWeight', 'bold','FontSize', 14);
-            app.L_TurnsEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1030 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
+            app.D_TurnsEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1030 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_lower'));
-            app.L_WireDiaEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1070 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', ...
+            app.D_WireDiaEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1070 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_lower'));
-            app.L_CylinderEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1118 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
+            app.D_CylinderEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1118 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_lower'));
-            
-            % --- 4. Bottom Row ---
+
+            % --- Bottom Row ---
             y_matrix = y_matrix - 26;
             uilabel(app.UIWindow, 'Position', [210+980 y_matrix 50 22], 'Text', 'Bottom:', 'FontWeight', 'bold','FontSize', 14);
-            app.V_TurnsEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1030 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
+            app.B_TurnsEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1030 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_vert'));
-            app.V_WireDiaEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1070 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', ...
+            app.B_WireDiaEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1070 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_vert'));
-            app.V_CylinderEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1118 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
+            app.B_CylinderEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1118 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_vert'));
-            
+
             % --- 基础尺寸输入框 ---
             y_matrix = y_matrix - 32;
             uilabel(app.UIWindow, 'Position', [210+980 y_matrix 135 22], 'Text', 'Base Thick (mm):', 'FontWeight', 'bold','FontSize', 14);
             app.BaseThickEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1110 y_matrix 65 22], 'Value', app.base_thickness, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updateBaseThickness(edf.Value));
-            
+
             y_matrix = y_matrix - 26;
             uilabel(app.UIWindow, 'Position', [210+980 y_matrix 110 22], 'Text', 'h4 (mm):', 'FontWeight', 'bold','FontSize', 14);
             app.H4Edit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1110 y_matrix 65 22], 'Value', app.h4, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updatePlatSpacer(edf.Value));
-            
+
             y_matrix = y_matrix - 26;
             uilabel(app.UIWindow, 'Position', [210+980 y_matrix 110 22], 'Text', 'h5 (mm):', 'FontWeight', 'bold','FontSize', 14);
             app.H5Edit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1110 y_matrix 65 22], 'Value', app.h5, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updateColSpacer(edf.Value));
 
-            % 坐标轴挂载 (Y 坐标均向上提高 40 像素)
+            % 坐标轴
             app.AxGeom    = uiaxes(app.UIWindow, 'Position', [210+15  420+40 440 360]);
             app.Ax1       = uiaxes(app.UIWindow, 'Position', [210+470 420+40 440 360]);
             app.Ax3       = uiaxes(app.UIWindow, 'Position', [210+20,  40+40, 370, 340]);
@@ -243,7 +240,6 @@ classdef QZS_App < matlab.apps.AppBase
             app.Ax5       = uiaxes(app.UIWindow, 'Position', [210+810, 40+40, 370, 340]);
             app.Ax3_Inset = uiaxes(app.UIWindow, 'Position', [210+240, 230, 120, 130]);
 
-            % --- ✨ 新增底部全宽版权声明区 (位置在 Y=10) ---
             uilabel(app.UIWindow, ...
                 'Position', [210, 12, 1180, 25], ...
                 'Text', '© 2026 QZS Nonlinear Vibration Isolation Lab. All Rights Reserved.', ...
@@ -253,7 +249,6 @@ classdef QZS_App < matlab.apps.AppBase
                 'HorizontalAlignment', 'center');
         end
 
-        % --- 几何尺寸与左侧输入框联动更新群 (修复点：全面强制同步执行 calculateAndPlotWorkflow) ---
         function updateGeometrySpan(app)
             app.a = app.ATargetEdit.Value;
             app.calculateAndPlotWorkflow();
@@ -271,22 +266,20 @@ classdef QZS_App < matlab.apps.AppBase
             app.calculateAndPlotWorkflow();
         end
 
-        % 左侧核心动力学参数输入框专属响应（解决回车不刷新、传旧值的问题）
         function leftFieldValueChanged(app, editField, paramName)
-            drawnow; % 强行刷入前端 UI 缓存区数据
+            drawnow;
             app.calculateAndPlotWorkflow();
         end
 
-        % --- 右侧集中式输入框回车/值改变联动响应器 ---
         function editFieldValueChanged(app, editField, paramName)
             val = editField.Value;
             switch paramName
                 case 'n_upper',   app.n_upper = val;
                 case 'd_upper',   app.d_upper = val;
                 case 'D_upper',   app.D_upper = val;
-                case 'M_Turns',   app.n_mid   = val;   % 👈 修复：对应界面 Mid - n
-                case 'M_WireDia', app.d_mid   = val;   % 👈 修复：对应界面 Mid - d
-                case 'M_Cylinder',app.D_mid   = val;   % 👈 修复：对应界面 Mid - D
+                case 'M_Turns',   app.n_mid   = val;
+                case 'M_WireDia', app.d_mid   = val;
+                case 'M_Cylinder',app.D_mid   = val;
                 case 'n_lower',   app.n_lower = val;
                 case 'd_lower',   app.d_lower = val;
                 case 'D_lower',   app.D_lower = val;
@@ -297,54 +290,60 @@ classdef QZS_App < matlab.apps.AppBase
             app.calculateAndPlotWorkflow();
         end
 
-        % --- 核心工作流总递推控制中心 ---
         function calculateAndPlotWorkflow(app)
-            % 1. 物理结构基本几何学前置推导
             mapPhysicalAssemblyGeometry(app);
 
-            % 2. 代数离散求解：理论设计无量纲指标
-            [app.f_hat_theory, app.K_hat_theory] = evaluateSystemResponse(app, ...
-                app.DeltaHatEdit.Value, app.AHatEdit.Value, app.AlphaEdit.Value, app.Alpha1Edit.Value, app.GammaEdit.Value);
+            delta_hat_theory = app.DeltaHatEdit.Value;
+            a_hat_theory     = app.AHatEdit.Value;
+            alpha_theory     = app.AlphaEdit.Value;
+            alpha1_theory    = app.Alpha1Edit.Value;
+            gamma_theory     = app.GammaEdit.Value;
 
-            % 3. 代数离散求解：实际加工表现（带入右侧实时修改后的参数）
-            actual_gamma_bias = app.GammaEdit.Value * (app.M_TurnsEdit.Value / 10.0) * (1.8 / app.M_WireDiaEdit.Value);
-            actual_alpha_bias = app.AlphaEdit.Value * (app.M_CylinderEdit.Value / 14.0)^3;
+            h1_theory = sqrt(app.a^2 * (1/a_hat_theory^2 - 1));
+            delta_theory = delta_hat_theory * sqrt(app.a^2 + h1_theory^2);
+            L1_val = sqrt(app.a^2 + h1_theory^2) + delta_theory;
+            fprintf('L1=%0.1f\n',L1_val);
+            
+            delta_hat_actual = app.DeltaHatEdit.Value * 1.02;
+            a_hat_actual     = (app.a-app.a1/2)/sqrt((app.a-app.a1/2)^2+sqrt(L1_val^2-(app.a-app.a1/2)^2)^2);
+            alpha1_actual    = app.Alpha1Edit.Value;
+
+            alpha_actual = app.AlphaEdit.Value;
+            gamma_actual = app.GammaEdit.Value * (app.M_TurnsEdit.Value / 10.0) * (1.8 / app.M_WireDiaEdit.Value);
+
+
+            [app.f_hat_theory, app.K_hat_theory] = evaluateSystemResponse(app, ...
+                delta_hat_theory, a_hat_theory, alpha_theory, alpha1_theory, gamma_theory);
 
             [app.f_hat_actual, app.K_hat_actual] = evaluateSystemResponse(app, ...
-                app.DeltaHatEdit.Value * 1.02, app.AHatEdit.Value * 0.99, actual_alpha_bias, app.Alpha1Edit.Value * 0.95, actual_gamma_bias);
+                delta_hat_actual, a_hat_actual, alpha_actual, alpha1_actual, gamma_actual);
 
-            % 4. 刷新底层渲染图层资产
             refreshAxesCurves(app);
 
             app.LogTextArea.Value = {'QZS Dual-Model Solved Successfully.'; 'Theory (Dashed) vs Actual (Solid) Synced.'};
         end
 
-% --- 模块化函数：几何空间构型转换 ---
         function mapPhysicalAssemblyGeometry(app)
             a_target = app.ATargetEdit.Value;
             a_hat_target = app.AHatEdit.Value;
             gamma_target = app.GammaEdit.Value;
             G_mat = app.GEdit.Value;
 
-            % 1. Bottom 竖向弹簧参数同步
-            app.n_vert = app.V_TurnsEdit.Value;
-            app.d_vert = app.V_WireDiaEdit.Value;
-            app.D_vert = app.V_CylinderEdit.Value;
+            app.n_vert = app.B_TurnsEdit.Value;
+            app.d_vert = app.B_WireDiaEdit.Value;
+            app.D_vert = app.B_CylinderEdit.Value;
 
-            % 2. Upper 斜弹簧参数同步
             app.n_upper = app.U_TurnsEdit.Value;
             app.d_upper = app.U_WireDiaEdit.Value;
             app.D_upper = app.U_CylinderEdit.Value;
 
-            % 3. Mid 斜弹簧参数同步 (👈 修复：补充读取界面输入框的值)
             app.n_mid = app.M_TurnsEdit.Value;
             app.d_mid = app.M_WireDiaEdit.Value;
             app.D_mid = app.M_CylinderEdit.Value;
 
-            % 4. Down 斜弹簧参数同步
-            app.n_lower = app.L_TurnsEdit.Value;
-            app.d_lower = app.L_WireDiaEdit.Value;
-            app.D_lower = app.L_CylinderEdit.Value;
+            app.n_lower = app.D_TurnsEdit.Value;
+            app.d_lower = app.D_WireDiaEdit.Value;
+            app.D_lower = app.D_CylinderEdit.Value;
 
             h1_target = sqrt(a_target^2 * (1/a_hat_target^2 - 1));
             d_target_param = h1_target / (gamma_target - 1);
@@ -360,66 +359,63 @@ classdef QZS_App < matlab.apps.AppBase
             app.y_hat = linspace(-3.0, 3.0, 1000);
         end
 
-        % --- 模块化函数：通用的高阶非线性恢复力与刚度离散数值核心求解器 ---
-        function [f_curve, K_curve] = evaluateSystemResponse(app, delta_h, a_h, alpha_v, alpha1_v, gamma_v)
-            rho_val = (1 - a_h^2) / (gamma_v - 1)^2;
-            delta_hat1_val = 1 - sqrt(1 + 2*sqrt(1 - a_h^2)*sqrt(rho_val) + rho_val) + delta_h;
-            delta_hat2_val = 1 - sqrt(1 + 4*sqrt(1 - a_h^2)*sqrt(rho_val) + 4*rho_val) + delta_h;
-            x_e_hat_val = sqrt(1 - a_h^2) + sqrt(rho_val);
+        function [f_hat, K_hat] = evaluateSystemResponse(app, delta_hat, a_hat, alpha, alpha1, gamma)
 
-            K_curve = zeros(size(app.y_hat));
-            f_curve = zeros(size(app.y_hat));
+            rho = (1 - a_hat^2) / (gamma - 1)^2;
+            delta_hat1 = 1 - sqrt(1 + 2*sqrt(1 - a_hat^2)*sqrt(rho) + rho) + delta_hat;
+            delta_hat2 = 1 - sqrt(1 + 4*sqrt(1 - a_hat^2)*sqrt(rho) + 4*rho) + delta_hat;
+            x_e_hat = sqrt(1 - a_hat^2) + sqrt(rho);
+
+            K_hat = zeros(size(app.y_hat));
+            f_hat = zeros(size(app.y_hat));
 
             for i = 1:length(app.y_hat)
-                xi_h = x_e_hat_val + app.y_hat(i);
-                P1 = sqrt(1 - a_h^2) - xi_h;
-                P2 = 1 - 2*sqrt(1 - a_h^2)*xi_h + xi_h^2;
-                P3 = 1 + delta_h;
-                P4 = sqrt(1 - a_h^2 + rho_val + 2*sqrt(1 - a_h^2)*sqrt(rho_val)) - xi_h;
-                P5 = 1 + rho_val + 2*sqrt(1 - a_h^2)*sqrt(rho_val) - 2*sqrt(1 - a_h^2 + rho_val + 2*sqrt(1 - a_h^2)*sqrt(rho_val))*xi_h + xi_h^2;
-                P6 = sqrt(1 + 2*sqrt(1 - a_h^2)*sqrt(rho_val) + rho_val) + delta_hat1_val;
-                P7 = sqrt(1 - a_h^2) + 2*sqrt(rho_val) - xi_h;
-                P8 = 1 + 4*sqrt(1 - a_h^2)*sqrt(rho_val) + 4*rho_val - 2*(sqrt(1 - a_h^2) + 2*sqrt(rho_val))*xi_h + xi_h^2;
-                P9 = sqrt(1 + 4*sqrt(1 - a_h^2)*sqrt(rho_val) + 4*rho_val) + delta_hat2_val;
+                xi_hat = x_e_hat + app.y_hat(i);
 
-                dP2 = -2*sqrt(1 - a_h^2) + 2*xi_h;
-                dP5 = -2*sqrt(1 - a_h^2 + rho_val + 2*sqrt(1 - a_h^2)*sqrt(rho_val)) + 2*xi_h;
-                dP8 = -2*(sqrt(1 - a_h^2) + 2*sqrt(rho_val)) + 2*xi_h;
+                P1 = sqrt(1 - a_hat^2) - xi_hat;
+                P2 = 1 - 2*sqrt(1 - a_hat^2)*xi_hat + xi_hat^2;
+                P3 = 1 + delta_hat;
+                P4 = sqrt(1 - a_hat^2 + rho + 2*sqrt(1 - a_hat^2)*sqrt(rho)) - xi_hat;
+                P5 = 1 + rho + 2*sqrt(1 - a_hat^2)*sqrt(rho) - 2*sqrt(1 - a_hat^2 + rho + 2*sqrt(1 - a_hat^2)*sqrt(rho))*xi_hat + xi_hat^2;
+                P6 = sqrt(1 + 2*sqrt(1 - a_hat^2)*sqrt(rho) + rho) + delta_hat1;
+                P7 = sqrt(1 - a_hat^2) + 2*sqrt(rho) - xi_hat;
+                P8 = 1 + 4*sqrt(1 - a_hat^2)*sqrt(rho) + 4*rho - 2*(sqrt(1 - a_hat^2) + 2*sqrt(rho))*xi_hat + xi_hat^2;
+                P9 = sqrt(1 + 4*sqrt(1 - a_hat^2)*sqrt(rho) + 4*rho) + delta_hat2;
 
-                dN1 = -2 * alpha_v * (1 - P3 * P2.^(-0.5)) * (-1) - alpha_v * P1 * P2.^(-1.5) * P3 * dP2;
-                dN3 = -2 * alpha1_v * (1 - P6 * P5.^(-0.5)) * (-1) - alpha_v * P4 * P5.^(-1.5) * P6 * dP5;
-                dN5 = -2 * alpha_v * (1 - P9 * P8.^(-0.5)) * (-1) - alpha_v * P7 * P8.^(-1.5) * P9 * dP8;
+                dP2 = -2*sqrt(1 - a_hat^2) + 2*xi_hat;
+                dP5 = -2*sqrt(1 - a_hat^2 + rho + 2*sqrt(1 - a_hat^2)*sqrt(rho)) + 2*xi_hat;
+                dP8 = -2*(sqrt(1 - a_hat^2) + 2*sqrt(rho)) + 2*xi_hat;
 
-                K_curve(i) = 1 + dN1 + dN3 + dN5;
-                f_curve(i) = xi_h - 2*alpha_v * P1*(sqrt(P2)-P3)/sqrt(P2) - ...
-                    2*alpha1_v * P4*(sqrt(P5)-P6)/sqrt(P5) - ...
-                    2*alpha_v * P7*(sqrt(P8)-P9)/sqrt(P8);
+                dN1 = -2 * alpha * (1 - P3 * P2.^(-0.5)) * (-1) - alpha * P1 * P2.^(-1.5) * P3 * dP2;
+                dN3 = -2 * alpha1 * (1 - P6 * P5.^(-0.5)) * (-1) - alpha * P4 * P5.^(-1.5) * P6 * dP5;
+                dN5 = -2 * alpha * (1 - P9 * P8.^(-0.5)) * (-1) - alpha * P7 * P8.^(-1.5) * P9 * dP8;
+
+                K_hat(i) = 1 + dN1 + dN3 + dN5;
+                f_hat(i) = xi_hat - 2*alpha * P1*(sqrt(P2)-P3)/sqrt(P2) - ...
+                    2*alpha1 * P4*(sqrt(P5)-P6)/sqrt(P5) - ...
+                    2*alpha * P7*(sqrt(P8)-P9)/sqrt(P8);
             end
         end
 
         function refreshAxesCurves(app)
-            a_target = app.test_params(1);   
+            a_target = app.test_params(1);
             h1_target = app.test_params(2);
-            h_target = app.test_params(3);   
+            h_target = app.test_params(3);
             h2_target = app.test_params(4);
 
-            % 1. 刷新 3D 拓扑结构装配图
             app.plotMechanismGeometry(a_target, h1_target, h_target, h2_target);
 
-            % 2. 刷新并双轴联动对比图表 (Ax1)
             yyaxis(app.Ax1, 'left');   cla(app.Ax1); hold(app.Ax1, 'on'); grid(app.Ax1, 'on');
             yyaxis(app.Ax1, 'right');  cla(app.Ax1); hold(app.Ax1, 'on'); grid(app.Ax1, 'on');
-            
+
             set(app.Ax1, 'FontSize', app.TickFontSize);
 
-            % --- 左侧双轴：无量纲力对比 ---
             yyaxis(app.Ax1, 'left');
             p_f_theory = plot(app.Ax1, app.y_hat, app.f_hat_theory, 'Color', [0, 0.4470, 0.7410], 'LineStyle', '--', 'LineWidth', 1.5);
             p_f_actual = plot(app.Ax1, app.y_hat, app.f_hat_actual, 'Color', [0.0, 0.20, 0.50], 'LineStyle', '-', 'LineWidth', 2.5);
             ylabel(app.Ax1, 'Dimensionless Force $\hat{f}$', 'Interpreter', 'latex', 'FontSize', app.LabelFontSize);
             app.Ax1.YColor = [0.0, 0.20, 0.50]; app.Ax1.YLim = [-6, 6];
 
-            % --- 右侧双轴：无量纲刚度对比 ---
             yyaxis(app.Ax1, 'right');
             p_k_theory = plot(app.Ax1, app.y_hat, app.K_hat_theory, 'Color', [0.8500, 0.3250, 0.0980], 'LineStyle', '--', 'LineWidth', 1.5);
             p_k_actual = plot(app.Ax1, app.y_hat, app.K_hat_actual, 'Color', [0.55, 0.12, 0.0], 'LineStyle', '-', 'LineWidth', 2.5);
@@ -431,10 +427,9 @@ classdef QZS_App < matlab.apps.AppBase
             xlabel(app.Ax1, 'Dimensionless Displacement $\hat{y}$', 'Interpreter', 'latex', 'FontSize', app.LabelFontSize);
             legend(app.Ax1, [p_f_theory, p_f_actual, p_k_theory, p_k_actual], ...
                 {'Force (Theory)', 'Force (Actual)', 'Stiffness (Theory)', 'Stiffness (Actual)'}, 'Location', 'best', 'FontSize', app.LegendFontSize);
-            
+
             hold(app.Ax1, 'off');
 
-            % 3. 刷新位移传递率曲线对比分析图 (Ax3)
             cla(app.Ax3); hold(app.Ax3, 'on'); grid(app.Ax3, 'on');
 
             Omega_range = 0:0.01:10;
@@ -460,7 +455,6 @@ classdef QZS_App < matlab.apps.AppBase
             legend(app.Ax3, {'Theory', 'Actual'}, 'Location', 'northeast', 'FontSize', app.LegendFontSize);
             hold(app.Ax3, 'off');
 
-            % 绘制局部放大图
             cla(app.Ax3_Inset); hold(app.Ax3_Inset, 'on'); grid(app.Ax3_Inset, 'on');
             idx = Omega_range <= 1.5;
             plot(app.Ax3_Inset, Omega_range(idx), Ta_theory(idx), 'LineStyle', '--', 'LineWidth', 1.2, 'Color', [0, 0.4470, 0.7410]);
@@ -469,14 +463,12 @@ classdef QZS_App < matlab.apps.AppBase
             xlim(app.Ax3_Inset, [0, 1.2]); ylim(app.Ax3_Inset, [0.5, 1.2]);
             set(app.Ax3_Inset, 'FontSize', app.TickFontSize-4, 'Color', [0.98 0.98 0.98]);
             hold(app.Ax3_Inset, 'off');
-            
-            % 【全面修复点】：移除大面板后的内嵌放大图绝对定位重置
+
             app.Ax3_Inset.Position = [210+240, 170, 120, 130];
 
             app.plotEmptySignalAxes();
         end
 
-        % --- 建立准零刚度物理隔振系统的 3D 空间几何拓扑并渲染 ---
         function plotMechanismGeometry(app, asis, h1, h, h2)
             cla(app.AxGeom, 'reset'); hold(app.AxGeom, 'on'); grid(app.AxGeom, 'on');
             view(app.AxGeom, [0, 90]); set(app.AxGeom, 'FontSize', app.TickFontSize);
@@ -512,40 +504,31 @@ classdef QZS_App < matlab.apps.AppBase
             patch(app.AxGeom, 'Vertices', b_verts, 'Faces', faces, 'FaceColor', [0.35, 0.35, 0.35], 'EdgeColor', 'k', 'LineWidth', 1.1);
 
             ss304_color = [0.72, 0.74, 0.75];
-            
-            % 1. 底部竖向弹簧渲染 -> 独占使用 _vert 参数
+
             app.draw3DSpringMesh(app.AxGeom, Ground_Vert_Fix, Bottom_P_Connect, app.D_vert, app.d_vert, app.n_vert, ss304_color);
-            
-            % 2. 左侧三根斜弹簧渲染 -> 上、中、下分别独立使用对应参数
+
             app.draw3DSpringMesh(app.AxGeom, Left_Column_Top, [-pw/2,  ins, 0], app.D_upper, app.d_upper, app.n_upper, ss304_color);
             app.draw3DSpringMesh(app.AxGeom, Left_Column_Mid, [-pw/2,    0, 0], app.D_mid,   app.d_mid,   app.n_mid,   ss304_color); % 👈 修复
             app.draw3DSpringMesh(app.AxGeom, Left_Column_Bot, [-pw/2, -ins, 0], app.D_lower, app.d_lower, app.n_lower, ss304_color); % 👈 修复
-            
-            % 3. 右侧三根斜弹簧渲染 -> 上、中、下分别独立使用对应参数
+
             app.draw3DSpringMesh(app.AxGeom, Right_Column_Top, [ pw/2,  ins, 0], app.D_upper, app.d_upper, app.n_upper, ss304_color); % 👈 修复
             app.draw3DSpringMesh(app.AxGeom, Right_Column_Mid, [ pw/2,    0, 0], app.D_mid,   app.d_mid,   app.n_mid,   ss304_color); % 👈 修复
             app.draw3DSpringMesh(app.AxGeom, Right_Column_Bot, [ pw/2, -ins, 0], app.D_lower, app.d_lower, app.n_lower, ss304_color);
-
 
             camlight(app.AxGeom, 'headlight'); lighting(app.AxGeom, 'gouraud');
             title(app.AxGeom, 'QZS Model Geometric Assembly', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
             xlabel(app.AxGeom, 'x / mm', 'FontSize', app.LabelFontSize);
             ylabel(app.AxGeom, 'y / mm', 'FontSize', app.LabelFontSize);
 
- % --- 智能自适应全景锁定（自由缩放且保证完整显示） ---
-            % 1. 强制 3D 空间各轴比例 1:1（防止弹簧和连杆被压扁或拉长失真）
-            axis(app.AxGeom, 'image'); 
-            
-            % 2. 让 MATLAB 自动根据当前画出的所有 3D 组件计算一个刚刚好塞下的紧凑边界
-            axis(app.AxGeom, 'tight'); 
-            
-            % 3. 【核心小技巧】在紧凑边界的基础上，人为往外撑开 15% 的安全边距
-            % 这样既实现了跟随参数自由缩放，又保证边缘的支架和弹簧绝对不会被切掉边角
+            axis(app.AxGeom, 'image');
+
+            axis(app.AxGeom, 'tight');
+
             margin = 0.15;
             x_limits = app.AxGeom.XLim;
             y_limits = app.AxGeom.YLim;
             z_limits = app.AxGeom.ZLim;
-            
+
             app.AxGeom.XLim = x_limits + [-1, 1] * diff(x_limits) * margin;
             app.AxGeom.YLim = y_limits + [-1, 1] * diff(y_limits) * margin;
             app.AxGeom.ZLim = z_limits + [-1, 1] * diff(z_limits) * margin;
@@ -553,7 +536,6 @@ classdef QZS_App < matlab.apps.AppBase
             hold(app.AxGeom, 'off');
         end
 
-        % --- 读取外部实测振动信号并执行动力学数值解算 ---
         function processVibrationSignals(app)
             if ispc, default_dir = fullfile(getenv('USERPROFILE'), 'Desktop');
             else, default_dir = fullfile(getenv('HOME'), 'Desktop'); end
@@ -608,7 +590,6 @@ classdef QZS_App < matlab.apps.AppBase
             legend(app.Ax5, {'Input Base PSD', 'Output Target PSD'}, 'Location', 'northeast', 'FontSize', app.LegendFontSize); hold(app.Ax5, 'off');
         end
 
-        % --- 状态复位占位提示区 ---
         function plotEmptySignalAxes(app)
             cla(app.Ax4, 'reset'); grid(app.Ax4, 'on'); set(app.Ax4, 'FontSize', app.TickFontSize);
             title(app.Ax4, 'Time Domain Signal Response', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
@@ -619,7 +600,6 @@ classdef QZS_App < matlab.apps.AppBase
             text(app.Ax5, 0.1, 0.5, 'Click [Load Signal] to plot', 'Color', [0.5, 0.5, 0.5], 'FontSize', app.LabelFontSize);
         end
 
-        % --- 多约束嵌套迭代计算并多 Sheet 导出参数 ---
         function saveDesignData(app)
             if ispc, default_dir = fullfile(getenv('USERPROFILE'), 'Desktop');
             else, default_dir = fullfile(getenv('HOME'), 'Desktop'); end
@@ -701,7 +681,6 @@ classdef QZS_App < matlab.apps.AppBase
             end
         end
 
-        % --- 利用 Frenet-Serret 标架构建 3D 螺旋线弹簧管网格曲面 ---
         function draw3DSpringMesh(~, ax, p1, p2, D_mid, d_wire, num_turns, color_rgb)
             axis_vec = p2 - p1; L_curr = norm(axis_vec); if L_curr < 1e-3, return; end
             axis_u = axis_vec / L_curr;
@@ -732,7 +711,6 @@ classdef QZS_App < matlab.apps.AppBase
             set(h_mesh, 'FaceLighting', 'gouraud', 'AmbientStrength', 0.4, 'DiffuseStrength', 0.5, 'SpecularStrength', 0.8, 'SpecularExponent', 25);
         end
 
-        % --- 高阶非线性动力学幅频控制代数方程多项式求根判定 ---
         function Ta = compute_transmissibility(~, mu1_target, mu3_target, Omega, Ze_hat, zeta)
             if Omega < 1e-6, Ta = 1; return; end
 
@@ -752,7 +730,6 @@ classdef QZS_App < matlab.apps.AppBase
             Ta = sqrt((1 + Z_hat*cos_phi)^2 + (Z_hat*sin_phi)^2);
         end
 
-        % --- 内置时域信号 Welch 功率谱密度提取法封装 ---
         function psd = compute_psd_internal(~, signal, win_len, fs)
             [pxx, ~] = pwelch(signal, hanning(win_len), floor(win_len/2), win_len, fs);
             psd = pxx;
