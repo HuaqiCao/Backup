@@ -655,7 +655,6 @@ classdef QZS_App < matlab.apps.AppBase
             plot3(app.AxGeom, [-span_a-15, -span_a], [0, 0], [0, 0], 'Color', [0.12, 0.53, 0.22], 'LineWidth', 1);
             plot3(app.AxGeom, [-span_a-15, -span_a], [48.0, 48.0], [0, 0], 'Color', [0.12, 0.53, 0.22], 'LineWidth', 1);
             text(app.AxGeom, -span_a-45, 24.0, 0, 'd_{actual}', 'Color', [0.12, 0.53, 0.22], 'FontSize', 12, 'FontWeight', 'bold', 'Interpreter', 'tex');
-            hold(app.AxGeom, 'off');
         end 
 
         function processVibrationSignals(app)
