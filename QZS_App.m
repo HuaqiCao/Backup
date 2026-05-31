@@ -61,7 +61,7 @@ classdef QZS_App < matlab.apps.AppBase
         v_out_matrix, f_psd_vec, v_in_psd_vec, v_out_psd_matrix
         v_out_data
 
-        k_vert, L0_vert, d_vert, D_vert, n_vert
+        k_bottom, L0_bottom, d_bottom, D_bottom, n_bottom
         k_upper, L0_upper, d_upper, D_upper, n_upper
         k_mid,   L0_mid,   d_mid,   D_mid,   n_mid
         k_lower, L0_lower, d_lower, D_lower, n_lower
@@ -154,39 +154,39 @@ classdef QZS_App < matlab.apps.AppBase
 
             y_matrix = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Upper:', 'FontWeight', 'bold','FontSize', 11);
-            app.U_TurnsEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', 10, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+            app.U_TurnsEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', 17, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_upper'));
-            app.U_WireDiaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', 1.8, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+            app.U_WireDiaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', 1.2, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_upper'));
-            app.U_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+            app.U_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14.4, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_upper'));
 
             y_matrix = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Mid:', 'FontWeight', 'bold','FontSize', 11);
-            app.M_TurnsEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', 10, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+            app.M_TurnsEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', 32, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_Turns'));
-            app.M_WireDiaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', 1.8, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+            app.M_WireDiaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', 1.2, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_WireDia'));
-            app.M_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+            app.M_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14.4, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_Cylinder'));
 
             y_matrix = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Down:', 'FontWeight', 'bold','FontSize', 11);
-            app.D_TurnsEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', 10, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+            app.D_TurnsEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', 17, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_lower'));
-            app.D_WireDiaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', 1.8, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+            app.D_WireDiaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', 1.2, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_lower'));
-            app.D_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+            app.D_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14.4, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_lower'));
 
             y_matrix = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Bot:', 'FontWeight', 'bold','FontSize', 11);
-            app.B_TurnsEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', 10, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_vert'));
-            app.B_WireDiaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', 1.8, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_vert'));
-            app.B_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_vert'));
+            app.B_TurnsEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', 16, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_bottom'));
+            app.B_WireDiaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', 1.2, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_bottom'));
+            app.B_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14.4, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_bottom'));
 
             y_matrix = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Supp:', 'FontWeight', 'bold','FontSize', 11);
@@ -213,9 +213,9 @@ classdef QZS_App < matlab.apps.AppBase
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
 
             y_matrix = y_matrix - 24;
-            uilabel(app.LeftPanel, 'Position', [5 y_matrix 110 22], 'Text', 'h4 (mm):', 'FontWeight', 'bold','FontSize', 11);
+            uilabel(app.LeftPanel, 'Position', [5 y_matrix 100 22], 'Text', 'h4 (mm):', 'FontWeight', 'bold','FontSize', 11);
             app.H4Edit = uieditfield(app.LeftPanel, 'numeric', 'Position', [110 y_matrix 60 20], 'Value', app.h4, 'ValueDisplayFormat', '%d', ...
-                'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflowOnly());
+                'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
 
             y_pos = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_pos 110 22], 'Text', 'a_actual (mm):', 'FontWeight', 'bold','FontSize', 11);
@@ -284,9 +284,9 @@ classdef QZS_App < matlab.apps.AppBase
                 case 'n_lower',   app.n_lower = val;
                 case 'd_lower',   app.d_lower = val;
                 case 'D_lower',   app.D_lower = val;
-                case 'n_vert',    app.n_vert = val;
-                case 'd_vert',    app.d_vert = val;
-                case 'D_vert',    app.D_vert = val;
+                case 'n_bottom',    app.n_bottom = val;
+                case 'd_bottom',    app.d_bottom = val;
+                case 'D_bottom',    app.D_bottom = val;
             end
             mapPhysicalAssemblyGeometry(app);
             app.calculateAndPlotWorkflow();
@@ -310,13 +310,19 @@ classdef QZS_App < matlab.apps.AppBase
             app.f_actual_real = zeros(size(app.y_hat));
             a_actual = app.AActualEdit.Value;
 
+            G = app.GEdit.Value;
+            k_upper_act  = (G * app.d_upper^4) / (8 * app.D_upper^3 * (app.n_upper-2));
+            k_mid_act    = (G * app.d_mid^4) / (8 * app.D_mid^3 * (app.n_mid-2));
+            k_lower_act  = (G * app.d_lower^4) / (8 * app.D_lower^3 * (app.n_lower-2));
+            k_bottom_act = (G * app.d_bottom^4) / (8 * app.D_bottom^3 * (app.n_bottom-2));
+
             for i = 1:length(app.y_hat)
                 y = app.y_hat(i) * a_actual;
 
-                term1 = -2 * (119.2 - sqrt((a_actual + y)^2 + app.d_actual^2)) * (a_actual + y) * k_upper_act / (sqrt((a_actual + y)^2 + app.d_actual^2));
-                term2 =  2 * (119.2 - sqrt((-y)^2 + app.d_actual^2)) * (-y) * k_mid_act / (sqrt((-y)^2 + app.d_actual^2));
-                term3 =  2 * (119.2 - sqrt((a_actual - y)^2 + app.d_actual^2)) * (a_actual - y) * k_upper_act / (sqrt((a_actual - y)^2 + app.d_actual^2));
-                term4 = (153.1 - 67 + y) * k_vert_act;
+                term1 = -2 * (app.L0_upper - sqrt((a_actual + y)^2 + app.d_actual^2)) * (a_actual + y) * k_upper_act / (sqrt((a_actual + y)^2 + app.d_actual^2));
+                term2 =  2 * (app.L0_mid - sqrt((-y)^2 + app.d_actual^2)) * (-y) * k_mid_act / (sqrt((-y)^2 + app.d_actual^2));
+                term3 =  2 * (app.L0_lower - sqrt((a_actual - y)^2 + app.d_actual^2)) * (a_actual - y) * k_lower_act / (sqrt((a_actual - y)^2 + (app.d_actual-app.h4)^2));
+                term4 = (app.L0_bottom - 67 + y) * k_bottom_act;
 
                 app.f_actual_real(i) = term1 + term2 + term3 + term4;
             end
@@ -333,6 +339,7 @@ classdef QZS_App < matlab.apps.AppBase
         end
 
         function calculateAndPlotWorkflow(app)
+            app.h4 = app.H4Edit.Value;
             delta_hat_theory = app.DeltaHatEdit.Value;
             a_hat_theory     = app.AHatEdit.Value;
             alpha_theory     = app.AlphaEdit.Value;
@@ -348,10 +355,10 @@ classdef QZS_App < matlab.apps.AppBase
             for i = 1:length(app.y_hat)
                 y = app.y_hat(i) * a_actual;
 
-                term1 = -2 * (119.2 - sqrt((a_actual + y)^2 + app.d_actual^2)) * (a_actual + y) * 0.362 / (sqrt((a_actual + y)^2 + app.d_actual^2));
-                term2 =  2 * (119.2 - sqrt((-y)^2 + app.d_actual^2)) * (-y) * 0.1825 / (sqrt((-y)^2 + app.d_actual^2));
-                term3 =  2 * (119.2 - sqrt((a_actual - y)^2 + app.d_actual^2)) * (a_actual - y) * 0.362 / (sqrt((a_actual - y)^2 + app.d_actual^2));
-                term4 = (153.1 - 67 + y) * 0.3843;
+                term1 = -2 * (app.L0_upper - sqrt((a_actual + y)^2 + (app.d_actual-app.h4)^2)) * (a_actual + y) * 0.362 / (sqrt((a_actual + y)^2 + (app.d_actual-app.h4)^2));
+                term2 =  2 * (app.L0_mid - sqrt((-y)^2 + (app.d_actual-app.h4)^2)) * (-y) * 0.1825 / (sqrt((-y)^2 + (app.d_actual-app.h4)^2));
+                term3 =  2 * (app.L0_lower - sqrt((a_actual - y)^2 + (app.d_actual-app.h4)^2)) * (a_actual - y) * 0.362 / (sqrt((a_actual - y)^2 + (app.d_actual-app.h4)^2));
+                term4 = (app.L0_bottom - 67 + y) * 0.3843;
 
                 app.f_actual_real(i) = term1 + term2 + term3 + term4;
             end
@@ -365,10 +372,10 @@ classdef QZS_App < matlab.apps.AppBase
 
             G = app.GEdit.Value;
 
-            k_upper_act = (G * app.d_upper^4) / (8 * app.D_upper^3 * app.n_upper);
-            k_mid_act   = (G * app.d_mid^4) / (8 * app.D_mid^3 * app.n_mid);
-            k_lower_act = (G * app.d_lower^4) / (8 * app.D_lower^3 * app.n_lower);
-            k_vert_act  = (G * app.d_vert^4) / (8 * app.D_vert^3 * app.n_vert);
+            k_upper_act = (G * app.d_upper^4) / (8 * app.D_upper^3 * (app.n_upper-2));
+            k_mid_act   = (G * app.d_mid^4) / (8 * app.D_mid^3 * (app.n_mid-2));
+            %k_lower_act = (G * app.d_lower^4) / (8 * app.D_lower^3 * (app.n_lower-2));
+            k_bottom_act  = (G * app.d_bottom^4) / (8 * app.D_bottom^3 * (app.n_bottom-2));
 
             spring_len = app.AActualEdit.Value;
             s_w = app.SupportWidthEdit.Value;
@@ -377,13 +384,17 @@ classdef QZS_App < matlab.apps.AppBase
 
             springLogs = {
                 '- 实际弹簧刚度 (N/mm) ';
-                sprintf('Upper: %.3f N/mm', k_upper_act);
-                sprintf('Mid:   %.3f N/mm', k_mid_act);
-                sprintf('Down:  %.3f N/mm', k_lower_act);
-                sprintf('Bot:   %.3f N/mm', k_vert_act);
+                sprintf('k1: %.1f N/m', k_upper_act*1000);
+                sprintf('k2: %.3f N/m', k_bottom_act*1000);
+                sprintf('k3: %.1f N/m', k_mid_act*1000);
                 '---- 装配尺寸参数 --';
-                sprintf('a_assembly: %.2f mm', a_assembly);
-                sprintf('d_assembly: %.2f mm', d_assembly);
+                sprintf('a_assembly: %.1f mm', a_assembly);
+                sprintf('d_assembly: %.1f mm', d_assembly);
+                '---- 弹簧自由长度 --';
+                sprintf('L1: %.1f mm', app.L0_upper);
+                sprintf('L2: %.1f mm', app.L0_mid);
+                sprintf('L3: %.1f mm', app.L0_lower);
+                sprintf('L: %.1f mm', app.L0_bottom);
                 };
 
             app.LogTextArea.Value = springLogs;
@@ -395,7 +406,6 @@ classdef QZS_App < matlab.apps.AppBase
             app.h4 = app.H4Edit.Value;
             app.d_actual = app.DACTUALEdit.Value;
 
-
             app.column_thickness = app.SupportWidthEdit.Value;
             app.support_h        = app.SupportHeightEdit.Value;
             app.support_d        = app.SupportDepthEdit.Value;
@@ -405,10 +415,21 @@ classdef QZS_App < matlab.apps.AppBase
             app.base_thickness   = app.base_h;
             app.base_d           = app.BaseDepthEdit.Value;
 
-            app.n_vert = app.B_TurnsEdit.Value;   app.d_vert = app.B_WireDiaEdit.Value;   app.D_vert = app.B_CylinderEdit.Value;
+            app.n_bottom = app.B_TurnsEdit.Value;   app.d_bottom = app.B_WireDiaEdit.Value;   app.D_bottom = app.B_CylinderEdit.Value;
             app.n_upper = app.U_TurnsEdit.Value;  app.d_upper = app.U_WireDiaEdit.Value; app.D_upper = app.U_CylinderEdit.Value;
             app.n_mid = app.M_TurnsEdit.Value;    app.d_mid = app.M_WireDiaEdit.Value;   app.D_mid = app.M_CylinderEdit.Value;
             app.n_lower = app.D_TurnsEdit.Value;  app.d_lower = app.D_WireDiaEdit.Value; app.D_lower = app.D_CylinderEdit.Value;
+
+            p_ratio = 0.5;
+            p_bottom  = p_ratio * app.D_bottom;
+            p_upper = p_ratio * app.D_upper;
+            p_mid   = p_ratio * app.D_mid;
+            p_lower = p_ratio * app.D_lower;
+
+            app.L0_bottom  = app.n_bottom  * p_bottom  + 2 * app.d_bottom;
+            app.L0_upper = app.n_upper * p_upper + 2 * app.d_upper;
+            app.L0_mid   = app.n_mid   * p_mid   + 2 * app.d_mid;
+            app.L0_lower = app.n_lower * p_lower + 2 * app.d_lower;
 
             h1_target = sqrt(app.a^2 * (1/app.AHatEdit.Value^2 - 1));
             d_target_param = h1_target / (app.GammaEdit.Value - 1);
@@ -417,7 +438,7 @@ classdef QZS_App < matlab.apps.AppBase
 
             app.test_params = [app.a, h1_target, h_target, h2_target];
 
-            k_v = (app.GEdit.Value * app.d_vert^4) / (8 * app.D_vert^3 * app.n_vert);
+            k_v = (app.GEdit.Value * app.d_bottom^4) / (8 * app.D_bottom^3 * app.n_bottom);
             app.f0_val = k_v;
             app.Ze_hat_val = app.AlphaEdit.Value;
             app.zeta_val = app.Alpha1Edit.Value;
@@ -646,7 +667,7 @@ classdef QZS_App < matlab.apps.AppBase
 
             s_w = app.column_thickness;
             s_h = app.support_h;
-            s_d = app.support_d;
+            %s_d = app.support_d;
             b_w = app.base_w;
             b_h = app.base_h;
             b_d = app.base_d;
@@ -663,12 +684,12 @@ classdef QZS_App < matlab.apps.AppBase
             Right_Column_Bot   = [ column_x, -spring_h, 0];
 
             Bottom_P_Connect   = [0, -ph/2, 0];
-            Ground_Vert_Fix    = [0, -ph/2 - h1, 0];
+            Ground_bottom_Fix    = [0, -ph/2 - h1, 0];
 
             by_top = b_d;
             Base_Top_Center    = [0, by_top, 0];
 
-            column_base_y = Ground_Vert_Fix(2);
+            column_base_y = Ground_bottom_Fix(2);
             column_top_y  = s_h * 1.2;
             column_color  = [0.2, 0.2, 0.2];
 
@@ -692,7 +713,7 @@ classdef QZS_App < matlab.apps.AppBase
                 'FaceColor', [0.8, 0.8, 0.8], 'EdgeColor', [0.2, 0.2, 0.2], 'LineWidth', 1.2);
 
             ss304_color = [0.72, 0.74, 0.75];
-            app.draw3DSpringMesh(app.AxGeom, Base_Top_Center, Bottom_P_Connect, app.D_vert, app.d_vert, app.n_vert, ss304_color);
+            app.draw3DSpringMesh(app.AxGeom, Base_Top_Center, Bottom_P_Connect, app.D_bottom, app.d_bottom, app.n_bottom, ss304_color);
             app.draw3DSpringMesh(app.AxGeom, Left_Column_Top, [-pw/2,  ins, 0], app.D_upper, app.d_upper, app.n_upper, ss304_color);
             app.draw3DSpringMesh(app.AxGeom, Left_Column_Top, [-pw/2,  ins, 0], app.D_upper, app.d_upper, app.n_upper, ss304_color);
             app.draw3DSpringMesh(app.AxGeom, Left_Column_Mid, [-pw/2,    0, 0], app.D_mid,   app.d_mid,   app.n_mid,   ss304_color);
@@ -718,7 +739,6 @@ classdef QZS_App < matlab.apps.AppBase
             text(app.AxGeom, -column_x-45, s_h/2, 0, 'd_{actual}', 'Color', [0.12, 0.53, 0.22], 'FontSize', 12, 'FontWeight', 'bold', 'Interpreter', 'tex');
 
             a_color = [0.00, 0.45, 0.74];
-            a_val = app.AActualEdit.Value;
             y_mark = -ins - 50;
 
             plot3(app.AxGeom, [pw/2, column_x], [y_mark, y_mark], [pd/2, pd/2], 'Color', a_color, 'LineStyle', '--', 'LineWidth', 2);
@@ -809,7 +829,7 @@ classdef QZS_App < matlab.apps.AppBase
             G = app.GEdit.Value;
 
             C_range = 5:1:12; ratio_range = 0.28:0.01:0.5;
-            M = 2;
+            M = 3.8; %kg
             M1 = 2;
             g = 9.81;
 
@@ -851,24 +871,25 @@ classdef QZS_App < matlab.apps.AppBase
             try
                 writetable(k2_table, excel_filename, 'Sheet', 'K2_Spring_Static');
                 logLines = {
-                    '✅ Excel Export Successful!';
-                    sprintf('d: %.2f mm', d_target_param);
-                    sprintf('h: %.2f mm', h_target);
-                    sprintf('h1: %.2f mm', h1_target);
-                    sprintf('h2: %.2f mm', h2_target);
-                    sprintf('delta: %.2f mm', delta_target);
-                    sprintf('delta2: %.2f mm', delta1_target);
-                    sprintf('delta3: %.2f mm', delta2_target);
                     '------------------------';
-                    sprintf('k1: %.2f N/m', k1);
-                    sprintf('k2: %.2f N/m', k2);
-                    sprintf('k3: %.2f N/m', k3);
-                    sprintf('L1: %.2f mm', L1);
-                    sprintf('L2: %.2f mm', L2);
-                    sprintf('L3: %.2f mm', L3);
-                    sprintf('L: %.2f mm', L);
+                    '✅ Excel Export Successful!';
+                    sprintf('d: %.1f mm', d_target_param);
+                    sprintf('h: %.1f mm', h_target);
+                    sprintf('h1: %.1f mm', h1_target);
+                    sprintf('h2: %.1f mm', h2_target);
+                    sprintf('delta: %.1f mm', delta_target);
+                    sprintf('delta2: %.1f mm', delta1_target);
+                    sprintf('delta3: %.1f mm', delta2_target);
+                    '------------------------';
+                    sprintf('k1: %.1f N/m', k1);
+                    sprintf('k2: %.1f N/m', k2);
+                    sprintf('k3: %.1f N/m', k3);
+                    sprintf('L1: %.1f mm', L1);
+                    sprintf('L2: %.1f mm', L2);
+                    sprintf('L3: %.1f mm', L3);
+                    sprintf('L: %.1f mm', L);
                     };
-                app.LogTextArea.Value = logLines;
+                app.LogTextArea.Value = [app.LogTextArea.Value; logLines];
             catch ME
                 app.LogTextArea.Value = [app.LogTextArea.Value; {['⚠️ Excel Write Error: ' ME.message]}];
             end
