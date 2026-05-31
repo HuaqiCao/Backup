@@ -119,8 +119,8 @@ fprintf('平衡时弹簧的长度：底部：%.1fmm, 上：%.1fmm, 中：%.1fmm,
 y_hat = linspace(-10, 10, 1000);
 
 %% 存储弹簧参数到Excel
-path = '/Users/caohuaqi/Desktop';
-%path = 'C:\Users\Administrator\Desktop';
+%path = '/Users/caohuaqi/Desktop';
+path = 'C:\Users\Administrator\Desktop';
 excel_filename = fullfile(path, 'Spring_Parameters.xlsx');
 
 % 存储K2弹簧参数

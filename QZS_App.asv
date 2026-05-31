@@ -91,27 +91,27 @@ classdef QZS_App < matlab.apps.AppBase
             app.LeftPanel = uipanel(app.UIWindow, 'Title', 'Configuration', 'Position', [10 10 190 830], 'FontWeight', 'bold');
 
             y_pos = 785;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'delta_hat (\delta\hat):', 'FontSize', 14, 'FontWeight', 'bold');
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'delta_hat (δ̂):', 'FontSize', 14, 'FontWeight', 'bold');
             app.DeltaHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.5, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'delta_hat'));
 
             y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'a_hat (\hat{a}):', 'FontSize', 14, 'FontWeight', 'bold');
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'a_hat (â):', 'FontSize', 14, 'FontWeight', 'bold');
             app.AHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.755, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'a_hat'));
 
             y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'alpha (\alpha):', 'FontSize', 14, 'FontWeight', 'bold');
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'alpha (α):', 'FontSize', 14, 'FontWeight', 'bold');
             app.AlphaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.942, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'alpha'));
 
             y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'alpha1 (\alpha\mu):', 'FontSize', 14, 'FontWeight', 'bold');
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'alpha1 (α₁):', 'FontSize', 14, 'FontWeight', 'bold');
             app.Alpha1Edit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.501, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'alpha1'));
 
             y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'gamma (\gamma):', 'FontSize', 14, 'FontWeight', 'bold');
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'gamma (γ):', 'FontSize', 14, 'FontWeight', 'bold');
             app.GammaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 2.143, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'gamma'));
 
@@ -211,6 +211,7 @@ classdef QZS_App < matlab.apps.AppBase
 
             app.AxGeom    = uiaxes(app.UIWindow, 'Position', [210+15  420+40 440 360]);
             app.Ax1       = uiaxes(app.UIWindow, 'Position', [210+470 420+40 440 360]);
+            app.Ax1_Top   = uiaxes(app.UIWindow, 'Position', app.Ax1.Position, 'XAxisLocation', 'top', 'YAxisLocation', 'right', 'Color', 'none');
             app.Ax3       = uiaxes(app.UIWindow, 'Position', [210+20,  40+40, 370, 340]);
             app.Ax4       = uiaxes(app.UIWindow, 'Position', [210+415, 40+40, 370, 340]);
             app.Ax5       = uiaxes(app.UIWindow, 'Position', [210+810, 40+40, 370, 340]);
@@ -277,29 +278,28 @@ classdef QZS_App < matlab.apps.AppBase
             [app.f_hat_theory, app.K_hat_theory] = evaluateSystemResponse(app, ...
                 delta_hat_theory, a_hat_theory, alpha_theory, alpha1_theory, gamma_theory);
 
-            app.f_actual_real = zeros(size(app.y_hat));
+            y_mesh = linspace(-10, 10, 1000);
+            app.f_actual_real = zeros(size(y_mesh));
 
-            a_actual = 34; 
+            a_actual = 34;
             d_actual = 65;
-            f0_characteristic = 0.3843 * a_actual; 
+            eps_v = 1e-9;
 
-            for i = 1:length(app.y_hat)
-                y = app.y_hat(i) * a_actual; 
-                
-                term1 = -2 * (119.2 - sqrt((a_actual + y)^2 + d_actual^2)) * (a_actual + y) * 0.362 / (sqrt((a_actual + y)^2 + d_actual^2));
-                term2 =  2 * (119.2 - sqrt((-y)^2 + d_actual^2)) * (-y) * 0.1825 / (sqrt((-y)^2 + d_actual^2));
-                term3 =  2 * (119.2 - sqrt((a_actual - y)^2 + d_actual^2)) * (a_actual - y) * 0.362 / (sqrt((a_actual - y)^2 + d_actual^2));
-                term4 = (153.1 - 67 + y) * 0.3843;
+            for i = 1:length(y_mesh)
+                y = y_mesh(i);
+                term1 = -2 * (119.2 - sqrt((a_actual - y)^2 + d_actual^2)) * (a_actual - y) * 0.362 / (sqrt((a_actual - y)^2 + d_actual^2) + eps_v);
+                term2 =  2 * (119.2 - sqrt(y^2 + d_actual^2)) * y * 0.1825 / (sqrt(y^2 + d_actual^2) + eps_v);
+                term3 =  2 * (119.2 - sqrt((a_actual + y)^2 + d_actual^2)) * (a_actual + y) * 0.362 / (sqrt((a_actual + y)^2 + d_actual^2) + eps_v);
+                term4 = (153.1 - 67 - y) * 0.3843;
 
-                app.f_actual_real(i) = (term1 + term2 + term3 + term4) / f0_characteristic;
+                app.f_actual_real(i) = term1 + term2 + term3 + term4;
             end
 
-            app.K_actual_real = zeros(size(app.y_hat));
-            dy_hat = app.y_hat(2) - app.y_hat(1);
-            
-            app.K_actual_real(2:end-1) = (app.f_actual_real(3:end) - app.f_actual_real(1:end-2)) / (2 * dy_hat);
-            app.K_actual_real(1) = (-3*app.f_actual_real(1) + 4*app.f_actual_real(2) - app.f_actual_real(3)) / (2 * dy_hat);
-            app.K_actual_real(end) = (3*app.f_actual_real(end) - 4*app.f_actual_real(end-1) + app.f_actual_real(end-2)) / (2 * dy_hat);
+            app.K_actual_real = zeros(size(y_mesh));
+            dy = y_mesh(2) - y_mesh(1);
+            app.K_actual_real(2:end-1) = (app.f_actual_real(3:end) - app.f_actual_real(1:end-2)) / (2 * dy);
+            app.K_actual_real(1) = (app.f_actual_real(2) - app.f_actual_real(1)) / dy;
+            app.K_actual_real(end) = (app.f_actual_real(end) - app.f_actual_real(end-1)) / dy;
 
             refreshAxesCurves(app);
 
@@ -378,34 +378,31 @@ classdef QZS_App < matlab.apps.AppBase
 
             app.plotMechanismGeometry(a_target, h1_target, h_target, h2_target);
 
-            % --- Fig 2: Ax1 (Dimensionless Force and Stiffness) ---
             set(app.Ax1, 'FontSize', app.TickFontSize);
-            
             yyaxis(app.Ax1, 'left');
             cla(app.Ax1); hold(app.Ax1, 'on'); grid(app.Ax1, 'on');
 
             p_f_theory = plot(app.Ax1, app.y_hat, app.f_hat_theory, ...
                 'Color', [0.00, 0.45, 0.74], 'LineStyle', '--', 'LineWidth', 2.0);
-            p_f_actual = plot(app.Ax1, app.y_hat, app.f_actual_real, ...
-                'Color', [0.00, 0.20, 0.50], 'LineStyle', '-', 'LineWidth', 2.5);
+            p_k_theory = plot(app.Ax1, app.y_hat, app.K_hat_theory, ...
+                'Color', [0.85, 0.33, 0.10], 'LineStyle', '--', 'LineWidth', 2.0);
 
             app.Ax1.YColor = [0.00, 0.45, 0.74];
             ylabel(app.Ax1, 'Dimensionless Force $\mathbf{\hat{f}}$', 'Interpreter', 'latex', 'FontSize', app.LabelFontSize);
-            app.Ax1.YLim = [-6, 6]; 
+            app.Ax1.YLim = [-6, 6];
             title(app.Ax1, 'Dimensionless Force and Stiffness', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
 
             yyaxis(app.Ax1, 'right');
             cla(app.Ax1); hold(app.Ax1, 'on');
 
-            p_k_theory = plot(app.Ax1, app.y_hat, app.K_hat_theory, ...
-                'Color', [0.85, 0.33, 0.10], 'LineStyle', '--', 'LineWidth', 2.0);
-            p_k_actual = plot(app.Ax1, app.y_hat, app.K_actual_real, ...
+            y_real_mapped = linspace(-3, 3, 1000);
+            p_f_actual = plot(app.Ax1, y_real_mapped, app.f_actual_real, ...
+                'Color', [0.00, 0.20, 0.50], 'LineStyle', '-', 'LineWidth', 2.5);
+            p_k_actual = plot(app.Ax1, y_real_mapped, app.K_actual_real, ...
                 'Color', [0.55, 0.12, 0.00], 'LineStyle', '-', 'LineWidth', 2.5);
-            
             ylabel(app.Ax1, 'Dimensionless Stiffness $\mathbf{\hat{K}}$', 'Interpreter', 'latex', 'FontSize', app.LabelFontSize);
+
             app.Ax1.YColor = [0.85, 0.33, 0.10];
-            app.Ax1.YLim = [-2, 12]; 
-            
             app.Ax1.XLim = [-3, 3];
             xlabel(app.Ax1, 'Dimensionless Displacement $\hat{y}$', 'Interpreter', 'latex', 'FontSize', app.LabelFontSize);
 
@@ -414,7 +411,6 @@ classdef QZS_App < matlab.apps.AppBase
                 'Location', 'best', 'FontSize', app.LegendFontSize);
             hold(app.Ax1, 'off');
 
-            % --- Fig 3: Ax3 & Ax3_Inset (Displacement Transmissibility) ---
             cla(app.Ax3); hold(app.Ax3, 'on'); grid(app.Ax3, 'on');
 
             Omega_range = 0:0.01:10;
@@ -451,10 +447,9 @@ classdef QZS_App < matlab.apps.AppBase
 
             app.Ax3_Inset.Position = [210+240, 170, 120, 130];
             app.plotEmptySignalAxes();
-        end
+        end % for fig 1, fig 3, fig 3_Inset
 
         function plotMechanismGeometry(app, ~, h1, ~, ~)
-            % --- Fig 1: AxGeom (Geometric Assembly) ---
             cla(app.AxGeom, 'reset'); hold(app.AxGeom, 'on'); grid(app.AxGeom, 'on');
             view(app.AxGeom, [0, 90]); set(app.AxGeom, 'FontSize', app.TickFontSize);
 
@@ -526,7 +521,7 @@ classdef QZS_App < matlab.apps.AppBase
             plot3(app.AxGeom, [-span_a-15, -span_a], [48.0, 48.0], [0, 0], 'Color', [0.12, 0.53, 0.22], 'LineWidth', 1);
             text(app.AxGeom, -span_a-45, 24.0, 0, sprintf('h5=%dmm', floor(48.0)), 'Color', [0.12, 0.53, 0.22], 'FontSize', 12, 'FontWeight', 'bold');
             hold(app.AxGeom, 'off');
-        end 
+        end % for AxGeom
 
         function processVibrationSignals(app)
             if ispc, default_dir = fullfile(getenv('USERPROFILE'), 'Desktop');
@@ -566,7 +561,6 @@ classdef QZS_App < matlab.apps.AppBase
             app.v_out_matrix  = app.compute_psd_internal(app.v_out_data, win_len, app.fs_rate);
             app.f_psd_vec     = linspace(0, app.fs_rate/2, length(app.v_in_psd_vec));
 
-            % --- Fig 4: Ax4 (Time Domain Signal Response) ---
             cla(app.Ax4, 'reset'); hold(app.Ax4, 'on'); grid(app.Ax4, 'on'); set(app.Ax4, 'FontSize', app.TickFontSize);
             plot(app.Ax4, app.t_matrix, app.v_in_data, 'Color', [0.6, 0.6, 0.6], 'LineWidth', 1.0);
             plot(app.Ax4, app.t_matrix, app.v_out_data, 'r-', 'LineWidth', 1.5);
@@ -574,7 +568,6 @@ classdef QZS_App < matlab.apps.AppBase
             xlabel(app.Ax4, 'Time \itt\rm (s)', 'FontSize', app.LabelFontSize); ylabel(app.Ax4, 'Velocity \itv\rm (mm/s)', 'FontSize', app.LabelFontSize);
             legend(app.Ax4, {'Excitation', 'QZS Output'}, 'Location', 'northeast', 'FontSize', app.LegendFontSize); hold(app.Ax4, 'off');
 
-            % --- Fig 5: Ax5 (Power Spectral Density Comparison) ---
             cla(app.Ax5, 'reset'); hold(app.Ax5, 'on'); grid(app.Ax5, 'on'); set(app.Ax5, 'FontSize', app.TickFontSize);
             plot(app.Ax5, app.f_psd_vec, 10*log10(app.v_in_psd_vec), 'Color', [0.6, 0.6, 0.6], 'LineWidth', 1.2);
             plot(app.Ax5, app.f_psd_vec, 10*log10(app.v_out_matrix), 'r-', 'LineWidth', 1.8);
@@ -582,19 +575,17 @@ classdef QZS_App < matlab.apps.AppBase
             xlabel(app.Ax5, 'Frequency \itf\rm (Hz)', 'FontSize', app.LabelFontSize); ylabel(app.Ax5, 'PSD (dB / Hz)', 'FontSize', app.LabelFontSize);
             app.Ax5.XLim = [0, min(120, app.fs_rate/2)];
             legend(app.Ax5, {'Input Base PSD', 'Output Target PSD'}, 'Location', 'northeast', 'FontSize', app.LegendFontSize); hold(app.Ax5, 'off');
-        end 
+        end % for Ax4, Ax5
 
         function plotEmptySignalAxes(app)
-            % --- Fig 4: Ax4 Placeholders ---
             cla(app.Ax4, 'reset'); grid(app.Ax4, 'on'); set(app.Ax4, 'FontSize', app.TickFontSize);
             title(app.Ax4, 'Time Domain Signal Response', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
             text(app.Ax4, 0.1, 0.5, 'Click [Load Signal] to plot', 'Color', [0.5, 0.5, 0.5], 'FontSize', app.LabelFontSize);
 
-            % --- Fig 5: Ax5 Placeholders ---
             cla(app.Ax5, 'reset'); grid(app.Ax5, 'on'); set(app.Ax5, 'FontSize', app.TickFontSize);
             title(app.Ax5, 'Power Spectral Density Comparison', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
             text(app.Ax5, 0.1, 0.5, 'Click [Load Signal] to plot', 'Color', [0.5, 0.5, 0.5], 'FontSize', app.LabelFontSize);
-        end 
+        end % for Ax4, Ax5
 
         function saveDesignData(app)
             if ispc, default_dir = fullfile(getenv('USERPROFILE'), 'Desktop');
@@ -707,7 +698,7 @@ classdef QZS_App < matlab.apps.AppBase
             end
             h_mesh = surf(ax, X_s, Y_s, Z_s, 'FaceColor', color_rgb, 'EdgeColor', 'none');
             set(h_mesh, 'FaceLighting', 'gouraud', 'AmbientStrength', 0.4, 'DiffuseStrength', 0.5, 'SpecularStrength', 0.8, 'SpecularExponent', 25);
-        end 
+        end % for AxGeom
 
         function Ta = compute_transmissibility(~, mu1_target, mu3_target, Omega, Ze_hat, zeta)
             if Omega < 1e-6, Ta = 1; return; end
@@ -726,11 +717,11 @@ classdef QZS_App < matlab.apps.AppBase
             cos_phi = (0.75 * mu3_target * Ze_hat^2 * Z_hat^3 + (mu1_target - Omega^2) * Z_hat) / Omega^2;
             sin_phi = -(2 * zeta * Z_hat) / Omega;
             Ta = sqrt((1 + Z_hat*cos_phi)^2 + (Z_hat*sin_phi)^2);
-        end 
+        end % for Ax3, Ax3_Inset
 
         function psd = compute_psd_internal(~, signal, win_len, fs)
             [pxx, ~] = pwelch(signal, hanning(win_len), floor(win_len/2), win_len, fs);
             psd = pxx;
-        end 
+        end % for Ax5
     end
 end
