@@ -280,7 +280,7 @@ classdef QZS_App < matlab.apps.AppBase
             app.f_actual_real = zeros(size(app.y_hat));
 
             a_actual = 34; 
-            d_actual = 65;
+            d_actual = h5;
             f0_characteristic = 0.3843 * a_actual; 
 
             for i = 1:length(app.y_hat)
@@ -411,7 +411,7 @@ classdef QZS_App < matlab.apps.AppBase
 
             legend(app.Ax1, [p_f_theory, p_f_actual, p_k_theory, p_k_actual], ...
                 {'Force (Theory)', 'Force (Actual)', 'Stiffness (Theory)', 'Stiffness (Actual)'}, ...
-                'Location', 'best', 'FontSize', app.LegendFontSize);
+                'Location', 'northwest', 'FontSize', 7);
             hold(app.Ax1, 'off');
 
             % --- Fig 3: Ax3 & Ax3_Inset (Displacement Transmissibility) ---
