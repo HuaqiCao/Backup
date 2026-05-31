@@ -3,10 +3,10 @@ classdef QZS_App < matlab.apps.AppBase
     properties (Access = public)
         UIWindow               matlab.ui.Figure
         LeftPanel              matlab.ui.container.Panel
-        RightAxesPanel         matlab.ui.container.Panel
 
         AxGeom                 matlab.ui.control.UIAxes
         Ax1                    matlab.ui.control.UIAxes
+        AxDimensional          matlab.ui.control.UIAxes
         Ax3                    matlab.ui.control.UIAxes
         Ax3_Inset              matlab.ui.control.UIAxes
         Ax4                    matlab.ui.control.UIAxes
@@ -18,6 +18,7 @@ classdef QZS_App < matlab.apps.AppBase
         Alpha1Edit            matlab.ui.control.NumericEditField
         GammaEdit             matlab.ui.control.NumericEditField
         ATargetEdit           matlab.ui.control.NumericEditField
+        AActualEdit           matlab.ui.control.NumericEditField
         TauPEdit              matlab.ui.control.NumericEditField
         GEdit                 matlab.ui.control.NumericEditField
         CEdit                 matlab.ui.control.NumericEditField
@@ -30,7 +31,7 @@ classdef QZS_App < matlab.apps.AppBase
 
         BaseThickEdit         matlab.ui.control.NumericEditField
         H4Edit                matlab.ui.control.NumericEditField
-        H5Edit                matlab.ui.control.NumericEditField
+        DACTUALEdit                matlab.ui.control.NumericEditField
 
         LoadCSVButton         matlab.ui.control.Button
         DesignButton          matlab.ui.control.Button
@@ -67,7 +68,7 @@ classdef QZS_App < matlab.apps.AppBase
         h3 = 90.0;
         platform_d = 20.0;
         h4 = 20.0;
-        h5 = 48.0;
+        d_actual = 48.0;
         a
         base_thickness = 5.0;
         column_thickness = 15.0;
@@ -77,6 +78,7 @@ classdef QZS_App < matlab.apps.AppBase
         function app = QZS_App()
             createComponents(app);
             registerApp(app, app.UIWindow);
+            mapPhysicalAssemblyGeometry(app);
             calculateAndPlotWorkflow(app);
         end
 
@@ -87,41 +89,41 @@ classdef QZS_App < matlab.apps.AppBase
 
     methods (Access = private)
         function createComponents(app)
-            app.UIWindow = uifigure('Name', 'QZS Nonlinear Isolation System', 'Position', [50 50 1420 850]);
+            app.UIWindow = uifigure('Name', 'QZS Nonlinear Isolation System', 'Position', [50 50 1445 850]);
             app.LeftPanel = uipanel(app.UIWindow, 'Title', 'Configuration', 'Position', [10 10 190 830], 'FontWeight', 'bold');
 
             y_pos = 785;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'delta_hat (\delta\hat):', 'FontSize', 14, 'FontWeight', 'bold');
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'delta_hat (δ̂):', 'FontSize', 14, 'FontWeight', 'bold');
             app.DeltaHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.5, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'delta_hat'));
 
             y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'a_hat (\hat{a}):', 'FontSize', 14, 'FontWeight', 'bold');
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'a_hat (â):', 'FontSize', 14, 'FontWeight', 'bold');
             app.AHatEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.755, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'a_hat'));
 
             y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'alpha (\alpha):', 'FontSize', 14, 'FontWeight', 'bold');
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'Alpha(α):', 'FontSize', 14, 'FontWeight', 'bold');
             app.AlphaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.942, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'alpha'));
 
             y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'alpha1 (\alpha\mu):', 'FontSize', 14, 'FontWeight', 'bold');
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'alpha1 (α₁):', 'FontSize', 14, 'FontWeight', 'bold');
             app.Alpha1Edit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 0.501, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'alpha1'));
 
             y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'gamma (\gamma):', 'FontSize', 14, 'FontWeight', 'bold');
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'Gamma(γ):', 'FontSize', 14, 'FontWeight', 'bold');
             app.GammaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 2.143, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.leftFieldValueChanged(edf, 'gamma'));
 
             y_pos = y_pos - 32;
             uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'a (mm):', 'FontSize', 14, 'FontWeight', 'bold');
             app.ATargetEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 60, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
+                'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflowOnly());
 
             y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'tau_p (Mpa):', 'FontSize', 14, 'FontWeight', 'bold');
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'τ_p (Mpa):', 'FontSize', 14, 'FontWeight', 'bold');
             app.TauPEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 70.0, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
@@ -130,94 +132,102 @@ classdef QZS_App < matlab.apps.AppBase
             app.GEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 75000, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
                 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
 
-            y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'Damping C:', 'FontSize', 14, 'FontWeight', 'bold');
-            app.CEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 20, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
-
-            y_pos = y_pos - 32;
-            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'Ze (mm):', 'FontSize', 14, 'FontWeight', 'bold');
-            app.ZeEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 3, 'FontSize', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
-
             y_pos = y_pos - 48;
             app.DesignButton = uibutton(app.LeftPanel, 'push', 'Position', [10 y_pos 165 35], ...
                 'Text', 'Design Springs', 'FontWeight', 'bold', 'BackgroundColor', [0.25, 0.60, 0.42], ...
                 'FontColor', 'white', 'FontSize', 16, 'ButtonPushedFcn', @(btn, event) app.saveDesignData());
 
-            y_pos = y_pos - 45;
+            y_matrix = y_pos - 35;
+            uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Type', 'FontWeight', 'bold','FontSize', 11);
+            uilabel(app.LeftPanel, 'Position', [50 y_matrix 30 22], 'Text', '  n', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22], 'FontSize', 11);
+            uilabel(app.LeftPanel, 'Position', [85 y_matrix 45 22], 'Text', 'd (mm)', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22], 'FontSize', 11);
+            uilabel(app.LeftPanel, 'Position', [135 y_matrix 45 22], 'Text', 'D (mm)', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22], 'FontSize', 11);
+
+            y_matrix = y_matrix - 24;
+            uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Upper:', 'FontWeight', 'bold','FontSize', 11);
+            app.U_TurnsEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', 10, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_upper'));
+            app.U_WireDiaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', 1.8, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_upper'));
+            app.U_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_upper'));
+
+            y_matrix = y_matrix - 24;
+            uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Mid:', 'FontWeight', 'bold','FontSize', 11);
+            app.M_TurnsEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', 10, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_Turns'));
+            app.M_WireDiaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', 1.8, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_WireDia'));
+            app.M_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_Cylinder'));
+
+            y_matrix = y_matrix - 24;
+            uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Down:', 'FontWeight', 'bold','FontSize', 11);
+            app.D_TurnsEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', 10, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_lower'));
+            app.D_WireDiaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', 1.8, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_lower'));
+            app.D_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_lower'));
+
+            y_matrix = y_matrix - 24;
+            uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Bot:', 'FontWeight', 'bold','FontSize', 11);
+            app.B_TurnsEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', 10, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_vert'));
+            app.B_WireDiaEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', 1.8, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_vert'));
+            app.B_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
+                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_vert'));
+
+            y_matrix = y_matrix - 26;
+            uilabel(app.LeftPanel, 'Position', [5 y_matrix 110 22], 'Text', 'Base Thk(mm):', 'FontWeight', 'bold','FontSize', 11);
+            app.BaseThickEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [110 y_matrix 60 20], 'Value', app.base_thickness, 'ValueDisplayFormat', '%d', ...
+                'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflowOnly());
+
+            y_matrix = y_matrix - 24;
+            uilabel(app.LeftPanel, 'Position', [5 y_matrix 110 22], 'Text', 'h4 (mm):', 'FontWeight', 'bold','FontSize', 11);
+            app.H4Edit = uieditfield(app.LeftPanel, 'numeric', 'Position', [110 y_matrix 60 20], 'Value', app.h4, 'ValueDisplayFormat', '%d', ...
+                'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflowOnly());
+
+            y_pos = y_matrix - 24;
+            y_pos = y_pos - 24;
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 110 22], 'Text', 'a_actual (mm):', 'FontWeight', 'bold','FontSize', 11);
+            app.AActualEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [110 y_pos 60 20], 'Value', 34, 'ValueDisplayFormat', '%d', ...
+            'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflowOnly());
+
+            y_matrix = y_pos - 24;
+            uilabel(app.LeftPanel, 'Position', [5 y_matrix 110 22], 'Text', 'd_actual (mm):', 'FontWeight', 'bold','FontSize', 11);
+            app.DACTUALEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [110 y_matrix 60 20], 'Value', app.d_actual, 'ValueDisplayFormat', '%d', ...
+                'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflowOnly());
+
+            y_pos = y_matrix - 42;
             app.LoadCSVButton = uibutton(app.LeftPanel, 'push', 'Position', [10 y_pos 165 35], ...
                 'Text', 'Load & Get PSD', 'FontWeight', 'bold', 'BackgroundColor', [0.88, 0.45, 0.13], ...
                 'FontColor', 'white', 'FontSize', 16, 'ButtonPushedFcn', @(btn, event) app.processVibrationSignals());
 
+            y_pos = y_pos - 30;
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'Damping C:', 'FontSize', 11, 'FontWeight', 'bold');
+            app.CEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 20, 'FontSize', 11, 'HorizontalAlignment', 'center', ...
+                'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+
+            y_pos = y_pos - 28;
+            uilabel(app.LeftPanel, 'Position', [5 y_pos 95 22], 'Text', 'Ze (mm):', 'FontSize', 11, 'FontWeight', 'bold');
+            app.ZeEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [105 y_pos 70 24], 'Value', 3, 'FontSize', 11, 'HorizontalAlignment', 'center', ...
+                'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflow());
+
             app.LogTextArea = uitextarea(app.LeftPanel, 'Position', [10 10 165 y_pos-15], 'Editable', 'off', 'FontSize', 13);
 
-            y_matrix = 740 + 40;
-            uilabel(app.UIWindow, 'Position', [210+980 y_matrix 50 22], 'Text', 'Type', 'FontWeight', 'bold','FontSize', 14);
-            uilabel(app.UIWindow, 'Position', [210+1035 y_matrix 35 22], 'Text', '  n', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22]);
-            uilabel(app.UIWindow, 'Position', [210+1070 y_matrix 55 22], 'Text', 'd (mm)', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22]);
-            uilabel(app.UIWindow, 'Position', [210+1120 y_matrix 55 22], 'Text', 'D (mm)', 'FontWeight', 'bold', 'FontColor', [0.12, 0.53, 0.22]);
-
-            y_matrix = y_matrix - 26;
-            uilabel(app.UIWindow, 'Position', [210+980 y_matrix 50 22], 'Text', 'Upper:', 'FontWeight', 'bold','FontSize', 14);
-            app.U_TurnsEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1030 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_upper'));
-            app.U_WireDiaEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1070 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_upper'));
-            app.U_CylinderEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1118 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_upper'));
-
-            y_matrix = y_matrix - 26;
-            uilabel(app.UIWindow, 'Position', [210+980 y_matrix 50 22], 'Text', 'Mid:', 'FontWeight', 'bold','FontSize', 14);
-            app.M_TurnsEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1030 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_Turns'));
-            app.M_WireDiaEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1070 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_WireDia'));
-            app.M_CylinderEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1118 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'M_Cylinder'));
-
-            y_matrix = y_matrix - 26;
-            uilabel(app.UIWindow, 'Position', [210+980 y_matrix 50 22], 'Text', 'Down:', 'FontWeight', 'bold','FontSize', 14);
-            app.D_TurnsEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1030 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_lower'));
-            app.D_WireDiaEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1070 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_lower'));
-            app.D_CylinderEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1118 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_lower'));
-
-            y_matrix = y_matrix - 26;
-            uilabel(app.UIWindow, 'Position', [210+980 y_matrix 50 22], 'Text', 'Bottom:', 'FontWeight', 'bold','FontSize', 14);
-            app.B_TurnsEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1030 y_matrix 35 22], 'Value', 10, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'n_vert'));
-            app.B_WireDiaEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1070 y_matrix 38 22], 'Value', 1.8, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'd_vert'));
-            app.B_CylinderEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1118 y_matrix 38 22], 'Value', 14, 'HorizontalAlignment', 'center', ...
-                'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_vert'));
-
-            y_matrix = y_matrix - 32;
-            uilabel(app.UIWindow, 'Position', [210+980 y_matrix 135 22], 'Text', 'Base Thick (mm):', 'FontWeight', 'bold','FontSize', 14);
-            app.BaseThickEdit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1110 y_matrix 65 22], 'Value', app.base_thickness, 'ValueDisplayFormat', '%d', ...
-                'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updateBaseThickness(edf.Value));
-
-            y_matrix = y_matrix - 26;
-            uilabel(app.UIWindow, 'Position', [210+980 y_matrix 110 22], 'Text', 'h4 (mm):', 'FontWeight', 'bold','FontSize', 14);
-            app.H4Edit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1110 y_matrix 65 22], 'Value', app.h4, 'ValueDisplayFormat', '%d', ...
-                'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updatePlatSpacer(edf.Value));
-
-            y_matrix = y_matrix - 26;
-            uilabel(app.UIWindow, 'Position', [210+980 y_matrix 110 22], 'Text', 'h5 (mm):', 'FontWeight', 'bold','FontSize', 14);
-            app.H5Edit = uieditfield(app.UIWindow, 'numeric', 'Position', [210+1110 y_matrix 65 22], 'Value', app.h5, 'ValueDisplayFormat', '%d', ...
-                'HorizontalAlignment', 'center', 'ValueChangedFcn', @(edf, evt) app.updateColSpacer(edf.Value));
-
-            app.AxGeom    = uiaxes(app.UIWindow, 'Position', [210+15  420+40 440 360]);
-            app.Ax1       = uiaxes(app.UIWindow, 'Position', [210+470 420+40 440 360]);
-            app.Ax3       = uiaxes(app.UIWindow, 'Position', [210+20,  40+40, 370, 340]);
-            app.Ax4       = uiaxes(app.UIWindow, 'Position', [210+415, 40+40, 370, 340]);
-            app.Ax5       = uiaxes(app.UIWindow, 'Position', [210+810, 40+40, 370, 340]);
-            app.Ax3_Inset = uiaxes(app.UIWindow, 'Position', [210+240, 230, 120, 130]);
+            app.AxGeom         = uiaxes(app.UIWindow, 'Position', [210+5,   420+40, 400, 360]);
+            app.Ax1            = uiaxes(app.UIWindow, 'Position', [210+415, 420+40, 400, 360]);
+            app.AxDimensional  = uiaxes(app.UIWindow, 'Position', [210+825, 420+40, 400, 360]);
+            
+            app.Ax3            = uiaxes(app.UIWindow, 'Position', [210+20,  40+40,  370, 340]);
+            app.Ax4            = uiaxes(app.UIWindow, 'Position', [210+415, 40+40,  370, 340]);
+            app.Ax5            = uiaxes(app.UIWindow, 'Position', [210+810, 40+40,  370, 340]);
+            app.Ax3_Inset      = uiaxes(app.UIWindow, 'Position', [210+240, 230,    120, 130]);
 
             uilabel(app.UIWindow, ...
-                'Position', [210, 12, 1180, 25], ...
+                'Position', [210, 12, 1015, 25], ...
                 'Text', '@ Zhao F, et al. Int J Mech Sci, 2021, 192: 106093', ...
                 'FontSize', 12, ...
                 'FontAngle', 'italic', ...
@@ -226,24 +236,13 @@ classdef QZS_App < matlab.apps.AppBase
         end
 
         function updateGeometrySpan(app)
-            app.calculateAndPlotWorkflow();
-        end
-
-        function updateBaseThickness(app, ~)
-            app.calculateAndPlotWorkflow();
-        end
-
-        function updateColSpacer(app, ~)
-            app.calculateAndPlotWorkflow();
-        end
-
-        function updatePlatSpacer(app, ~)
+            mapPhysicalAssemblyGeometry(app);
             app.calculateAndPlotWorkflow();
         end
 
         function leftFieldValueChanged(app, ~, ~)
             drawnow;
-            app.calculateAndPlotWorkflow();
+            app.calculateAndPlotWorkflowOnly();
         end
 
         function editFieldValueChanged(app, editField, paramName)
@@ -262,12 +261,16 @@ classdef QZS_App < matlab.apps.AppBase
                 case 'd_vert',    app.d_vert = val;
                 case 'D_vert',    app.D_vert = val;
             end
+            mapPhysicalAssemblyGeometry(app);
             app.calculateAndPlotWorkflow();
         end
 
-        function calculateAndPlotWorkflow(app)
-            mapPhysicalAssemblyGeometry(app);
-
+        function calculateAndPlotWorkflowOnly(app)
+            app.a = app.ATargetEdit.Value;
+            app.base_thickness = app.BaseThickEdit.Value;
+            app.h4 = app.H4Edit.Value;
+            app.d_actual = app.DACTUALEdit.Value;
+            
             delta_hat_theory = app.DeltaHatEdit.Value;
             a_hat_theory     = app.AHatEdit.Value;
             alpha_theory     = app.AlphaEdit.Value;
@@ -279,16 +282,53 @@ classdef QZS_App < matlab.apps.AppBase
 
             app.f_actual_real = zeros(size(app.y_hat));
 
-            a_actual = 34; 
-            d_actual = h5;
+            a_actual = app.AActualEdit.Value; 
             f0_characteristic = 0.3843 * a_actual; 
 
             for i = 1:length(app.y_hat)
                 y = app.y_hat(i) * a_actual; 
                 
-                term1 = -2 * (119.2 - sqrt((a_actual + y)^2 + d_actual^2)) * (a_actual + y) * 0.362 / (sqrt((a_actual + y)^2 + d_actual^2));
-                term2 =  2 * (119.2 - sqrt((-y)^2 + d_actual^2)) * (-y) * 0.1825 / (sqrt((-y)^2 + d_actual^2));
-                term3 =  2 * (119.2 - sqrt((a_actual - y)^2 + d_actual^2)) * (a_actual - y) * 0.362 / (sqrt((a_actual - y)^2 + d_actual^2));
+                term1 = -2 * (119.2 - sqrt((a_actual + y)^2 + app.d_actual^2)) * (a_actual + y) * 0.362 / (sqrt((a_actual + y)^2 + app.d_actual^2));
+                term2 =  2 * (119.2 - sqrt((-y)^2 + app.d_actual^2)) * (-y) * 0.1825 / (sqrt((-y)^2 + app.d_actual^2));
+                term3 =  2 * (119.2 - sqrt((a_actual - y)^2 + app.d_actual^2)) * (a_actual - y) * 0.362 / (sqrt((a_actual - y)^2 + app.d_actual^2));
+                term4 = (153.1 - 67 + y) * 0.3843;
+
+                app.f_actual_real(i) = (term1 + term2 + term3 + term4) / f0_characteristic;
+            end
+
+            app.K_actual_real = zeros(size(app.y_hat));
+            dy_hat = app.y_hat(2) - app.y_hat(1);
+            
+            app.K_actual_real(2:end-1) = (app.f_actual_real(3:end) - app.f_actual_real(1:end-2)) / (2 * dy_hat);
+            app.K_actual_real(1) = (-3*app.f_actual_real(1) + 4*app.f_actual_real(2) - app.f_actual_real(3)) / (2 * dy_hat);
+            app.K_actual_real(end) = (3*app.f_actual_real(end) - 4*app.f_actual_real(end-1) + app.f_actual_real(end-2)) / (2 * dy_hat);
+
+            refreshAxesCurves(app);
+
+            app.LogTextArea.Value = {'QZS Dual-Model Solved Successfully.'; 'Theory (Dashed) vs Actual (Solid) Synced.'};
+        end
+
+        function calculateAndPlotWorkflow(app)
+            delta_hat_theory = app.DeltaHatEdit.Value;
+            a_hat_theory     = app.AHatEdit.Value;
+            alpha_theory     = app.AlphaEdit.Value;
+            alpha1_theory    = app.Alpha1Edit.Value;
+            gamma_theory     = app.GammaEdit.Value;
+
+            [app.f_hat_theory, app.K_hat_theory] = evaluateSystemResponse(app, ...
+                delta_hat_theory, a_hat_theory, alpha_theory, alpha1_theory, gamma_theory);
+
+            app.f_actual_real = zeros(size(app.y_hat));
+
+            a_actual = app.AActualEdit.Value; 
+            f0_characteristic = 0.3843 * a_actual; 
+
+            for i = 1:length(app.y_hat)
+                y = app.y_hat(i) * a_actual; 
+                
+                term1 = -2 * (119.2 - sqrt((a_actual + y)^2 + app.d_actual^2)) * (a_actual + y) * 0.362 / (sqrt((a_actual + y)^2 + app.d_actual^2));
+                term2 =  2 * (119.2 - sqrt((-y)^2 + app.d_actual^2)) * (-y) * 0.1825 / (sqrt((-y)^2 + app.d_actual^2));
+                term3 =  2 * (119.2 - sqrt((a_actual - y)^2 + app.d_actual^2)) * (a_actual - y) * 0.362 / (sqrt((a_actual - y)^2 + app.d_actual^2));
                 term4 = (153.1 - 67 + y) * 0.3843;
 
                 app.f_actual_real(i) = (term1 + term2 + term3 + term4) / f0_characteristic;
@@ -310,7 +350,7 @@ classdef QZS_App < matlab.apps.AppBase
             app.a = app.ATargetEdit.Value;
             app.base_thickness = app.BaseThickEdit.Value;
             app.h4 = app.H4Edit.Value;
-            app.h5 = app.H5Edit.Value;
+            app.d_actual = app.DACTUALEdit.Value;
 
             app.n_vert = app.B_TurnsEdit.Value;   app.d_vert = app.B_WireDiaEdit.Value;   app.D_vert = app.B_CylinderEdit.Value;
             app.n_upper = app.U_TurnsEdit.Value;  app.d_upper = app.U_WireDiaEdit.Value; app.D_upper = app.U_CylinderEdit.Value;
@@ -370,6 +410,89 @@ classdef QZS_App < matlab.apps.AppBase
             end
         end
 
+        function refreshAxesCurvesOnly(app)
+            set(app.Ax1, 'FontSize', app.TickFontSize);
+            yyaxis(app.Ax1, 'left');
+            cla(app.Ax1); hold(app.Ax1, 'on'); grid(app.Ax1, 'on');
+            p_f_theory = plot(app.Ax1, app.y_hat, app.f_hat_theory, 'Color', [0.00, 0.45, 0.74], 'LineStyle', '--', 'LineWidth', 2.0);
+            app.Ax1.YColor = [0.00, 0.45, 0.74];
+            ylabel(app.Ax1, 'Dimensionless Force $\mathbf{\hat{f}}$', 'Interpreter', 'latex', 'FontSize', app.LabelFontSize);
+            app.Ax1.YLim = [-6, 6]; 
+            title(app.Ax1, 'Dimensionless Force and Stiffness', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
+
+            yyaxis(app.Ax1, 'right');
+            cla(app.Ax1); hold(app.Ax1, 'on');
+            p_k_theory = plot(app.Ax1, app.y_hat, app.K_hat_theory, 'Color', [0.85, 0.33, 0.10], 'LineStyle', '--', 'LineWidth', 2.0);
+            ylabel(app.Ax1, 'Dimensionless Stiffness $\mathbf{\hat{K}}$', 'Interpreter', 'latex', 'FontSize', app.LabelFontSize);
+            app.Ax1.YColor = [0.85, 0.33, 0.10];
+            app.Ax1.YLim = [0, 12]; 
+            app.Ax1.XLim = [-3, 3];
+            xlabel(app.Ax1, 'Dimensionless Displacement $\hat{y}$', 'Interpreter', 'latex', 'FontSize', app.LabelFontSize);
+            legend(app.Ax1, [p_f_theory, p_k_theory], {'Force (Theory)', 'Stiffness (Theory)'}, 'Location', 'northwest', 'FontSize', app.LegendFontSize);
+            hold(app.Ax1, 'off');
+
+            set(app.AxDimensional, 'FontSize', app.TickFontSize);
+            yyaxis(app.AxDimensional, 'left');
+            cla(app.AxDimensional); hold(app.AxDimensional, 'on'); grid(app.AxDimensional, 'on');
+            
+            a_actual = app.AActualEdit.Value;
+            f0_characteristic = 0.3843 * a_actual;
+            y_dimensional = app.y_hat * a_actual;
+            f_actual_dimensional = app.f_actual_real * f0_characteristic;
+            
+            p_f_dim_actual = plot(app.AxDimensional, y_dimensional, f_actual_dimensional, 'Color', [0.00, 0.20, 0.50], 'LineStyle', '-', 'LineWidth', 2.5);
+            app.AxDimensional.YColor = [0.00, 0.45, 0.74];
+            ylabel(app.AxDimensional, 'Force (N)', 'FontSize', app.LabelFontSize);
+            title(app.AxDimensional, 'Force and Stiffness', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
+
+            yyaxis(app.AxDimensional, 'right');
+            cla(app.AxDimensional); hold(app.AxDimensional, 'on');
+            
+            K_actual_dimensional = app.K_actual_real * (f0_characteristic / a_actual);
+            
+            p_k_dim_actual = plot(app.AxDimensional, y_dimensional, K_actual_dimensional, 'Color', [0.55, 0.12, 0.00], 'LineStyle', '-', 'LineWidth', 2.5);
+            ylabel(app.AxDimensional, 'Stiffness (N/mm)', 'FontSize', app.LabelFontSize);
+            app.AxDimensional.YColor = [0.85, 0.33, 0.10];
+            xlabel(app.AxDimensional, 'Displacement y (mm)', 'FontSize', app.LabelFontSize);
+            legend(app.AxDimensional, [p_f_dim_actual, p_k_dim_actual], {'Force (Actual)', 'Stiffness (Actual)'}, 'Location', 'northwest', 'FontSize', app.LegendFontSize);
+            hold(app.AxDimensional, 'off');
+
+            cla(app.Ax3); hold(app.Ax3, 'on'); grid(app.Ax3, 'on');
+            Omega_range = 0:0.01:10;
+            Ta_theory = zeros(size(Omega_range));
+            Ta_actual = zeros(size(Omega_range));
+
+            rho_target = (1 - app.AHatEdit.Value^2) / (app.GammaEdit.Value - 1)^2;
+            mu1_target = 1 + 4*app.AlphaEdit.Value + 2*app.Alpha1Edit.Value - 2 * (1 + app.DeltaHatEdit.Value) * (2*app.AlphaEdit.Value * app.AHatEdit.Value^2 / (sqrt(rho_target + app.AHatEdit.Value^2))^3 + app.Alpha1Edit.Value/app.AHatEdit.Value);
+            mu3_target = (- 2 * (1 + app.DeltaHatEdit.Value) * (2*app.AlphaEdit.Value*(12*app.AHatEdit.Value^2*rho_target-3*app.AHatEdit.Value^4)/((sqrt(rho_target+app.AHatEdit.Value^2))^7) + app.Alpha1Edit.Value*(-3)/app.AHatEdit.Value^3))/6;
+
+            for i = 1:length(Omega_range)
+                Ta_theory(i) = app.compute_transmissibility(mu1_target, mu3_target, Omega_range(i), 0.5, 0.15);
+                Ta_actual(i) = app.compute_transmissibility(0.0022, 0.00065, Omega_range(i), 0.5, 0.18);
+            end
+
+            plot(app.Ax3, Omega_range, Ta_theory, 'LineStyle', '--', 'LineWidth', 1.5, 'Color', [0, 0.4470, 0.7410]);
+            plot(app.Ax3, Omega_range, Ta_actual, 'LineStyle', '-', 'LineWidth', 2.0, 'Color', [0.12, 0.53, 0.22]);
+
+            xlim(app.Ax3, [0, 10]); ylim(app.Ax3, [0, 2]);
+            xlabel(app.Ax3, 'Frequency', 'FontSize', app.LabelFontSize);
+            ylabel(app.Ax3, 'Transmissibility T_a', 'FontSize', app.LabelFontSize);
+            title(app.Ax3, sprintf('Displacement Transmissibility\n'), 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
+            legend(app.Ax3, {'Theory', 'Actual'}, 'Location', 'northeast', 'FontSize', app.LegendFontSize);
+            hold(app.Ax3, 'off');
+
+            cla(app.Ax3_Inset); hold(app.Ax3_Inset, 'on'); grid(app.Ax3_Inset, 'on');
+            idx = Omega_range <= 1.5;
+            plot(app.Ax3_Inset, Omega_range(idx), Ta_theory(idx), 'LineStyle', '--', 'LineWidth', 1.2, 'Color', [0, 0.4470, 0.7410]);
+            plot(app.Ax3_Inset, Omega_range(idx), Ta_actual(idx), 'LineStyle', '-', 'LineWidth', 1.5, 'Color', [0.12, 0.53, 0.22]);
+
+            xlim(app.Ax3_Inset, [0, 1.2]); ylim(app.Ax3_Inset, [0.5, 1.2]);
+            set(app.Ax3_Inset, 'FontSize', app.TickFontSize-4, 'Color', [0.98 0.98 0.98]);
+            hold(app.Ax3_Inset, 'off');
+
+            app.Ax3_Inset.Position = [210+240, 170, 120, 130];
+        end
+
         function refreshAxesCurves(app)
             a_target = app.test_params(1);
             h1_target = app.test_params(2);
@@ -378,17 +501,10 @@ classdef QZS_App < matlab.apps.AppBase
 
             app.plotMechanismGeometry(a_target, h1_target, h_target, h2_target);
 
-            % --- Fig 2: Ax1 (Dimensionless Force and Stiffness) ---
             set(app.Ax1, 'FontSize', app.TickFontSize);
-            
             yyaxis(app.Ax1, 'left');
             cla(app.Ax1); hold(app.Ax1, 'on'); grid(app.Ax1, 'on');
-
-            p_f_theory = plot(app.Ax1, app.y_hat, app.f_hat_theory, ...
-                'Color', [0.00, 0.45, 0.74], 'LineStyle', '--', 'LineWidth', 2.0);
-            p_f_actual = plot(app.Ax1, app.y_hat, app.f_actual_real, ...
-                'Color', [0.00, 0.20, 0.50], 'LineStyle', '-', 'LineWidth', 2.5);
-
+            p_f_theory = plot(app.Ax1, app.y_hat, app.f_hat_theory, 'Color', [0.00, 0.45, 0.74], 'LineStyle', '--', 'LineWidth', 2.0);
             app.Ax1.YColor = [0.00, 0.45, 0.74];
             ylabel(app.Ax1, 'Dimensionless Force $\mathbf{\hat{f}}$', 'Interpreter', 'latex', 'FontSize', app.LabelFontSize);
             app.Ax1.YLim = [-6, 6]; 
@@ -396,27 +512,42 @@ classdef QZS_App < matlab.apps.AppBase
 
             yyaxis(app.Ax1, 'right');
             cla(app.Ax1); hold(app.Ax1, 'on');
-
-            p_k_theory = plot(app.Ax1, app.y_hat, app.K_hat_theory, ...
-                'Color', [0.85, 0.33, 0.10], 'LineStyle', '--', 'LineWidth', 2.0);
-            p_k_actual = plot(app.Ax1, app.y_hat, app.K_actual_real, ...
-                'Color', [0.55, 0.12, 0.00], 'LineStyle', '-', 'LineWidth', 2.5);
-            
+            p_k_theory = plot(app.Ax1, app.y_hat, app.K_hat_theory, 'Color', [0.85, 0.33, 0.10], 'LineStyle', '--', 'LineWidth', 2.0);
             ylabel(app.Ax1, 'Dimensionless Stiffness $\mathbf{\hat{K}}$', 'Interpreter', 'latex', 'FontSize', app.LabelFontSize);
             app.Ax1.YColor = [0.85, 0.33, 0.10];
-            app.Ax1.YLim = [-2, 12]; 
-            
+            app.Ax1.YLim = [0, 12]; 
             app.Ax1.XLim = [-3, 3];
             xlabel(app.Ax1, 'Dimensionless Displacement $\hat{y}$', 'Interpreter', 'latex', 'FontSize', app.LabelFontSize);
-
-            legend(app.Ax1, [p_f_theory, p_f_actual, p_k_theory, p_k_actual], ...
-                {'Force (Theory)', 'Force (Actual)', 'Stiffness (Theory)', 'Stiffness (Actual)'}, ...
-                'Location', 'northwest', 'FontSize', 7);
+            legend(app.Ax1, [p_f_theory, p_k_theory], {'Force (Theory)', 'Stiffness (Theory)'}, 'Location', 'northwest', 'FontSize', app.LegendFontSize);
             hold(app.Ax1, 'off');
 
-            % --- Fig 3: Ax3 & Ax3_Inset (Displacement Transmissibility) ---
-            cla(app.Ax3); hold(app.Ax3, 'on'); grid(app.Ax3, 'on');
+            set(app.AxDimensional, 'FontSize', app.TickFontSize);
+            yyaxis(app.AxDimensional, 'left');
+            cla(app.AxDimensional); hold(app.AxDimensional, 'on'); grid(app.AxDimensional, 'on');
+            
+            a_actual = app.AActualEdit.Value;
+            f0_characteristic = 0.3843 * a_actual;
+            y_dimensional = app.y_hat * a_actual;
+            f_actual_dimensional = app.f_actual_real * f0_characteristic;
+            
+            p_f_dim_actual = plot(app.AxDimensional, y_dimensional, f_actual_dimensional, 'Color', [0.00, 0.20, 0.50], 'LineStyle', '-', 'LineWidth', 2.5);
+            app.AxDimensional.YColor = [0.00, 0.45, 0.74];
+            ylabel(app.AxDimensional, 'Force (N)', 'FontSize', app.LabelFontSize);
+            title(app.AxDimensional, 'Force and Stiffness', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
 
+            yyaxis(app.AxDimensional, 'right');
+            cla(app.AxDimensional); hold(app.AxDimensional, 'on');
+            
+            K_actual_dimensional = app.K_actual_real * (f0_characteristic / a_actual);
+            
+            p_k_dim_actual = plot(app.AxDimensional, y_dimensional, K_actual_dimensional, 'Color', [0.55, 0.12, 0.00], 'LineStyle', '-', 'LineWidth', 2.5);
+            ylabel(app.AxDimensional, 'Stiffness (N/mm)', 'FontSize', app.LabelFontSize);
+            app.AxDimensional.YColor = [0.85, 0.33, 0.10];
+            xlabel(app.AxDimensional, 'Displacement y (mm)', 'FontSize', app.LabelFontSize);
+            legend(app.AxDimensional, [p_f_dim_actual, p_k_dim_actual], {'Force (Actual)', 'Stiffness (Actual)'}, 'Location', 'northwest', 'FontSize', app.LegendFontSize);
+            hold(app.AxDimensional, 'off');
+
+            cla(app.Ax3); hold(app.Ax3, 'on'); grid(app.Ax3, 'on');
             Omega_range = 0:0.01:10;
             Ta_theory = zeros(size(Omega_range));
             Ta_actual = zeros(size(Omega_range));
@@ -454,12 +585,11 @@ classdef QZS_App < matlab.apps.AppBase
         end
 
         function plotMechanismGeometry(app, ~, h1, ~, ~)
-            % --- Fig 1: AxGeom (Geometric Assembly) ---
             cla(app.AxGeom, 'reset'); hold(app.AxGeom, 'on'); grid(app.AxGeom, 'on');
             view(app.AxGeom, [0, 90]); set(app.AxGeom, 'FontSize', app.TickFontSize);
 
             pw = app.a1;   ph = app.h3;   pd = app.platform_d;
-            ins = app.h4;  span_a = app.a;
+            ins = app.h4;  span_a = app.AActualEdit.Value;
 
             Left_Column_Top    = [-span_a,  48.0, 0];
             Left_Column_Mid    = [-span_a,    0, 0];
@@ -500,7 +630,7 @@ classdef QZS_App < matlab.apps.AppBase
             app.draw3DSpringMesh(app.AxGeom, Right_Column_Bot, [ pw/2, -ins, 0], app.D_lower, app.d_lower, app.n_lower, ss304_color);
 
             camlight(app.AxGeom, 'headlight'); lighting(app.AxGeom, 'gouraud');
-            title(app.AxGeom, 'QZS Model Geometric Assembly', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
+            title(app.AxGeom, 'QZS Geometric Assembly', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
             xlabel(app.AxGeom, 'x / mm', 'FontSize', app.LabelFontSize);
             ylabel(app.AxGeom, 'y / mm', 'FontSize', app.LabelFontSize);
 
@@ -519,12 +649,12 @@ classdef QZS_App < matlab.apps.AppBase
             plot3(app.AxGeom, [pw/2+5, pw/2+5], [0, ins], [pd/2, pd/2], 'Color', [0.85, 0.33, 0.1], 'LineStyle', ':', 'LineWidth', 2);
             plot3(app.AxGeom, [pw/2, pw/2+8], [0, 0], [pd/2, pd/2], 'Color', [0.85, 0.33, 0.1], 'LineWidth', 1);
             plot3(app.AxGeom, [pw/2, pw/2+8], [ins, ins], [pd/2, pd/2], 'Color', [0.85, 0.33, 0.1], 'LineWidth', 1);
-            text(app.AxGeom, pw/2+10, ins/2, pd/2, sprintf('h4=%dmm', floor(ins)), 'Color', [0.85, 0.33, 0.1], 'FontSize', 12, 'FontWeight', 'bold');
+            text(app.AxGeom, pw/2+10, ins/2, pd/2, sprintf('h4', floor(ins)), 'Color', [0.85, 0.33, 0.1], 'FontSize', 12, 'FontWeight', 'bold');
 
             plot3(app.AxGeom, [-span_a-12, -span_a-12], [0, 48.0], [0, 0], 'Color', [0.12, 0.53, 0.22], 'LineStyle', '-.', 'LineWidth', 2);
             plot3(app.AxGeom, [-span_a-15, -span_a], [0, 0], [0, 0], 'Color', [0.12, 0.53, 0.22], 'LineWidth', 1);
             plot3(app.AxGeom, [-span_a-15, -span_a], [48.0, 48.0], [0, 0], 'Color', [0.12, 0.53, 0.22], 'LineWidth', 1);
-            text(app.AxGeom, -span_a-45, 24.0, 0, sprintf('h5=%dmm', floor(48.0)), 'Color', [0.12, 0.53, 0.22], 'FontSize', 12, 'FontWeight', 'bold');
+            text(app.AxGeom, -span_a-45, 24.0, 0, 'd_{actual}', 'Color', [0.12, 0.53, 0.22], 'FontSize', 12, 'FontWeight', 'bold', 'Interpreter', 'tex');
             hold(app.AxGeom, 'off');
         end 
 
@@ -566,7 +696,6 @@ classdef QZS_App < matlab.apps.AppBase
             app.v_out_matrix  = app.compute_psd_internal(app.v_out_data, win_len, app.fs_rate);
             app.f_psd_vec     = linspace(0, app.fs_rate/2, length(app.v_in_psd_vec));
 
-            % --- Fig 4: Ax4 (Time Domain Signal Response) ---
             cla(app.Ax4, 'reset'); hold(app.Ax4, 'on'); grid(app.Ax4, 'on'); set(app.Ax4, 'FontSize', app.TickFontSize);
             plot(app.Ax4, app.t_matrix, app.v_in_data, 'Color', [0.6, 0.6, 0.6], 'LineWidth', 1.0);
             plot(app.Ax4, app.t_matrix, app.v_out_data, 'r-', 'LineWidth', 1.5);
@@ -574,7 +703,6 @@ classdef QZS_App < matlab.apps.AppBase
             xlabel(app.Ax4, 'Time \itt\rm (s)', 'FontSize', app.LabelFontSize); ylabel(app.Ax4, 'Velocity \itv\rm (mm/s)', 'FontSize', app.LabelFontSize);
             legend(app.Ax4, {'Excitation', 'QZS Output'}, 'Location', 'northeast', 'FontSize', app.LegendFontSize); hold(app.Ax4, 'off');
 
-            % --- Fig 5: Ax5 (Power Spectral Density Comparison) ---
             cla(app.Ax5, 'reset'); hold(app.Ax5, 'on'); grid(app.Ax5, 'on'); set(app.Ax5, 'FontSize', app.TickFontSize);
             plot(app.Ax5, app.f_psd_vec, 10*log10(app.v_in_psd_vec), 'Color', [0.6, 0.6, 0.6], 'LineWidth', 1.2);
             plot(app.Ax5, app.f_psd_vec, 10*log10(app.v_out_matrix), 'r-', 'LineWidth', 1.8);
@@ -585,12 +713,10 @@ classdef QZS_App < matlab.apps.AppBase
         end 
 
         function plotEmptySignalAxes(app)
-            % --- Fig 4: Ax4 Placeholders ---
             cla(app.Ax4, 'reset'); grid(app.Ax4, 'on'); set(app.Ax4, 'FontSize', app.TickFontSize);
             title(app.Ax4, 'Time Domain Signal Response', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
             text(app.Ax4, 0.1, 0.5, 'Click [Load Signal] to plot', 'Color', [0.5, 0.5, 0.5], 'FontSize', app.LabelFontSize);
 
-            % --- Fig 5: Ax5 Placeholders ---
             cla(app.Ax5, 'reset'); grid(app.Ax5, 'on'); set(app.Ax5, 'FontSize', app.TickFontSize);
             title(app.Ax5, 'Power Spectral Density Comparison', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
             text(app.Ax5, 0.1, 0.5, 'Click [Load Signal] to plot', 'Color', [0.5, 0.5, 0.5], 'FontSize', app.LabelFontSize);
@@ -714,6 +840,7 @@ classdef QZS_App < matlab.apps.AppBase
 
             A = (9/16) * mu3_target^2 * Ze_hat^4;
             B = 1.5 * mu3_target * (mu1_target - Omega^2) * Ze_hat^2;
+            B = real(B);
             C = (mu1_target - Omega^2)^2 + (2*zeta*Omega)^2; D = -Omega^4;
 
             roots_Z2 = roots([A, B, C, D]);
