@@ -75,12 +75,12 @@ classdef QZS_App < matlab.apps.AppBase
         base_thickness = 5.0;
         column_thickness = 15.0;
 
-        support_w = 15.0;   % 支架（立柱）宽度/粗细
-        support_h = 48.0;   % 支架半高度（对应原代码中的48.0）
-        support_d = 20.0;   % 支架深度
-        base_w    = 200.0;  % 基座总宽度
-        base_h    = 15.0;   % 基座总高度/厚度
-        base_d    = -90.0;   % 基座深度
+        support_w = 15.0;
+        support_h = 48.0;
+        support_d = 20.0;
+        base_w    = 200.0;
+        base_h    = 15.0;
+        base_d    = -90.0;
     end
 
     methods (Access = public)
@@ -188,44 +188,30 @@ classdef QZS_App < matlab.apps.AppBase
             app.B_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_vert'));
 
-            % =============================================================
-            % 支架尺寸：绑定 updateGeometrySpan 刷新完整 3D 图像
-            % =============================================================
             y_matrix = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Supp:', 'FontWeight', 'bold','FontSize', 11);
 
-            % Width (W)
             app.SupportWidthEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', app.column_thickness, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
 
-            % Height (H)
             app.SupportHeightEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', app.support_h, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
 
-            % Depth (D)
             app.SupportDepthEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', app.support_d, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
 
-            % =============================================================
-            % 基座尺寸：绑定 updateGeometrySpan 刷新完整 3D 图像
-            % =============================================================
             y_matrix = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Base:', 'FontWeight', 'bold','FontSize', 11);
 
-            % Width (W)
             app.BaseWidthEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', app.base_w, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
 
-            % Height (H)
             app.BaseHeightEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', app.base_h, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
 
-            % Start Y (即原本的 Depth 框，现在专控基座起始位置纵坐标)
             app.BaseDepthEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', app.base_d, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
-            % =============================================================
-            % 接续原有的 a_actual 和 d_actual (移除了重复的 h4 和旧 BaseThickEdit)
-            % =============================================================
+
             y_matrix = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_matrix 110 22], 'Text', 'h4 (mm):', 'FontWeight', 'bold','FontSize', 11);
             app.H4Edit = uieditfield(app.LeftPanel, 'numeric', 'Position', [110 y_matrix 60 20], 'Value', app.h4, 'ValueDisplayFormat', '%d', ...
@@ -233,12 +219,7 @@ classdef QZS_App < matlab.apps.AppBase
 
             y_pos = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_pos 110 22], 'Text', 'a_actual (mm):', 'FontWeight', 'bold','FontSize', 11);
-            app.AActualEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [110 y_pos 60 20], 'Value', 34, 'ValueDisplayFormat', '%d', ...
-                'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflowOnly());
-
-            y_matrix = y_pos - 24;
-            uilabel(app.LeftPanel, 'Position', [5 y_matrix 110 22], 'Text', 'd_actual (mm):', 'FontWeight', 'bold','FontSize', 11);
-            app.DACTUALEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [110 y_matrix 60 20], 'Value', app.d_actual, 'ValueDisplayFormat', '%d', ...
+            app.AActualEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [110 y_pos 60 20], 'Value', 60, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflowOnly());
 
             y_matrix = y_pos - 24;
@@ -282,8 +263,8 @@ classdef QZS_App < matlab.apps.AppBase
         end
 
         function updateGeometrySpan(app)
-            mapPhysicalAssemblyGeometry(app); % 1. 从输入框捞取最新的 Supp 和 Base 尺寸
-            app.calculateAndPlotWorkflow();   % 2. 执行包含 3D 拓扑重绘的完整绘图
+            mapPhysicalAssemblyGeometry(app);
+            app.calculateAndPlotWorkflow();
         end
 
         function leftFieldValueChanged(app, ~, ~)
@@ -327,7 +308,6 @@ classdef QZS_App < matlab.apps.AppBase
                 delta_hat_theory, a_hat_theory, alpha_theory, alpha1_theory, gamma_theory);
 
             app.f_actual_real = zeros(size(app.y_hat));
-
             a_actual = app.AActualEdit.Value;
 
             for i = 1:length(app.y_hat)
@@ -348,6 +328,7 @@ classdef QZS_App < matlab.apps.AppBase
             app.K_actual_real(1) = (-3*app.f_actual_real(1) + 4*app.f_actual_real(2) - app.f_actual_real(3)) / (2 * dy_hat);
             app.K_actual_real(end) = (3*app.f_actual_real(end) - 4*app.f_actual_real(end-1) + app.f_actual_real(end-2)) / (2 * dy_hat);
 
+            mapPhysicalAssemblyGeometry(app);
             refreshAxesCurves(app);
         end
 
@@ -362,7 +343,6 @@ classdef QZS_App < matlab.apps.AppBase
                 delta_hat_theory, a_hat_theory, alpha_theory, alpha1_theory, gamma_theory);
 
             app.f_actual_real = zeros(size(app.y_hat));
-
             a_actual = app.AActualEdit.Value;
 
             for i = 1:length(app.y_hat)
@@ -383,6 +363,30 @@ classdef QZS_App < matlab.apps.AppBase
             app.K_actual_real(1) = (-3*app.f_actual_real(1) + 4*app.f_actual_real(2) - app.f_actual_real(3)) / (2 * dy_hat);
             app.K_actual_real(end) = (3*app.f_actual_real(end) - 4*app.f_actual_real(end-1) + app.f_actual_real(end-2)) / (2 * dy_hat);
 
+            G = app.GEdit.Value;
+
+            k_upper_act = (G * app.d_upper^4) / (8 * app.D_upper^3 * app.n_upper);
+            k_mid_act   = (G * app.d_mid^4) / (8 * app.D_mid^3 * app.n_mid);
+            k_lower_act = (G * app.d_lower^4) / (8 * app.D_lower^3 * app.n_lower);
+            k_vert_act  = (G * app.d_vert^4) / (8 * app.D_vert^3 * app.n_vert);
+
+            spring_len = app.AActualEdit.Value;
+            s_w = app.SupportWidthEdit.Value;
+            a_assembly = (app.a1 / 2) + spring_len + (s_w / 2);
+            d_assembly = app.d_actual - app.h4;
+
+            springLogs = {
+                '- 实际弹簧刚度 (N/mm) ';
+                sprintf('Upper: %.3f N/mm', k_upper_act);
+                sprintf('Mid:   %.3f N/mm', k_mid_act);189.23
+                sprintf('Down:  %.3f N/mm', k_lower_act);
+                sprintf('Bot:   %.3f N/mm', k_vert_act);
+                '---- 装配尺寸参数 --';
+                sprintf('a_assembly: %.2f mm', a_assembly);
+                sprintf('d_assembly: %.2f mm', d_assembly);
+                };
+
+            app.LogTextArea.Value = springLogs;
             refreshAxesCurves(app);
         end
 
@@ -391,15 +395,15 @@ classdef QZS_App < matlab.apps.AppBase
             app.h4 = app.H4Edit.Value;
             app.d_actual = app.DACTUALEdit.Value;
 
-            % 读取新整合的一行输入框数据
-            app.column_thickness = app.SupportWidthEdit.Value;  % 支架W
-            app.support_h        = app.SupportHeightEdit.Value; % 支架H
-            app.support_d        = app.SupportDepthEdit.Value;  % 支架D
 
-            app.base_w           = app.BaseWidthEdit.Value;     % 基座W
-            app.base_h           = app.BaseHeightEdit.Value;    % 基座H (接管原基座厚度)
-            app.base_thickness   = app.base_h;                  % 【核心】将新框的H值同步赋值给原属性，确保后台计算不崩溃
-            app.base_d           = app.BaseDepthEdit.Value;     % 基座D
+            app.column_thickness = app.SupportWidthEdit.Value;
+            app.support_h        = app.SupportHeightEdit.Value;
+            app.support_d        = app.SupportDepthEdit.Value;
+
+            app.base_w           = app.BaseWidthEdit.Value;
+            app.base_h           = app.BaseHeightEdit.Value;
+            app.base_thickness   = app.base_h;
+            app.base_d           = app.BaseDepthEdit.Value;
 
             app.n_vert = app.B_TurnsEdit.Value;   app.d_vert = app.B_WireDiaEdit.Value;   app.D_vert = app.B_CylinderEdit.Value;
             app.n_upper = app.U_TurnsEdit.Value;  app.d_upper = app.U_WireDiaEdit.Value; app.D_upper = app.U_CylinderEdit.Value;
@@ -637,80 +641,58 @@ classdef QZS_App < matlab.apps.AppBase
             cla(app.AxGeom, 'reset'); hold(app.AxGeom, 'on'); grid(app.AxGeom, 'on');
             view(app.AxGeom, [0, 90]); set(app.AxGeom, 'FontSize', app.TickFontSize);
 
-            % 1. 基础参数提取
             pw = app.a1;   ph = app.h3;   pd = app.platform_d;
-            ins = app.h4;
+            ins = app.h4; spring_h = app.d_actual;
 
-            % 从后台获取最新的支架与基座实时参数
-            s_w = app.column_thickness; % 支架宽 (对应 Support Width Edit)
-            s_h = app.support_h;        % 支架高 (对应 Support Height Edit)
-            s_d = app.support_d;        % 支架深 (对应 Support Depth Edit)
-            b_w = app.base_w;           % 基座宽 (对应 Base Width Edit)
-            b_h = app.base_h;           % 基座高 (对应 Base Height Edit)
-            b_d = app.base_d;           % 基座深 (对应 Base Depth Edit)
+            s_w = app.column_thickness;
+            s_h = app.support_h;
+            s_d = app.support_d;
+            b_w = app.base_w;
+            b_h = app.base_h;
+            b_d = app.base_d;
 
-            % span_a 定义为弹簧水平投影长度
             spring_len = app.AActualEdit.Value;
             column_x = (pw / 2) + spring_len;
 
-            % 2. 动态计算对称的支架顶点（使用实时的支架高度 s_h）
-            Left_Column_Top    = [-column_x,  s_h, 0];
-            Left_Column_Mid    = [-column_x,    0, 0];
-            Left_Column_Bot    = [-column_x, -s_h, 0];
-            Right_Column_Top   = [ column_x,  s_h, 0];
-            Right_Column_Mid   = [ column_x,    0, 0];
-            Right_Column_Bot   = [ column_x, -s_h, 0];
+            Left_Column_Top    = [-column_x,  spring_h, 0];
+            Left_Column_Mid    = [-column_x,         0, 0];
+            Left_Column_Bot    = [-column_x, -spring_h, 0];
 
-Bottom_P_Connect   = [0, -ph/2, 0];
+            Right_Column_Top   = [ column_x,  spring_h, 0];
+            Right_Column_Mid   = [ column_x,         0, 0];
+            Right_Column_Bot   = [ column_x, -spring_h, 0];
+
+            Bottom_P_Connect   = [0, -ph/2, 0];
             Ground_Vert_Fix    = [0, -ph/2 - h1, 0];
-            
-            % 【核心改动】实时获取基座上表面的 Y 坐标 (b_d)，并定义基座顶面中心点
-            by_top = b_d; 
-            Base_Top_Center    = [0, by_top, 0]; 
-            
+
+            by_top = b_d;
+            Base_Top_Center    = [0, by_top, 0];
+
             column_base_y = Ground_Vert_Fix(2);
             column_top_y  = s_h * 1.2;
             column_color  = [0.2, 0.2, 0.2];
 
-            % 3. 绘制支架/立柱 (全面应用厚度 s_w 渲染)
             plot3(app.AxGeom, [-column_x, -column_x], [column_base_y, column_top_y], [0, 0], 'Color', column_color, 'LineWidth', s_w);
             plot3(app.AxGeom, [column_x, column_x], [column_base_y, column_top_y], [0, 0], 'Color', column_color, 'LineWidth', s_w);
 
-           % 4. 绘制中央负载平台
             dx = pw/2; dy = ph/2; dz = pd/2;
             verts = [-dx -dy -dz;  dx -dy -dz;  dx  dy -dz; -dx  dy -dz; ...
                 -dx -dy  dz;  dx -dy  dz;  dx  dy  dz; -dx  dy  dz];
             faces = [1 2 3 4; 5 6 7 8; 1 2 6 5; 2 3 7 6; 3 4 8 7; 4 1 5 8];
             patch(app.AxGeom, 'Vertices', verts, 'Faces', faces, 'FaceColor', [0.93, 0.93, 0.93], 'EdgeColor', [0.2, 0.2, 0.2], 'LineWidth', 1.2);
-            
-            % ==================== 🛠️ 修复与补充基座绘制区域 ====================
-            bx = b_w / 2;             
-            
-            % 【核心修改】将 Base 的第三个输入框变量 b_d 直接赋值给基座的顶部起始纵坐标
-            by_top = b_d; 
-            
-            % 3D 模型的 Z 轴深度固定一个合理的常数（比如原默认的 20）
-            bz = 20.0 / 2;             
 
-            % 定义基座的 8 个三维顶点
+            bx = b_w / 2;
+            by_top = b_d;
+            bz = 20.0 / 2;
             b_verts = [-bx, by_top - b_h, -bz;  bx, by_top - b_h, -bz;  bx, by_top, -bz; -bx, by_top, -bz; ...
-                       -bx, by_top - b_h,  bz;  bx, by_top - b_h,  bz;  bx, by_top,  bz; -bx, by_top,  bz];
-                   
-            % 定义六个面的顶点连接顺序 (补充之前文件中截断的部分)
+                -bx, by_top - b_h,  bz;  bx, by_top - b_h,  bz;  bx, by_top,  bz; -bx, by_top,  bz];
             b_faces = [1 2 3 4; 5 6 7 8; 1 2 6 5; 2 3 7 6; 3 4 8 7; 4 1 5 8];
-            
-            % 【关键补充】调用 patch 函数，将基座真正绘制在 app.AxGeom 坐标轴上
+
             patch(app.AxGeom, 'Vertices', b_verts, 'Faces', b_faces, ...
-                  'FaceColor', [0.8, 0.8, 0.8], 'EdgeColor', [0.2, 0.2, 0.2], 'LineWidth', 1.2);
-            % ===================================================================
-            
-            % 6. 绘制各向弹簧
-            % 6. 绘制各向弹簧
+                'FaceColor', [0.8, 0.8, 0.8], 'EdgeColor', [0.2, 0.2, 0.2], 'LineWidth', 1.2);
+
             ss304_color = [0.72, 0.74, 0.75];
-            
-            % 【核心改动】将起点由原来的固定地面 Ground_Vert_Fix 改为随动的 Base_Top_Center
             app.draw3DSpringMesh(app.AxGeom, Base_Top_Center, Bottom_P_Connect, app.D_vert, app.d_vert, app.n_vert, ss304_color);
-            
             app.draw3DSpringMesh(app.AxGeom, Left_Column_Top, [-pw/2,  ins, 0], app.D_upper, app.d_upper, app.n_upper, ss304_color);
             app.draw3DSpringMesh(app.AxGeom, Left_Column_Top, [-pw/2,  ins, 0], app.D_upper, app.d_upper, app.n_upper, ss304_color);
             app.draw3DSpringMesh(app.AxGeom, Left_Column_Mid, [-pw/2,    0, 0], app.D_mid,   app.d_mid,   app.n_mid,   ss304_color);
@@ -719,26 +701,32 @@ Bottom_P_Connect   = [0, -ph/2, 0];
             app.draw3DSpringMesh(app.AxGeom, Right_Column_Mid, [ pw/2,    0, 0], app.D_mid,   app.d_mid,   app.n_mid,   ss304_color);
             app.draw3DSpringMesh(app.AxGeom, Right_Column_Bot, [ pw/2, -ins, 0], app.D_lower, app.d_lower, app.n_lower, ss304_color);
 
-            % 7. 设置视角与轴同步
             camlight(app.AxGeom, 'headlight'); lighting(app.AxGeom, 'gouraud');
             title(app.AxGeom, 'QZS Geometric Assembly', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
             xlabel(app.AxGeom, 'x / mm', 'FontSize', app.LabelFontSize);
             ylabel(app.AxGeom, 'y / mm', 'FontSize', app.LabelFontSize);
-
-            % 取消紧凑视窗限制，使底座增大时图像能自动延展
             axis(app.AxGeom, 'image');
 
-            % 8. 标注 h4 间距
             plot3(app.AxGeom, [pw/2+5, pw/2+5], [0, ins], [pd/2, pd/2], 'Color', [0.85, 0.33, 0.1], 'LineStyle', ':', 'LineWidth', 2);
             plot3(app.AxGeom, [pw/2, pw/2+8], [0, 0], [pd/2, pd/2], 'Color', [0.85, 0.33, 0.1], 'LineWidth', 1);
             plot3(app.AxGeom, [pw/2, pw/2+8], [ins, ins], [pd/2, pd/2], 'Color', [0.85, 0.33, 0.1], 'LineWidth', 1);
             text(app.AxGeom, pw/2+10, ins/2, pd/2, 'h4', 'Color', [0.85, 0.33, 0.1], 'FontSize', 12, 'FontWeight', 'bold');
 
-            % 9. 动态标注 d_actual（绑定实时支架高度 s_h 确保标注线对齐顶端端点）
             plot3(app.AxGeom, [-column_x-12, -column_x-12], [0, s_h], [0, 0], 'Color', [0.12, 0.53, 0.22], 'LineStyle', '-.', 'LineWidth', 2);
             plot3(app.AxGeom, [-column_x-15, -column_x], [0, 0], [0, 0], 'Color', [0.12, 0.53, 0.22], 'LineWidth', 1);
             plot3(app.AxGeom, [-column_x-15, -column_x], [s_h, s_h], [0, 0], 'Color', [0.12, 0.53, 0.22], 'LineWidth', 1);
             text(app.AxGeom, -column_x-45, s_h/2, 0, 'd_{actual}', 'Color', [0.12, 0.53, 0.22], 'FontSize', 12, 'FontWeight', 'bold', 'Interpreter', 'tex');
+
+            a_color = [0.00, 0.45, 0.74];
+            a_val = app.AActualEdit.Value;
+            y_mark = -ins - 50;
+
+            plot3(app.AxGeom, [pw/2, column_x], [y_mark, y_mark], [pd/2, pd/2], 'Color', a_color, 'LineStyle', '--', 'LineWidth', 2);
+            plot3(app.AxGeom, [pw/2, pw/2], [y_mark-4, y_mark+4], [pd/2, pd/2], 'Color', a_color, 'LineWidth', 1);
+            plot3(app.AxGeom, [column_x, column_x], [y_mark-4, y_mark+4], [pd/2, pd/2], 'Color', a_color, 'LineWidth', 1);
+            text(app.AxGeom, (pw/2 + column_x)/2 - 12, y_mark + 8, pd/2, 'a_{actual}', 'Color', a_color, 'FontSize', 12, 'FontWeight', 'bold', 'Interpreter', 'tex');
+            hold(app.AxGeom, 'off');
+
         end
 
         function processVibrationSignals(app)
@@ -864,7 +852,6 @@ Bottom_P_Connect   = [0, -ph/2, 0];
                 writetable(k2_table, excel_filename, 'Sheet', 'K2_Spring_Static');
                 logLines = {
                     '✅ Excel Export Successful!';
-                    '------------------------';
                     sprintf('d: %.2f mm', d_target_param);
                     sprintf('h: %.2f mm', h_target);
                     sprintf('h1: %.2f mm', h1_target);
@@ -872,6 +859,7 @@ Bottom_P_Connect   = [0, -ph/2, 0];
                     sprintf('delta: %.2f mm', delta_target);
                     sprintf('delta2: %.2f mm', delta1_target);
                     sprintf('delta3: %.2f mm', delta2_target);
+                    '------------------------';
                     sprintf('k1: %.2f N/m', k1);
                     sprintf('k2: %.2f N/m', k2);
                     sprintf('k3: %.2f N/m', k3);
@@ -879,8 +867,6 @@ Bottom_P_Connect   = [0, -ph/2, 0];
                     sprintf('L2: %.2f mm', L2);
                     sprintf('L3: %.2f mm', L3);
                     sprintf('L: %.2f mm', L);
-                    '------------------------';
-                    'Matrix Search Completed.'
                     };
                 app.LogTextArea.Value = logLines;
             catch ME

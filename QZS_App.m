@@ -188,43 +188,29 @@ classdef QZS_App < matlab.apps.AppBase
             app.B_CylinderEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', 14, 'HorizontalAlignment', 'center', 'FontSize', 11, ...
                 'ValueChangedFcn', @(edf, evt) app.editFieldValueChanged(edf, 'D_vert'));
 
-
-
-
             y_matrix = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Supp:', 'FontWeight', 'bold','FontSize', 11);
-
 
             app.SupportWidthEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', app.column_thickness, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
 
-
             app.SupportHeightEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', app.support_h, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
-
 
             app.SupportDepthEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', app.support_d, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
 
-
-
-
             y_matrix = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_matrix 45 22], 'Text', 'Base:', 'FontWeight', 'bold','FontSize', 11);
-
 
             app.BaseWidthEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [50 y_matrix 32 20], 'Value', app.base_w, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
 
-
             app.BaseHeightEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [85 y_matrix 35 20], 'Value', app.base_h, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
 
-
             app.BaseDepthEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [135 y_matrix 35 20], 'Value', app.base_d, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.updateGeometrySpan());
-
-
 
             y_matrix = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_matrix 110 22], 'Text', 'h4 (mm):', 'FontWeight', 'bold','FontSize', 11);
@@ -233,12 +219,7 @@ classdef QZS_App < matlab.apps.AppBase
 
             y_pos = y_matrix - 24;
             uilabel(app.LeftPanel, 'Position', [5 y_pos 110 22], 'Text', 'a_actual (mm):', 'FontWeight', 'bold','FontSize', 11);
-            app.AActualEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [110 y_pos 60 20], 'Value', 34, 'ValueDisplayFormat', '%d', ...
-                'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflowOnly());
-
-            y_matrix = y_pos - 24;
-            uilabel(app.LeftPanel, 'Position', [5 y_matrix 110 22], 'Text', 'd_actual (mm):', 'FontWeight', 'bold','FontSize', 11);
-            app.DACTUALEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [110 y_matrix 60 20], 'Value', app.d_actual, 'ValueDisplayFormat', '%d', ...
+            app.AActualEdit = uieditfield(app.LeftPanel, 'numeric', 'Position', [110 y_pos 60 20], 'Value', 60, 'ValueDisplayFormat', '%d', ...
                 'HorizontalAlignment', 'center', 'FontSize', 11, 'ValueChangedFcn', @(edf, evt) app.calculateAndPlotWorkflowOnly());
 
             y_matrix = y_pos - 24;
@@ -327,16 +308,15 @@ classdef QZS_App < matlab.apps.AppBase
                 delta_hat_theory, a_hat_theory, alpha_theory, alpha1_theory, gamma_theory);
 
             app.f_actual_real = zeros(size(app.y_hat));
-
             a_actual = app.AActualEdit.Value;
 
             for i = 1:length(app.y_hat)
                 y = app.y_hat(i) * a_actual;
 
-                term1 = -2 * (119.2 - sqrt((a_actual + y)^2 + app.d_actual^2)) * (a_actual + y) * 0.362 / (sqrt((a_actual + y)^2 + app.d_actual^2));
-                term2 =  2 * (119.2 - sqrt((-y)^2 + app.d_actual^2)) * (-y) * 0.1825 / (sqrt((-y)^2 + app.d_actual^2));
-                term3 =  2 * (119.2 - sqrt((a_actual - y)^2 + app.d_actual^2)) * (a_actual - y) * 0.362 / (sqrt((a_actual - y)^2 + app.d_actual^2));
-                term4 = (153.1 - 67 + y) * 0.3843;
+                term1 = -2 * (119.2 - sqrt((a_actual + y)^2 + app.d_actual^2)) * (a_actual + y) * k_upper_act / (sqrt((a_actual + y)^2 + app.d_actual^2));
+                term2 =  2 * (119.2 - sqrt((-y)^2 + app.d_actual^2)) * (-y) * k_mid_act / (sqrt((-y)^2 + app.d_actual^2));
+                term3 =  2 * (119.2 - sqrt((a_actual - y)^2 + app.d_actual^2)) * (a_actual - y) * k_upper_act / (sqrt((a_actual - y)^2 + app.d_actual^2));
+                term4 = (153.1 - 67 + y) * k_vert_act;
 
                 app.f_actual_real(i) = term1 + term2 + term3 + term4;
             end
@@ -348,6 +328,7 @@ classdef QZS_App < matlab.apps.AppBase
             app.K_actual_real(1) = (-3*app.f_actual_real(1) + 4*app.f_actual_real(2) - app.f_actual_real(3)) / (2 * dy_hat);
             app.K_actual_real(end) = (3*app.f_actual_real(end) - 4*app.f_actual_real(end-1) + app.f_actual_real(end-2)) / (2 * dy_hat);
 
+            mapPhysicalAssemblyGeometry(app);
             refreshAxesCurves(app);
         end
 
@@ -362,7 +343,6 @@ classdef QZS_App < matlab.apps.AppBase
                 delta_hat_theory, a_hat_theory, alpha_theory, alpha1_theory, gamma_theory);
 
             app.f_actual_real = zeros(size(app.y_hat));
-
             a_actual = app.AActualEdit.Value;
 
             for i = 1:length(app.y_hat)
@@ -383,6 +363,30 @@ classdef QZS_App < matlab.apps.AppBase
             app.K_actual_real(1) = (-3*app.f_actual_real(1) + 4*app.f_actual_real(2) - app.f_actual_real(3)) / (2 * dy_hat);
             app.K_actual_real(end) = (3*app.f_actual_real(end) - 4*app.f_actual_real(end-1) + app.f_actual_real(end-2)) / (2 * dy_hat);
 
+            G = app.GEdit.Value;
+
+            k_upper_act = (G * app.d_upper^4) / (8 * app.D_upper^3 * app.n_upper);
+            k_mid_act   = (G * app.d_mid^4) / (8 * app.D_mid^3 * app.n_mid);
+            k_lower_act = (G * app.d_lower^4) / (8 * app.D_lower^3 * app.n_lower);
+            k_vert_act  = (G * app.d_vert^4) / (8 * app.D_vert^3 * app.n_vert);
+
+            spring_len = app.AActualEdit.Value;
+            s_w = app.SupportWidthEdit.Value;
+            a_assembly = (app.a1 / 2) + spring_len + (s_w / 2);
+            d_assembly = app.d_actual - app.h4;
+
+            springLogs = {
+                '- 实际弹簧刚度 (N/mm) ';
+                sprintf('Upper: %.3f N/mm', k_upper_act);
+                sprintf('Mid:   %.3f N/mm', k_mid_act);
+                sprintf('Down:  %.3f N/mm', k_lower_act);
+                sprintf('Bot:   %.3f N/mm', k_vert_act);
+                '---- 装配尺寸参数 --';
+                sprintf('a_assembly: %.2f mm', a_assembly);
+                sprintf('d_assembly: %.2f mm', d_assembly);
+                };
+
+            app.LogTextArea.Value = springLogs;
             refreshAxesCurves(app);
         end
 
@@ -637,10 +641,8 @@ classdef QZS_App < matlab.apps.AppBase
             cla(app.AxGeom, 'reset'); hold(app.AxGeom, 'on'); grid(app.AxGeom, 'on');
             view(app.AxGeom, [0, 90]); set(app.AxGeom, 'FontSize', app.TickFontSize);
 
-
             pw = app.a1;   ph = app.h3;   pd = app.platform_d;
-            ins = app.h4;
-
+            ins = app.h4; spring_h = app.d_actual;
 
             s_w = app.column_thickness;
             s_h = app.support_h;
@@ -649,21 +651,19 @@ classdef QZS_App < matlab.apps.AppBase
             b_h = app.base_h;
             b_d = app.base_d;
 
-
             spring_len = app.AActualEdit.Value;
             column_x = (pw / 2) + spring_len;
 
+            Left_Column_Top    = [-column_x,  spring_h, 0];
+            Left_Column_Mid    = [-column_x,         0, 0];
+            Left_Column_Bot    = [-column_x, -spring_h, 0];
 
-            Left_Column_Top    = [-column_x,  s_h, 0];
-            Left_Column_Mid    = [-column_x,    0, 0];
-            Left_Column_Bot    = [-column_x, -s_h, 0];
-            Right_Column_Top   = [ column_x,  s_h, 0];
-            Right_Column_Mid   = [ column_x,    0, 0];
-            Right_Column_Bot   = [ column_x, -s_h, 0];
+            Right_Column_Top   = [ column_x,  spring_h, 0];
+            Right_Column_Mid   = [ column_x,         0, 0];
+            Right_Column_Bot   = [ column_x, -spring_h, 0];
 
             Bottom_P_Connect   = [0, -ph/2, 0];
             Ground_Vert_Fix    = [0, -ph/2 - h1, 0];
-
 
             by_top = b_d;
             Base_Top_Center    = [0, by_top, 0];
@@ -672,10 +672,8 @@ classdef QZS_App < matlab.apps.AppBase
             column_top_y  = s_h * 1.2;
             column_color  = [0.2, 0.2, 0.2];
 
-
             plot3(app.AxGeom, [-column_x, -column_x], [column_base_y, column_top_y], [0, 0], 'Color', column_color, 'LineWidth', s_w);
             plot3(app.AxGeom, [column_x, column_x], [column_base_y, column_top_y], [0, 0], 'Color', column_color, 'LineWidth', s_w);
-
 
             dx = pw/2; dy = ph/2; dz = pd/2;
             verts = [-dx -dy -dz;  dx -dy -dz;  dx  dy -dz; -dx  dy -dz; ...
@@ -683,34 +681,18 @@ classdef QZS_App < matlab.apps.AppBase
             faces = [1 2 3 4; 5 6 7 8; 1 2 6 5; 2 3 7 6; 3 4 8 7; 4 1 5 8];
             patch(app.AxGeom, 'Vertices', verts, 'Faces', faces, 'FaceColor', [0.93, 0.93, 0.93], 'EdgeColor', [0.2, 0.2, 0.2], 'LineWidth', 1.2);
 
-
             bx = b_w / 2;
-
-
             by_top = b_d;
-
-
             bz = 20.0 / 2;
-
-
             b_verts = [-bx, by_top - b_h, -bz;  bx, by_top - b_h, -bz;  bx, by_top, -bz; -bx, by_top, -bz; ...
                 -bx, by_top - b_h,  bz;  bx, by_top - b_h,  bz;  bx, by_top,  bz; -bx, by_top,  bz];
-
-
             b_faces = [1 2 3 4; 5 6 7 8; 1 2 6 5; 2 3 7 6; 3 4 8 7; 4 1 5 8];
-
 
             patch(app.AxGeom, 'Vertices', b_verts, 'Faces', b_faces, ...
                 'FaceColor', [0.8, 0.8, 0.8], 'EdgeColor', [0.2, 0.2, 0.2], 'LineWidth', 1.2);
 
-
-
-
             ss304_color = [0.72, 0.74, 0.75];
-
-
             app.draw3DSpringMesh(app.AxGeom, Base_Top_Center, Bottom_P_Connect, app.D_vert, app.d_vert, app.n_vert, ss304_color);
-
             app.draw3DSpringMesh(app.AxGeom, Left_Column_Top, [-pw/2,  ins, 0], app.D_upper, app.d_upper, app.n_upper, ss304_color);
             app.draw3DSpringMesh(app.AxGeom, Left_Column_Top, [-pw/2,  ins, 0], app.D_upper, app.d_upper, app.n_upper, ss304_color);
             app.draw3DSpringMesh(app.AxGeom, Left_Column_Mid, [-pw/2,    0, 0], app.D_mid,   app.d_mid,   app.n_mid,   ss304_color);
@@ -719,26 +701,32 @@ classdef QZS_App < matlab.apps.AppBase
             app.draw3DSpringMesh(app.AxGeom, Right_Column_Mid, [ pw/2,    0, 0], app.D_mid,   app.d_mid,   app.n_mid,   ss304_color);
             app.draw3DSpringMesh(app.AxGeom, Right_Column_Bot, [ pw/2, -ins, 0], app.D_lower, app.d_lower, app.n_lower, ss304_color);
 
-
             camlight(app.AxGeom, 'headlight'); lighting(app.AxGeom, 'gouraud');
             title(app.AxGeom, 'QZS Geometric Assembly', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
             xlabel(app.AxGeom, 'x / mm', 'FontSize', app.LabelFontSize);
             ylabel(app.AxGeom, 'y / mm', 'FontSize', app.LabelFontSize);
-
-
             axis(app.AxGeom, 'image');
-
 
             plot3(app.AxGeom, [pw/2+5, pw/2+5], [0, ins], [pd/2, pd/2], 'Color', [0.85, 0.33, 0.1], 'LineStyle', ':', 'LineWidth', 2);
             plot3(app.AxGeom, [pw/2, pw/2+8], [0, 0], [pd/2, pd/2], 'Color', [0.85, 0.33, 0.1], 'LineWidth', 1);
             plot3(app.AxGeom, [pw/2, pw/2+8], [ins, ins], [pd/2, pd/2], 'Color', [0.85, 0.33, 0.1], 'LineWidth', 1);
             text(app.AxGeom, pw/2+10, ins/2, pd/2, 'h4', 'Color', [0.85, 0.33, 0.1], 'FontSize', 12, 'FontWeight', 'bold');
 
-
             plot3(app.AxGeom, [-column_x-12, -column_x-12], [0, s_h], [0, 0], 'Color', [0.12, 0.53, 0.22], 'LineStyle', '-.', 'LineWidth', 2);
             plot3(app.AxGeom, [-column_x-15, -column_x], [0, 0], [0, 0], 'Color', [0.12, 0.53, 0.22], 'LineWidth', 1);
             plot3(app.AxGeom, [-column_x-15, -column_x], [s_h, s_h], [0, 0], 'Color', [0.12, 0.53, 0.22], 'LineWidth', 1);
             text(app.AxGeom, -column_x-45, s_h/2, 0, 'd_{actual}', 'Color', [0.12, 0.53, 0.22], 'FontSize', 12, 'FontWeight', 'bold', 'Interpreter', 'tex');
+
+            a_color = [0.00, 0.45, 0.74];
+            a_val = app.AActualEdit.Value;
+            y_mark = -ins - 50;
+
+            plot3(app.AxGeom, [pw/2, column_x], [y_mark, y_mark], [pd/2, pd/2], 'Color', a_color, 'LineStyle', '--', 'LineWidth', 2);
+            plot3(app.AxGeom, [pw/2, pw/2], [y_mark-4, y_mark+4], [pd/2, pd/2], 'Color', a_color, 'LineWidth', 1);
+            plot3(app.AxGeom, [column_x, column_x], [y_mark-4, y_mark+4], [pd/2, pd/2], 'Color', a_color, 'LineWidth', 1);
+            text(app.AxGeom, (pw/2 + column_x)/2 - 12, y_mark + 8, pd/2, 'a_{actual}', 'Color', a_color, 'FontSize', 12, 'FontWeight', 'bold', 'Interpreter', 'tex');
+            hold(app.AxGeom, 'off');
+
         end
 
         function processVibrationSignals(app)
@@ -864,7 +852,6 @@ classdef QZS_App < matlab.apps.AppBase
                 writetable(k2_table, excel_filename, 'Sheet', 'K2_Spring_Static');
                 logLines = {
                     '✅ Excel Export Successful!';
-                    '------------------------';
                     sprintf('d: %.2f mm', d_target_param);
                     sprintf('h: %.2f mm', h_target);
                     sprintf('h1: %.2f mm', h1_target);
@@ -872,6 +859,7 @@ classdef QZS_App < matlab.apps.AppBase
                     sprintf('delta: %.2f mm', delta_target);
                     sprintf('delta2: %.2f mm', delta1_target);
                     sprintf('delta3: %.2f mm', delta2_target);
+                    '------------------------';
                     sprintf('k1: %.2f N/m', k1);
                     sprintf('k2: %.2f N/m', k2);
                     sprintf('k3: %.2f N/m', k3);
@@ -879,8 +867,6 @@ classdef QZS_App < matlab.apps.AppBase
                     sprintf('L2: %.2f mm', L2);
                     sprintf('L3: %.2f mm', L3);
                     sprintf('L: %.2f mm', L);
-                    '------------------------';
-                    'Matrix Search Completed.'
                     };
                 app.LogTextArea.Value = logLines;
             catch ME
