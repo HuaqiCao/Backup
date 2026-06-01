@@ -69,8 +69,6 @@ classdef QZS_App < matlab.apps.AppBase
 
         p_ratio
 
-        k1_results,k2_results,k3_results
-
         a1 = 30;
         h3 = 90.0;
         platform_d = 20.0;
@@ -892,12 +890,12 @@ classdef QZS_App < matlab.apps.AppBase
                     d_target_calc = 1.6 * sqrt(K_factor * C * M * g / tau_p);
                     app.k2_results = [app.k2_results; d_target_calc, d_val, D_val, D_out, C, n_val, ratio, ratio * D_val, G, L, k2_actual*1000];
                 end
-            end
+            endapp.
             k2_table = array2table(app.k2_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm','C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N_m'});
             [~, ia2] = unique(k2_table(:, {'C', 'ratio'}), 'rows');
             k2_table = k2_table(ia2, :);
 
-            app.k1_results = [];
+            k1_results = [];
             for C1 = C1_range
                 for ratio1 = ratio1_range
                     a1_coeff = (G * ratio1) / (8 * (C1^4) * (k1/1000));
@@ -909,10 +907,10 @@ classdef QZS_App < matlab.apps.AppBase
                     k1_actual = (G * D1_val) / (8 * (C1^4) * n1_val);
 
                     d1_target_calc = 1.6 * sqrt(K1_factor * C1 * M1 * g / tau_p);
-                    app.k1_results = [app.k1_results; d1_target_calc, d1_val, D1_val, D1_out, C1, n1_val, ratio1, ratio1 * D1_val, G, L1, k1_actual*1000];
+                    k1_results = [k1_results; d1_target_calc, d1_val, D1_val, D1_out, C1, n1_val, ratio1, ratio1 * D1_val, G, L1, k1_actual*1000];
                 end
             end
-            k1_table = array2table(app.k1_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm','C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N_m'});
+            k1_table = array2table(k1_results, 'VariableNames', {'d_target_mm', 'd_mm', 'D_mm','D_out_mm','C', 'n', 'ratio', 'p_mm', 'G_Mpa', 'L_mm', 'k_actual_N_m'});
             [~, ia1] = unique(k1_table(:, {'C', 'ratio'}), 'rows');
             k1_table = k1_table(ia1, :);
 
