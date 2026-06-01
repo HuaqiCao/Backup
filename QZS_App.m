@@ -42,10 +42,10 @@ classdef QZS_App < matlab.apps.AppBase
     end
 
     properties (Access = private, Constant)
-        TitleFontSize = 22;
-        LabelFontSize = 20;
-        TickFontSize  = 18;
-        LegendFontSize = 12;
+        TitleFontSize = 22; %标题
+        LabelFontSize = 20; %坐标轴标题
+        TickFontSize  = 18; %坐标轴
+        LegendFontSize = 12; %图例
     end
 
     properties (Access = private)
@@ -76,7 +76,7 @@ classdef QZS_App < matlab.apps.AppBase
         platform_d = 20.0;
         h4 = 20.0;
         d_actual = 48.0;
-        a
+        a;
         base_thickness = 5.0;
         column_thickness = 15.0;
 
@@ -269,6 +269,9 @@ classdef QZS_App < matlab.apps.AppBase
             app.Ax4            = uiaxes(app.UIWindow, 'Position', [210+415, 40+40,  370, 340]);
             app.Ax5            = uiaxes(app.UIWindow, 'Position', [210+810, 40+40,  370, 340]);
             app.Ax3_Inset      = uiaxes(app.UIWindow, 'Position', [210+240, 230,    120, 130]);
+
+            title(app.Ax4, 'Time Domain Vibration Signals', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
+            title(app.Ax5, 'Power Spectral Density (PSD)', 'FontSize', app.TitleFontSize, 'FontWeight', 'bold');
 
             uilabel(app.UIWindow, ...
                 'Position', [210, 12, 1015, 25], ...
