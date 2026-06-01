@@ -339,10 +339,10 @@ classdef QZS_App < matlab.apps.AppBase
             for i = 1:length(app.y_hat)
                 y = app.y_hat(i) * a_actual;
 
-                term1 = -2 * (app.L0_upper - sqrt((a_actual + y)^2 + app.d_actual^2)) * (a_actual + y) * k_upper_act / (sqrt((a_actual + y)^2 + app.d_actual^2));
-                term2 =  2 * (app.L0_mid - sqrt((-y)^2 + app.d_actual^2)) * (-y) * k_mid_act / (sqrt((-y)^2 + app.d_actual^2));
-                term3 =  2 * (app.L0_lower - sqrt((a_actual - y)^2 + app.d_actual^2)) * (a_actual - y) * k_lower_act / (sqrt((a_actual - y)^2 + (app.d_actual-app.h4)^2));
-                term4 = (app.L0_bottom - 67 + y) * k_bottom_act;
+                term1 = -2 * (119.2 - sqrt((a_actual + y)^2 + (app.d_actual-app.h4)^2)) * (a_actual + y) * k_upper_act / (sqrt((a_actual + y)^2 + (app.d_actual-app.h4)^2));
+                term2 =  2 * (119.2 - sqrt((-y)^2 + (app.d_actual-app.h4)^2)) * (-y) * k_mid_act / (sqrt((-y)^2 + (app.d_actual-app.h4)^2));
+                term3 =  2 * (119.2 - sqrt((a_actual - y)^2 + (app.d_actual-app.h4)^2)) * (a_actual - y) * k_lower_act / (sqrt((a_actual - y)^2 + (app.d_actual-app.h4)^2));
+                term4 = (153.1 - 67 + y) * k_bottom_act;
 
                 app.f_actual_real(i) = term1 + term2 + term3 + term4;
             end
