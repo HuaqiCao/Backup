@@ -75,6 +75,10 @@ class QZSApp(QMainWindow):
         self.K_hat_theory  = np.zeros(1000)
         self.f_actual_real = np.zeros(1000)
         self.K_actual_real = np.zeros(1000)
+        self.term1_arr = np.zeros(1000)
+        self.term2_arr = np.zeros(1000)
+        self.term3_arr = np.zeros(1000)
+        self.term4_arr = np.zeros(1000)
         self.test_params   = [60.0, 0.0, 0.0, 0.0]
         self.f0_val        = 0.0
         self.L0_bottom = self.L0_upper = self.L0_mid = self.L0_lower = 0.0
@@ -107,9 +111,9 @@ class QZSApp(QMainWindow):
         root.setSpacing(4)
 
         # ── left panel — matches MATLAB App Designer layout exactly ─────────
-        PANEL_W = 200          # same as MATLAB's 190 + scrollbar allowance
-        LABEL_W = 100          # MATLAB: 95–110 px labels
-        FIELD_W = 72           # MATLAB: 60–70 px fields
+        PANEL_W = 220          # same as MATLAB's 190 + scrollbar allowance
+        LABEL_W = 110          # MATLAB: 95–110 px labels
+        FIELD_W = 85           # MATLAB: 60–70 px fields
         LBL_FONT = QFont('Arial', 10, QFont.Bold)
         SM_FONT  = QFont('Arial', 9,  QFont.Bold)
 
@@ -146,12 +150,18 @@ class QZSApp(QMainWindow):
             if tip: s.setToolTip(tip)
             return s
 
-        def row2(label_text, sp_widget, lw=LABEL_W, font=None):
-            w = QWidget(); h = QHBoxLayout(w)
-            h.setContentsMargins(2, 1, 2, 1); h.setSpacing(3)
-            lbl = QLabel(label_text); lbl.setFont(font or LBL_FONT)
+        def row(label_text, widget, lw=LABEL_W, font=None, suffix=':'):
+            w = QWidget()
+            h = QHBoxLayout(w)
+            h.setContentsMargins(0, 2, 0, 2)
+            h.setSpacing(6)
+            lbl = QLabel(f"{label_text}{suffix}")
+            lbl.setFont(font or LBL_FONT)
             lbl.setFixedWidth(lw)
-            h.addWidget(lbl); h.addWidget(sp_widget); h.addStretch()
+            lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter) 
+            h.addWidget(lbl)
+            h.addWidget(widget)
+            h.addStretch()
             return w
 
         def hsep():
@@ -181,11 +191,11 @@ class QZSApp(QMainWindow):
             ('G (MPa):',        self.G_edit,         self._calc_full),
         ]:
             sp.valueChanged.connect(cb)
-            left_layout.addWidget(row2(lbl, sp))
+            left_layout.addWidget(row(lbl, sp))
 
         # ── M_load input ─────────────────────────────────────────────────────
         self.M_load_edit = spin(2.0, lo=0.1, hi=100, dec=1, step=0.5, tip='Load mass (kg)')
-        left_layout.addWidget(row2('M_load (kg):', self.M_load_edit, LABEL_W, SM_FONT))
+        left_layout.addWidget(row('M_load (kg):', self.M_load_edit, LABEL_W, SM_FONT))
 
         left_layout.addWidget(hsep())
 
@@ -204,7 +214,7 @@ class QZSApp(QMainWindow):
         # ── spring matrix header (font 11 in MATLAB) ─────────────────────────
         shdr = QWidget(); sh = QHBoxLayout(shdr)
         sh.setContentsMargins(2, 0, 2, 0); sh.setSpacing(0)
-        for txt, wd in [('Type', 46), ('  n', 32), ('d (mm)', 40), ('D (mm)', 40)]:
+        for txt, wd in [('Type', 50), ('n', 38), ('d (mm)', 48), ('D (mm)', 48)]:
             l = QLabel(txt); l.setFont(SM_FONT); l.setFixedWidth(wd)
             l.setStyleSheet('color:#1a6b2a;'); sh.addWidget(l)
         left_layout.addWidget(shdr)
@@ -221,7 +231,7 @@ class QZSApp(QMainWindow):
         self.B_turns = spin(16,  1, 999, 0, 1,   30)
         self.B_wire  = spin(1.2, 0.1, 20, 2, 0.05, 38)
         self.B_cyl   = spin(14.4,0.5,200, 1, 0.5,  38)
-
+        
         for label, s_n, s_d, s_D, n_k, d_k, D_k in [
             ('Upper:', self.U_turns, self.U_wire, self.U_cyl, 'n_upper','d_upper','D_upper'),
             ('Mid:',   self.M_turns, self.M_wire, self.M_cyl, 'n_mid',  'd_mid',  'D_mid'),
@@ -229,31 +239,36 @@ class QZSApp(QMainWindow):
             ('Bot:',   self.B_turns, self.B_wire, self.B_cyl, 'n_bottom','d_bottom','D_bottom'),
         ]:
             rw = QWidget(); rl = QHBoxLayout(rw)
-            rl.setContentsMargins(2, 1, 2, 1); rl.setSpacing(2)
-            lb = QLabel(label); lb.setFont(SM_FONT); lb.setFixedWidth(46)
+            rl.setContentsMargins(0, 2, 0, 2); rl.setSpacing(6)
+            lb = QLabel(label); lb.setFont(SM_FONT); lb.setFixedWidth(LABEL_W)
+            lb.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             rl.addWidget(lb)
             for sp, key in [(s_n, n_k), (s_d, d_k), (s_D, D_k)]:
+                sp.setFixedWidth(48)  # 统一输入框宽度
                 sp.valueChanged.connect(lambda v, k=key: self._spring_changed(k, v))
                 rl.addWidget(sp)
+            rl.addStretch()
             left_layout.addWidget(rw)
 
         left_layout.addWidget(hsep())
 
         # ── geometry W/H/D (font 11 in MATLAB) ───────────────────────────────
         ghdr = QWidget(); gh = QHBoxLayout(ghdr)
-        gh.setContentsMargins(2, 0, 2, 0); gh.setSpacing(0)
-        for txt, wd in [('', 46), ('W', 32), ('H', 40), ('D', 40)]:
+        gh.setContentsMargins(0, 2, 0, 2); gh.setSpacing(6)
+        for txt, wd in [('', LABEL_W), ('W (mm)', 48), ('H (mm)', 48), ('D (mm)', 48)]:
+            l.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             l = QLabel(txt); l.setFont(SM_FONT); l.setFixedWidth(wd)
             l.setStyleSheet('color:#1a6b2a;'); gh.addWidget(l)
         left_layout.addWidget(ghdr)
 
         def geom_row(label, wv, hv, dv):
             rw = QWidget(); rl = QHBoxLayout(rw)
-            rl.setContentsMargins(2, 1, 2, 1); rl.setSpacing(2)
-            lb = QLabel(label); lb.setFont(SM_FONT); lb.setFixedWidth(46)
+            rl.setContentsMargins(0, 2, 0, 2); rl.setSpacing(6)
+            lb = QLabel(label); lb.setFont(SM_FONT); lb.setFixedWidth(LABEL_W)
+            lb.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             rl.addWidget(lb)
             spins = []
-            for val, wd in [(wv, 30), (hv, 38), (dv, 38)]:
+            for val, wd in [(wv, 48), (hv, 48), (dv, 48)]:
                 s = QDoubleSpinBox(); s.setDecimals(0); s.setRange(-9999, 9999)
                 s.setValue(val); s.setFixedWidth(wd); s.setAlignment(Qt.AlignCenter)
                 s.setStyleSheet('background:white; font-size:10px;')
@@ -261,12 +276,12 @@ class QZSApp(QMainWindow):
                 rl.addWidget(s); spins.append(s)
             return rw, spins
 
-        row, self.plat_spins = geom_row('Plat:', 20, self.h3, self.platform_d)
-        left_layout.addWidget(row)
-        row, self.supp_spins = geom_row('Supp:', self.column_thickness, self.support_h, self.support_d)
-        left_layout.addWidget(row)
-        row, self.base_spins = geom_row('Base:', self.base_w, self.base_h, self.base_d)
-        left_layout.addWidget(row)
+        row_widget, self.plat_spins = geom_row('Plat:', 20, self.h3, self.platform_d)
+        left_layout.addWidget(row_widget)
+        row_widget, self.supp_spins = geom_row('Supp:', self.column_thickness, self.support_h, self.support_d)
+        left_layout.addWidget(row_widget)
+        row_widget, self.base_spins = geom_row('Base:', self.base_w, self.base_h, self.base_d)
+        left_layout.addWidget(row_widget)
 
         self.h_actual_edit       = spin(self.h_actual,     lo=0, hi=500, dec=1, step=1)
         self.a_actual_edit = spin(60.0,          lo=1, hi=500, dec=1, step=1)
@@ -277,11 +292,10 @@ class QZSApp(QMainWindow):
         self.M_actual_edit.valueChanged.connect(self._calc_workflow_only)
         self.d_actual_edit.valueChanged.connect(self._calc_workflow_only)
 
-        left_layout.addWidget(row2('h_actual (mm):',      self.h_actual_edit,       LABEL_W, SM_FONT))
-        left_layout.addWidget(row2('a_actual (mm):', self.a_actual_edit, LABEL_W, SM_FONT))
-        left_layout.addWidget(row2('M_actual (kg):', self.M_actual_edit, LABEL_W, SM_FONT))
-        left_layout.addWidget(row2('d_actual (mm):', self.d_actual_edit, LABEL_W, SM_FONT))
-
+        left_layout.addWidget(row('h_actual (mm):', self.h_actual_edit, font=SM_FONT))
+        left_layout.addWidget(row('a_actual (mm):', self.a_actual_edit, font=SM_FONT))
+        left_layout.addWidget(row('M_actual (kg):', self.M_actual_edit, font=SM_FONT))
+        left_layout.addWidget(row('d_actual (mm):', self.d_actual_edit, font=SM_FONT))
         left_layout.addWidget(hsep())
 
         # ── displacement preview (extra vs MATLAB — kept compact) ─────────────
@@ -292,7 +306,7 @@ class QZSApp(QMainWindow):
         self.y_slider.valueChanged.connect(lambda v: self.y_disp_edit.setValue(float(v)))
         self.y_disp_edit.valueChanged.connect(lambda v: self.y_slider.setValue(int(v)))
         left_layout.addWidget(self.y_slider)
-        left_layout.addWidget(row2('y preview (mm):', self.y_disp_edit, LABEL_W, SM_FONT))
+        left_layout.addWidget(row('y preview (mm):', self.y_disp_edit, LABEL_W, SM_FONT))
 
         left_layout.addWidget(hsep())
 
@@ -351,7 +365,7 @@ class QZSApp(QMainWindow):
 
         gs = self.fig.add_gridspec(
             2, 3, hspace=0.48, wspace=0.42,
-            left=0.06, right=0.94, top=0.95, bottom=0.15
+            left=0.06, right=0.94, top=0.94, bottom=0.10
         )
         self.ax_geom = self.fig.add_subplot(gs[0, 0])   # 2-D side view
         self.ax1     = self.fig.add_subplot(gs[0, 1])
@@ -372,9 +386,9 @@ class QZSApp(QMainWindow):
         self.ax5.set_title('Power Spectral Density (PSD)',
                            fontsize=self.TITLE_FS, fontweight='bold',pad=10)
 
-        self.fig.text(0.52, 0.005,
+        self.fig.text(0.52, 0.02,
                       '@ Zhao F, et al. Int J Mech Sci, 2021, 192: 106093',
-                      ha='center', fontsize=7, style='italic', color='gray')
+                      ha='center', fontsize=12, style='italic', color='gray')
 
     # ════════════════════════════════════════════════════════════════════════
     # Callbacks
@@ -491,16 +505,9 @@ class QZSApp(QMainWindow):
         return f_hat, K_hat
 
     def _f_actual_N(self, y_arr, a, d_vert):
-        """Force [N] vs displacement y [mm].
-        Uses COMPUTED free lengths and spring stiffnesses from the current UI
-        so that every spinner (n, d_wire, D_coil, G, h_actual, d_actual …) drives the plot.
-
-        a      : horizontal arm length [mm]  (= a_actual)
-        d_vert : vertical spring-attachment offset [mm]  (= d_actual − h_actual)
-        """
+        """Force [N] vs displacement y [mm]"""
         G = self.G_edit.value()
 
-        # Spring stiffnesses [N/mm] from coil geometry
         def k_spring(d_w, D_c, n_t):
             n_eff = max(1, n_t - 2)
             return (G * d_w**4) / (8.0 * D_c**3 * n_eff)
@@ -510,26 +517,18 @@ class QZSApp(QMainWindow):
         k_lo  = k_spring(self.d_lower,  self.D_lower,  self.n_lower)
         k_bot = k_spring(self.d_bottom, self.D_bottom, self.n_bottom)
 
-        # Free lengths [mm] already stored after _map_geometry()
-        L0_up  = self.L0_upper
-        L0_mid = self.L0_mid
-        L0_lo  = self.L0_lower
-        L0_bot = self.L0_bottom
-
-        # Bottom spring equilibrium compressed length from geometry
-        L_eq_bot = abs(-self.h3 / 2.0 - self.base_d)
-
-        def sL(x, dv): return np.sqrt(np.maximum(x**2 + dv**2, 1e-12))
-
-        L1 = sL(a + y_arr, d_vert)
-        L2 = sL(y_arr,     d_vert)
-        L3 = sL(a - y_arr, d_vert)
-
-        f = (-2*(L0_up  - L1)*(a + y_arr)*k_up  / L1 +
-              2*(L0_mid  - L2)*(-y_arr)   *k_mid / L2 +
-              2*(L0_lo   - L3)*(a - y_arr)*k_lo  / L3 +
-             (L0_bot - L_eq_bot + y_arr)  *k_bot)
-        return f
+        # 直接用您的公式计算
+        #f = (-2 * (119.2 - np.sqrt((d_vert + y_arr)**2 + a**2)) * (d_vert + y_arr) * k_up / np.sqrt((d_vert + y_arr)**2 + a**2) +
+            #2 * (119.2 - np.sqrt((-y_arr)**2 + d_vert**2)) * (-y_arr) * k_mid / np.sqrt((-y_arr)**2 + d_vert**2) +
+            #2 * (119.2 - np.sqrt((d_vert - y_arr)**2 + a**2)) * (d_vert - y_arr) * k_lo / np.sqrt((d_vert - y_arr)**2 + a**2) +
+            #(153.1 - 67 + y_arr) * k_bot)
+            
+        term1 = -2 * (119.2 - np.sqrt((d_vert + y_arr)**2 + a**2)) * (d_vert + y_arr) * k_up / np.sqrt((d_vert + y_arr)**2 + a**2)
+        term2 = 2 * (119.2 - np.sqrt((-y_arr)**2 + d_vert**2)) * (-y_arr) * k_mid / np.sqrt((-y_arr)**2 + d_vert**2)
+        term3 = 2 * (119.2 - np.sqrt((d_vert - y_arr)**2 + a**2)) * (d_vert - y_arr) * k_lo / np.sqrt((d_vert - y_arr)**2 + a**2)
+        term4 = (153.1 - 67 + y_arr) * k_bot    
+        f = term1 + term2 + term3 + term4; 
+        return f, term1, term2, term3, term4
 
     def _compute_K_actual_from_f(self):
         dy = self.y_dim[1] - self.y_dim[0]
@@ -550,7 +549,7 @@ class QZSApp(QMainWindow):
 
         a_act  = self.a_actual_edit.value()
         d_vert = self.d_actual_edit.value() - self.h_actual_edit.value()   # vertical offset
-        self.f_actual_real = self._f_actual_N(self.y_dim, a_act, d_vert)
+        self.f_actual_real, self.term1_arr, self.term2_arr, self.term3_arr, self.term4_arr = self._f_actual_N(self.y_dim, a_act, d_vert)
         self._compute_K_actual_from_f()
 
         G = self.G_edit.value()
@@ -592,7 +591,7 @@ class QZSApp(QMainWindow):
 
         a_act  = self.a_actual_edit.value()
         d_vert = self.d_actual_edit.value() - self.h_actual_edit.value()
-        self.f_actual_real = self._f_actual_N(self.y_dim, a_act, d_vert)
+        self.f_actual_real, self.term1_arr, self.term2_arr, self.term3_arr, self.term4_arr = self._f_actual_N(self.y_dim, a_act, d_vert)
         self._compute_K_actual_from_f()
         self._map_geometry()
         self._refresh_plots()
@@ -674,14 +673,14 @@ class QZSApp(QMainWindow):
         pf, = ax.plot(self.y_dim, self.f_actual_real, color=[0.0,0.2,0.5], lw=2.5)
         ax.set_ylabel('Force (N)', fontsize=self.LABEL_FS, color=[0.0,0.45,0.74], labelpad=0)
         ax.tick_params(axis='y', labelcolor=[0.0,0.45,0.74], labelsize=self.TICK_FS)
-        ax.set_title('Force & Stiffness',
+        ax.set_title('Force & Stiffness(Actual)',
                      fontsize=self.TITLE_FS, fontweight='bold',pad=10)
         pk, = ax2.plot(self.y_dim, self.K_actual_real, color=[0.55,0.12,0.0], lw=2.5)
         ax2.yaxis.set_label_position("right")
         ax2.set_ylabel('Stiffness (N/mm)', fontsize=self.LABEL_FS, color=[0.85,0.33,0.10], labelpad=4)
         ax2.tick_params(axis='y', labelcolor=[0.85,0.33,0.10], labelsize=self.TICK_FS)
         ax.set_xlabel('Displacement y (mm)', fontsize=self.LABEL_FS)
-        ax.legend([pf, pk], ['Force (Actual)', 'Stiffness (Actual)'],
+        ax.legend([pf, pk], ['Force', 'Stiffness'],
                   loc='upper left', fontsize=self.LEGEND_FS)
 
     def _plot_ax3(self):
@@ -894,33 +893,73 @@ class QZSApp(QMainWindow):
                 f'F = {f_cur:.2f} N', color='red',
                 fontsize=6.5, va='center', fontweight='bold', zorder=5)
 
+        # 获取当前位移下的各分力值
+        t1_cur = float(np.interp(dy, self.y_dim, self.term1_arr))  # 上弹簧（两侧之和）
+        t2_cur = float(np.interp(dy, self.y_dim, self.term2_arr))  # 中弹簧（两侧之和）
+        t3_cur = float(np.interp(dy, self.y_dim, self.term3_arr))  # 下弹簧（两侧之和）
+        t4_cur = float(np.interp(dy, self.y_dim, self.term4_arr))  # 底部弹簧
+        
+        # 单侧弹簧力 = 总力 / 2（因为左右对称）
+        t1_one_side = t1_cur / 2
+        t2_one_side = t2_cur / 2
+        t3_one_side = t3_cur / 2
+        
+        # ── 在右侧对应弹簧位置显示分力 ────────────────────────────────────────
+        # 右侧立柱的x坐标
+        right_col_x = col_x + s_w/2 + 5
+        
+        # 上弹簧（对应 LCT 和 PLT 连接点，y坐标在 sp_h 附近）
+        ax.text(right_col_x, sp_h + 3, 
+                f'{t1_one_side:+.1f} N', 
+                fontsize=7, color='#1a6b2a', va='center', fontweight='bold',
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='#1a6b2a'))
+        
+        # 中弹簧（对应 LCM 和 PLM 连接点，y坐标在 0 附近）
+        ax.text(right_col_x, 3, 
+                f'{t2_one_side:+.1f} N', 
+                fontsize=7, color='#1a6b2a', va='center', fontweight='bold',
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='#1a6b2a'))
+        
+        # 下弹簧（对应 LCB 和 PLB 连接点，y坐标在 -sp_h 附近）
+        ax.text(right_col_x, -sp_h - 3, 
+                f'{t3_one_side:+.1f} N', 
+                fontsize=7, color='#1a6b2a', va='center', fontweight='bold',
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='#1a6b2a'))
+        
+        # 底部弹簧（在 base_top 和 plat_bot 之间，显示在弹簧下方）
+        bottom_y = -ph/2 + dy  # 平台底部位置
+        ax.text(right_col_x, b_d, 
+                f'{t4_cur:+.1f} N', 
+                fontsize=7, color='#8B4513', va='center', ha='left', fontweight='bold',
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='#8B4513'))
+        
         # ── secondary right y-axis → Force (N) ──────────────────────────────
-        f_data = self.f_actual_real; y_data = self.y_dim
-        def y_to_f(y):
-            return np.interp(y, y_data, f_data,
-                             left=float(f_data[0]), right=float(f_data[-1]))
-        def f_to_y(f):
-            idx = np.argsort(f_data)
-            return np.interp(f, f_data[idx], y_data[idx])
-        try:
-            secax = ax.secondary_yaxis('right', functions=(y_to_f, f_to_y))
-            secax.set_ylabel('Force F (N)', color=[0.85,0.33,0.10],
-                             fontsize=self.LABEL_FS, labelpad=0)
-            secax.tick_params(colors=[0.85,0.33,0.10], labelsize=self.TICK_FS)
-            f_max_val = np.max(self.f_actual_real)
-            f_min_val = np.min(self.f_actual_real)
-            secax.set_ylim(f_min_val * 1.1, f_max_val * 1.1)
-            # horizontal reference line at current force value
-            ax.axhline(dy, color=[0.85,0.33,0.10], lw=0.8, ls=':', alpha=0.7)
-        except Exception:
-            pass   # secondary_yaxis unavailable in old matplotlib
+        # f_data = self.f_actual_real; y_data = self.y_dim
+        # def y_to_f(y):
+        #     return np.interp(y, y_data, f_data,
+        #                      left=float(f_data[0]), right=float(f_data[-1]))
+        # def f_to_y(f):
+        #     idx = np.argsort(f_data)
+        #     return np.interp(f, f_data[idx], y_data[idx])
+        # try:
+        #     secax = ax.secondary_yaxis('right', functions=(y_to_f, f_to_y))
+        #     secax.set_ylabel('Force F (N)', color=[0.85,0.33,0.10],
+        #                      fontsize=self.LABEL_FS, labelpad=0)
+        #     secax.tick_params(colors=[0.85,0.33,0.10], labelsize=self.TICK_FS)
+        #     f_max_val = np.max(self.f_actual_real)
+        #     f_min_val = np.min(self.f_actual_real)
+        #     secax.set_ylim(f_min_val * 1.1, f_max_val * 1.1)
+        #     # horizontal reference line at current force value
+        #     ax.axhline(dy, color=[0.85,0.33,0.10], lw=0.8, ls=':', alpha=0.7)
+        # except Exception:
+        #     pass   # secondary_yaxis unavailable in old matplotlib
 
         # ── axis limits & labels ─────────────────────────────────────────────
-        xmax = col_x * 1.55
-        ymax = max(sp_h, ph/2) * 1.6
+        xmax = col_x * 2.2
+        ymax = max(sp_h, ph/2) * 2
         ymin = min(b_d - b_h - 10, -ymax)
         ax.set_xlim(-xmax, xmax)
-        ax.set_ylim(ymin, max(col_top_y + 5, ymax))
+        ax.set_ylim(ymin, max(col_top_y + 10, ymax))
         ax.set_xlabel('Horizontal position x (mm)', fontsize=self.LABEL_FS)
         ax.set_ylabel('Displacement y (mm)', fontsize=self.LABEL_FS)
         ax.set_title('QZS Assembly', fontsize=self.TITLE_FS,fontweight='bold', pad=10)
