@@ -111,9 +111,9 @@ class QZSApp(QMainWindow):
         root.setSpacing(4)
 
         # ── left panel — matches MATLAB App Designer layout exactly ─────────
-        PANEL_W = 220          # same as MATLAB's 190 + scrollbar allowance
-        LABEL_W = 110          # MATLAB: 95–110 px labels
-        FIELD_W = 85           # MATLAB: 60–70 px fields
+        PANEL_W = 200          # same as MATLAB's 190 + scrollbar allowance
+        LABEL_W = 100          # MATLAB: 95–110 px labels
+        FIELD_W = 72           # MATLAB: 60–70 px fields
         LBL_FONT = QFont('Arial', 10, QFont.Bold)
         SM_FONT  = QFont('Arial', 9,  QFont.Bold)
 
@@ -150,18 +150,12 @@ class QZSApp(QMainWindow):
             if tip: s.setToolTip(tip)
             return s
 
-        def row(label_text, widget, lw=LABEL_W, font=None, suffix=':'):
-            w = QWidget()
-            h = QHBoxLayout(w)
-            h.setContentsMargins(0, 2, 0, 2)
-            h.setSpacing(6)
-            lbl = QLabel(f"{label_text}{suffix}")
-            lbl.setFont(font or LBL_FONT)
+        def row2(label_text, sp_widget, lw=LABEL_W, font=None):
+            w = QWidget(); h = QHBoxLayout(w)
+            h.setContentsMargins(2, 1, 2, 1); h.setSpacing(3)
+            lbl = QLabel(label_text); lbl.setFont(font or LBL_FONT)
             lbl.setFixedWidth(lw)
-            lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter) 
-            h.addWidget(lbl)
-            h.addWidget(widget)
-            h.addStretch()
+            h.addWidget(lbl); h.addWidget(sp_widget); h.addStretch()
             return w
 
         def hsep():
@@ -177,8 +171,8 @@ class QZSApp(QMainWindow):
         self.a_target_edit  = spin(60.0,  dec=1, step=1)
         self.tau_p_edit     = spin(70.0,  dec=1, step=1)
         self.G_edit         = spin(75000.0, dec=0, step=500)
-        self.M_load_edit = spin(2.0, lo=0.1, hi=100, dec=1, step=0.5, tip='Load mass (kg)')
-        self.M_actual_edit = spin(2.0, lo=0.1, hi=100, dec=1, step=0.5)
+        self.M_load_edit = 2   
+        self.M_actual_edit = 2 
 
         for lbl, sp, cb in [
             ('delta_hat (δ̂):', self.delta_hat_edit, self._on_left_changed),
@@ -191,11 +185,11 @@ class QZSApp(QMainWindow):
             ('G (MPa):',        self.G_edit,         self._calc_full),
         ]:
             sp.valueChanged.connect(cb)
-            left_layout.addWidget(row(lbl, sp))
+            left_layout.addWidget(row2(lbl, sp))
 
         # ── M_load input ─────────────────────────────────────────────────────
         self.M_load_edit = spin(2.0, lo=0.1, hi=100, dec=1, step=0.5, tip='Load mass (kg)')
-        left_layout.addWidget(row('M_load (kg):', self.M_load_edit, LABEL_W, SM_FONT))
+        left_layout.addWidget(row2('M_load (kg):', self.M_load_edit, LABEL_W, SM_FONT))
 
         left_layout.addWidget(hsep())
 
@@ -231,7 +225,7 @@ class QZSApp(QMainWindow):
         self.B_turns = spin(16,  1, 999, 0, 1,   30)
         self.B_wire  = spin(1.2, 0.1, 20, 2, 0.05, 38)
         self.B_cyl   = spin(14.4,0.5,200, 1, 0.5,  38)
-        
+
         for label, s_n, s_d, s_D, n_k, d_k, D_k in [
             ('Upper:', self.U_turns, self.U_wire, self.U_cyl, 'n_upper','d_upper','D_upper'),
             ('Mid:',   self.M_turns, self.M_wire, self.M_cyl, 'n_mid',  'd_mid',  'D_mid'),
@@ -239,36 +233,31 @@ class QZSApp(QMainWindow):
             ('Bot:',   self.B_turns, self.B_wire, self.B_cyl, 'n_bottom','d_bottom','D_bottom'),
         ]:
             rw = QWidget(); rl = QHBoxLayout(rw)
-            rl.setContentsMargins(0, 2, 0, 2); rl.setSpacing(6)
-            lb = QLabel(label); lb.setFont(SM_FONT); lb.setFixedWidth(LABEL_W)
-            lb.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            rl.setContentsMargins(2, 1, 2, 1); rl.setSpacing(2)
+            lb = QLabel(label); lb.setFont(SM_FONT); lb.setFixedWidth(46)
             rl.addWidget(lb)
             for sp, key in [(s_n, n_k), (s_d, d_k), (s_D, D_k)]:
-                sp.setFixedWidth(48)  # 统一输入框宽度
                 sp.valueChanged.connect(lambda v, k=key: self._spring_changed(k, v))
                 rl.addWidget(sp)
-            rl.addStretch()
             left_layout.addWidget(rw)
 
         left_layout.addWidget(hsep())
 
         # ── geometry W/H/D (font 11 in MATLAB) ───────────────────────────────
         ghdr = QWidget(); gh = QHBoxLayout(ghdr)
-        gh.setContentsMargins(0, 2, 0, 2); gh.setSpacing(6)
-        for txt, wd in [('', LABEL_W), ('W (mm)', 48), ('H (mm)', 48), ('D (mm)', 48)]:
-            l.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        gh.setContentsMargins(2, 0, 2, 0); gh.setSpacing(0)
+        for txt, wd in [('', 46), ('W', 32), ('H', 40), ('D', 40)]:
             l = QLabel(txt); l.setFont(SM_FONT); l.setFixedWidth(wd)
             l.setStyleSheet('color:#1a6b2a;'); gh.addWidget(l)
         left_layout.addWidget(ghdr)
 
         def geom_row(label, wv, hv, dv):
             rw = QWidget(); rl = QHBoxLayout(rw)
-            rl.setContentsMargins(0, 2, 0, 2); rl.setSpacing(6)
-            lb = QLabel(label); lb.setFont(SM_FONT); lb.setFixedWidth(LABEL_W)
-            lb.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            rl.setContentsMargins(2, 1, 2, 1); rl.setSpacing(2)
+            lb = QLabel(label); lb.setFont(SM_FONT); lb.setFixedWidth(46)
             rl.addWidget(lb)
             spins = []
-            for val, wd in [(wv, 48), (hv, 48), (dv, 48)]:
+            for val, wd in [(wv, 30), (hv, 38), (dv, 38)]:
                 s = QDoubleSpinBox(); s.setDecimals(0); s.setRange(-9999, 9999)
                 s.setValue(val); s.setFixedWidth(wd); s.setAlignment(Qt.AlignCenter)
                 s.setStyleSheet('background:white; font-size:10px;')
@@ -276,12 +265,12 @@ class QZSApp(QMainWindow):
                 rl.addWidget(s); spins.append(s)
             return rw, spins
 
-        row_widget, self.plat_spins = geom_row('Plat:', 20, self.h3, self.platform_d)
-        left_layout.addWidget(row_widget)
-        row_widget, self.supp_spins = geom_row('Supp:', self.column_thickness, self.support_h, self.support_d)
-        left_layout.addWidget(row_widget)
-        row_widget, self.base_spins = geom_row('Base:', self.base_w, self.base_h, self.base_d)
-        left_layout.addWidget(row_widget)
+        row, self.plat_spins = geom_row('Plat:', 20, self.h3, self.platform_d)
+        left_layout.addWidget(row)
+        row, self.supp_spins = geom_row('Supp:', self.column_thickness, self.support_h, self.support_d)
+        left_layout.addWidget(row)
+        row, self.base_spins = geom_row('Base:', self.base_w, self.base_h, self.base_d)
+        left_layout.addWidget(row)
 
         self.h_actual_edit       = spin(self.h_actual,     lo=0, hi=500, dec=1, step=1)
         self.a_actual_edit = spin(60.0,          lo=1, hi=500, dec=1, step=1)
@@ -292,10 +281,11 @@ class QZSApp(QMainWindow):
         self.M_actual_edit.valueChanged.connect(self._calc_workflow_only)
         self.d_actual_edit.valueChanged.connect(self._calc_workflow_only)
 
-        left_layout.addWidget(row('h_actual (mm):', self.h_actual_edit, font=SM_FONT))
-        left_layout.addWidget(row('a_actual (mm):', self.a_actual_edit, font=SM_FONT))
-        left_layout.addWidget(row('M_actual (kg):', self.M_actual_edit, font=SM_FONT))
-        left_layout.addWidget(row('d_actual (mm):', self.d_actual_edit, font=SM_FONT))
+        left_layout.addWidget(row2('h_actual (mm):',      self.h_actual_edit,       LABEL_W, SM_FONT))
+        left_layout.addWidget(row2('a_actual (mm):', self.a_actual_edit, LABEL_W, SM_FONT))
+        left_layout.addWidget(row2('M_actual (kg):', self.M_actual_edit, LABEL_W, SM_FONT))
+        left_layout.addWidget(row2('d_actual (mm):', self.d_actual_edit, LABEL_W, SM_FONT))
+
         left_layout.addWidget(hsep())
 
         # ── displacement preview (extra vs MATLAB — kept compact) ─────────────
@@ -306,7 +296,7 @@ class QZSApp(QMainWindow):
         self.y_slider.valueChanged.connect(lambda v: self.y_disp_edit.setValue(float(v)))
         self.y_disp_edit.valueChanged.connect(lambda v: self.y_slider.setValue(int(v)))
         left_layout.addWidget(self.y_slider)
-        left_layout.addWidget(row('y preview (mm):', self.y_disp_edit, LABEL_W, SM_FONT))
+        left_layout.addWidget(row2('y preview (mm):', self.y_disp_edit, LABEL_W, SM_FONT))
 
         left_layout.addWidget(hsep())
 
@@ -365,7 +355,7 @@ class QZSApp(QMainWindow):
 
         gs = self.fig.add_gridspec(
             2, 3, hspace=0.48, wspace=0.42,
-            left=0.06, right=0.94, top=0.94, bottom=0.10
+            left=0.06, right=0.94, top=0.95, bottom=0.10
         )
         self.ax_geom = self.fig.add_subplot(gs[0, 0])   # 2-D side view
         self.ax1     = self.fig.add_subplot(gs[0, 1])
@@ -505,9 +495,16 @@ class QZSApp(QMainWindow):
         return f_hat, K_hat
 
     def _f_actual_N(self, y_arr, a, d_vert):
-        """Force [N] vs displacement y [mm]"""
+        """Force [N] vs displacement y [mm].
+        Uses COMPUTED free lengths and spring stiffnesses from the current UI
+        so that every spinner (n, d_wire, D_coil, G, h_actual, d_actual …) drives the plot.
+
+        a      : horizontal arm length [mm]  (= a_actual)
+        d_vert : vertical spring-attachment offset [mm]  (= d_actual − h_actual)
+        """
         G = self.G_edit.value()
 
+        # Spring stiffnesses [N/mm] from coil geometry
         def k_spring(d_w, D_c, n_t):
             n_eff = max(1, n_t - 2)
             return (G * d_w**4) / (8.0 * D_c**3 * n_eff)
@@ -517,8 +514,7 @@ class QZSApp(QMainWindow):
         k_lo  = k_spring(self.d_lower,  self.D_lower,  self.n_lower)
         k_bot = k_spring(self.d_bottom, self.D_bottom, self.n_bottom)
 
-        # 直接用您的公式计算
-        #f = (-2 * (119.2 - np.sqrt((d_vert + y_arr)**2 + a**2)) * (d_vert + y_arr) * k_up / np.sqrt((d_vert + y_arr)**2 + a**2) +
+         #f = (-2 * (119.2 - np.sqrt((d_vert + y_arr)**2 + a**2)) * (d_vert + y_arr) * k_up / np.sqrt((d_vert + y_arr)**2 + a**2) +
             #2 * (119.2 - np.sqrt((-y_arr)**2 + d_vert**2)) * (-y_arr) * k_mid / np.sqrt((-y_arr)**2 + d_vert**2) +
             #2 * (119.2 - np.sqrt((d_vert - y_arr)**2 + a**2)) * (d_vert - y_arr) * k_lo / np.sqrt((d_vert - y_arr)**2 + a**2) +
             #(153.1 - 67 + y_arr) * k_bot)
@@ -673,7 +669,7 @@ class QZSApp(QMainWindow):
         pf, = ax.plot(self.y_dim, self.f_actual_real, color=[0.0,0.2,0.5], lw=2.5)
         ax.set_ylabel('Force (N)', fontsize=self.LABEL_FS, color=[0.0,0.45,0.74], labelpad=0)
         ax.tick_params(axis='y', labelcolor=[0.0,0.45,0.74], labelsize=self.TICK_FS)
-        ax.set_title('Force & Stiffness(Actual)',
+        ax.set_title('Force & Stiffness (Actual)',
                      fontsize=self.TITLE_FS, fontweight='bold',pad=10)
         pk, = ax2.plot(self.y_dim, self.K_actual_real, color=[0.55,0.12,0.0], lw=2.5)
         ax2.yaxis.set_label_position("right")
@@ -899,35 +895,27 @@ class QZSApp(QMainWindow):
         t3_cur = float(np.interp(dy, self.y_dim, self.term3_arr))  # 下弹簧（两侧之和）
         t4_cur = float(np.interp(dy, self.y_dim, self.term4_arr))  # 底部弹簧
         
-        # 单侧弹簧力 = 总力 / 2（因为左右对称）
         t1_one_side = t1_cur / 2
         t2_one_side = t2_cur / 2
         t3_one_side = t3_cur / 2
-        
-        # ── 在右侧对应弹簧位置显示分力 ────────────────────────────────────────
-        # 右侧立柱的x坐标
+
         right_col_x = col_x + s_w/2 + 5
-        
-        # 上弹簧（对应 LCT 和 PLT 连接点，y坐标在 sp_h 附近）
+
         ax.text(right_col_x, sp_h + 3, 
                 f'{t1_one_side:+.1f} N', 
                 fontsize=7, color='#1a6b2a', va='center', fontweight='bold',
                 bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='#1a6b2a'))
-        
-        # 中弹簧（对应 LCM 和 PLM 连接点，y坐标在 0 附近）
+
         ax.text(right_col_x, 3, 
                 f'{t2_one_side:+.1f} N', 
                 fontsize=7, color='#1a6b2a', va='center', fontweight='bold',
                 bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='#1a6b2a'))
-        
-        # 下弹簧（对应 LCB 和 PLB 连接点，y坐标在 -sp_h 附近）
+
         ax.text(right_col_x, -sp_h - 3, 
                 f'{t3_one_side:+.1f} N', 
                 fontsize=7, color='#1a6b2a', va='center', fontweight='bold',
                 bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='#1a6b2a'))
-        
-        # 底部弹簧（在 base_top 和 plat_bot 之间，显示在弹簧下方）
-        bottom_y = -ph/2 + dy  # 平台底部位置
+
         ax.text(right_col_x, b_d, 
                 f'{t4_cur:+.1f} N', 
                 fontsize=7, color='#8B4513', va='center', ha='left', fontweight='bold',
@@ -955,7 +943,7 @@ class QZSApp(QMainWindow):
         #     pass   # secondary_yaxis unavailable in old matplotlib
 
         # ── axis limits & labels ─────────────────────────────────────────────
-        xmax = col_x * 2.2
+        xmax = col_x * 2
         ymax = max(sp_h, ph/2) * 2
         ymin = min(b_d - b_h - 10, -ymax)
         ax.set_xlim(-xmax, xmax)
