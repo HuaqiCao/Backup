@@ -177,8 +177,8 @@ class QZSApp(QMainWindow):
         self.a_target_edit  = spin(60.0,  dec=1, step=1)
         self.tau_p_edit     = spin(70.0,  dec=1, step=1)
         self.G_edit         = spin(75000.0, dec=0, step=500)
-        self.M_load_edit = 2   
-        self.M_actual_edit = 2 
+        self.M_load_edit = spin(2.0, lo=0.1, hi=100, dec=1, step=0.5, tip='Load mass (kg)')
+        self.M_actual_edit = spin(2.0, lo=0.1, hi=100, dec=1, step=0.5)
 
         for lbl, sp, cb in [
             ('delta_hat (δ̂):', self.delta_hat_edit, self._on_left_changed),
@@ -214,7 +214,7 @@ class QZSApp(QMainWindow):
         # ── spring matrix header (font 11 in MATLAB) ─────────────────────────
         shdr = QWidget(); sh = QHBoxLayout(shdr)
         sh.setContentsMargins(2, 0, 2, 0); sh.setSpacing(0)
-        for txt, wd in [('Type', 50), ('n', 38), ('d (mm)', 48), ('D (mm)', 48)]:
+        for txt, wd in [('Type', 46), ('  n', 32), ('d (mm)', 40), ('D (mm)', 40)]:
             l = QLabel(txt); l.setFont(SM_FONT); l.setFixedWidth(wd)
             l.setStyleSheet('color:#1a6b2a;'); sh.addWidget(l)
         left_layout.addWidget(shdr)
