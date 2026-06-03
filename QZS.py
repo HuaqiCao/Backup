@@ -171,8 +171,8 @@ class QZSApp(QMainWindow):
         self.a_target_edit  = spin(60.0,  dec=1, step=1)
         self.tau_p_edit     = spin(70.0,  dec=1, step=1)
         self.G_edit         = spin(75000.0, dec=0, step=500)
-        self.M_load_edit = 2   
-        self.M_actual_edit = 2 
+        self.M_load_edit = spin(2.0, lo=0.1, hi=100, dec=1, step=0.5, tip='Load mass (kg)')
+        self.M_actual_edit = spin(2.0, lo=0.1, hi=100, dec=1, step=0.5, tip='Actual mass (kg)')
 
         for lbl, sp, cb in [
             ('delta_hat (δ̂):', self.delta_hat_edit, self._on_left_changed),
@@ -984,9 +984,9 @@ class QZSApp(QMainWindow):
         if not path:
             self.log_area.append('Cancelled.'); return
 
-        path_ref, _ = QFileDialog.getOpenFileName(
-            self, 'Select Reference CSV (cancel to skip)',
-            os.path.expanduser('~'), 'CSV (*.csv)')
+        #path_ref, _ = QFileDialog.getOpenFileName(
+        #    self, 'Select Reference CSV (cancel to skip)',
+        #    os.path.expanduser('~'), 'CSV (*.csv)')
 
         try:
             def load_csv(p):
@@ -1010,13 +1010,16 @@ class QZSApp(QMainWindow):
                 f'Input: {len(v_in)} pts @ {fs:.1f} Hz  ({t_in[-1]:.1f} s)')
 
             self._sig_v_ref = self._sig_fs_ref = None
-            if path_ref:
-                _, v_ref, fs_ref = load_csv(path_ref)
-                self._sig_v_ref  = v_ref
-                self._sig_fs_ref = fs_ref
-                self.log_area.append(
-                    f'Ref:   {len(v_ref)} pts @ {fs_ref:.1f} Hz')
+            #if path_ref:
+            #    _, v_ref, fs_ref = load_csv(path_ref)
+            #    self._sig_v_ref  = v_ref
+            #    self._sig_fs_ref = fs_ref
+            #    self.log_area.append(
+            #        f'Ref:   {len(v_ref)} pts @ {fs_ref:.1f} Hz')
 
+            self._sig_v_ref = None
+            self._sig_fs_ref = None
+            
             self._update_psd_plots()
             self.canvas.draw()
 
@@ -1113,9 +1116,9 @@ class QZSApp(QMainWindow):
                        '--', color=[0.5,0.5,0.5], lw=2.5, label='Input Signal')
             ax5.loglog(f_pos, np.maximum(asd_out[f_psd>0], eps),
                        color=[0,0.447,0.741], lw=2.0, label=lbl2)
-            if asd_ref is not None:
-                ax5.loglog(f_pos, np.maximum(asd_ref[f_psd>0], eps),
-                           'k-', lw=2.5, label='Reference Curve')
+            #if asd_ref is not None:
+            #   ax5.loglog(f_pos, np.maximum(asd_ref[f_psd>0], eps),
+            #               'k-', lw=2.5, label='Reference Curve')
 
             ax5.set_title('PSD Comparison',
                           fontsize=self.TITLE_FS, fontweight='bold',pad=10)
