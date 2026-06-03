@@ -310,10 +310,28 @@ class QZSApp(QMainWindow):
         self.Ze_edit = spin(3.0,  lo=0, hi=100,  dec=1, step=0.1)
         self.C_edit.valueChanged.connect(self._calc_full)
         self.Ze_edit.valueChanged.connect(self._calc_full)
-        left_layout.addWidget(row2('Damping C:',  self.C_edit,  LABEL_W, SM_FONT))
-        left_layout.addWidget(row2('Ze (mm):',    self.Ze_edit, LABEL_W, SM_FONT))
+        # C 和 Ze 放在同一行
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(2, 1, 2, 1)
+        row_layout.setSpacing(5)
 
-        left_layout.addWidget(hsep())
+        lbl_c = QLabel('C:')
+        lbl_c.setFont(SM_FONT)
+        lbl_c.setFixedWidth(30)
+        row_layout.addWidget(lbl_c)
+        row_layout.addWidget(self.C_edit)
+
+        lbl_ze = QLabel('Ze (mm):')
+        lbl_ze.setFont(SM_FONT)
+        lbl_ze.setFixedWidth(60)
+        row_layout.addWidget(lbl_ze)
+        row_layout.addWidget(self.Ze_edit)
+
+        row_layout.addStretch()
+        left_layout.addWidget(row_widget)
+
+  
 
         # ── log text area ─────────────────────────────────────────────────────
         self.log_area = QTextEdit()
@@ -679,7 +697,7 @@ class QZSApp(QMainWindow):
                / ((np.sqrt(rho+ah**2))**7) + al1*(-3)/ah**3)) / 6
 
         # ── compute Ze_hat and zeta from UI spinboxes ────────────────────────
-        M_load = 2.0; 
+        M_load = self.M_load_edit.value()
         g_acc = 9.81
         a_t  = self.a_target_edit.value() / 1000   # m
         h1_t = self.test_params[1]        / 1000   # m
@@ -990,7 +1008,8 @@ class QZSApp(QMainWindow):
             N    = len(v_in)
 
             # ── system parameters from UI ────────────────────────────────────
-            M_load = 2.0; g = 9.81
+            M_load = self.M_actual_edit.value()
+            g = 9.81
             a_t  = self.a_target_edit.value() / 1000   # m
             h1_t = self.test_params[1]        / 1000   # m
             k2_Nm  = (M_load*g) / (1.229*np.sqrt(a_t**2 + h1_t**2))
@@ -1101,7 +1120,7 @@ class QZSApp(QMainWindow):
         tau_p = self.tau_p_edit.value(); 
         G = self.G_edit.value()
         
-        M = 2; # K2
+        M = self.M_load_edit.value(); # K2
         M1 = 2; #upper&down
         M2 = 2; #bottom
         g = 9.81; 
@@ -1181,6 +1200,7 @@ class QZSApp(QMainWindow):
                 k2_df.to_excel(w, sheet_name='K2_Spring',      index=False)
                 k1_df.to_excel(w, sheet_name='Up_Down_Spring',  index=False)
                 k3_df.to_excel(w, sheet_name='Middle_Spring',   index=False)
+            self.log_area.clear()
             self.log_area.append('\n'.join([
                 f'Excel saved: {out}',
                 '---Geometry---',
