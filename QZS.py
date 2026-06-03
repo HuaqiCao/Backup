@@ -242,14 +242,17 @@ class QZSApp(QMainWindow):
         # ── spring matrix header (font 11 in MATLAB) ─────────────────────────
         shdr = QWidget()
         sh = QHBoxLayout(shdr)
-        sh.setContentsMargins(2, 0, 2, 0)
-        sh.setSpacing(0)
-        for txt, wd in [('Type', 46), ('  n', 32), ('d (mm)', 40), ('D (mm)', 40)]:
+        sh.setContentsMargins(2, 1, 2, 1)
+        sh.setSpacing(2)
+        # 标签居中对齐，和下面的输入框保持一致
+        for txt, wd in [('Type', 46), ('n', 40), ('d (mm)', 55), ('D (mm)', 40)]:
             l = QLabel(txt)
             l.setFont(SM_FONT)
             l.setFixedWidth(wd)
+            l.setAlignment(Qt.AlignCenter)  # 添加这行，让文字居中
             l.setStyleSheet('color:#1a6b2a;')
             sh.addWidget(l)
+        sh.addStretch()
         left_layout.addWidget(shdr)
 
         self.U_turns = spin(17,  1, 999, 0, 1,   30)
@@ -266,27 +269,32 @@ class QZSApp(QMainWindow):
         self.B_cyl = spin(14.4, 0.5, 200, 1, 0.5,  38)
 
         for label, s_n, s_d, s_D, n_k, d_k, D_k in [
-            ('Upper:', self.U_turns, self.U_wire,
-             self.U_cyl, 'n_upper', 'd_upper', 'D_upper'),
-            ('Mid:',   self.M_turns, self.M_wire,
-             self.M_cyl, 'n_mid',  'd_mid',  'D_mid'),
-            ('Down:',  self.D_turns, self.D_wire,
-             self.D_cyl, 'n_lower', 'd_lower', 'D_lower'),
-            ('Bot:',   self.B_turns, self.B_wire,
-             self.B_cyl, 'n_bottom', 'd_bottom', 'D_bottom'),
+            ('Upper:', self.U_turns, self.U_wire, self.U_cyl, 'n_upper', 'd_upper', 'D_upper'),
+            ('Mid:',   self.M_turns, self.M_wire, self.M_cyl, 'n_mid',  'd_mid',  'D_mid'),
+            ('Down:',  self.D_turns, self.D_wire, self.D_cyl, 'n_lower', 'd_lower', 'D_lower'),
+            ('Bot:',   self.B_turns, self.B_wire, self.B_cyl, 'n_bottom', 'd_bottom', 'D_bottom'),
         ]:
             rw = QWidget()
             rl = QHBoxLayout(rw)
             rl.setContentsMargins(2, 1, 2, 1)
-            rl.setSpacing(2)
+            rl.setSpacing(10)
+            
             lb = QLabel(label)
             lb.setFont(SM_FONT)
             lb.setFixedWidth(46)
             rl.addWidget(lb)
-            for sp, key in [(s_n, n_k), (s_d, d_k), (s_D, D_k)]:
-                sp.valueChanged.connect(
-                    lambda v, k=key: self._spring_changed(k, v))
-                rl.addWidget(sp)
+            
+            s_n.setFixedWidth(30)
+            s_d.setFixedWidth(38)
+            s_D.setFixedWidth(38)
+            rl.addWidget(s_n)
+            rl.addWidget(s_d)
+            rl.addWidget(s_D)
+
+            s_n.valueChanged.connect(lambda v, k=n_k: self._spring_changed(k, v))
+            s_d.valueChanged.connect(lambda v, k=d_k: self._spring_changed(k, v))
+            s_D.valueChanged.connect(lambda v, k=D_k: self._spring_changed(k, v))
+            rl.addStretch()
             left_layout.addWidget(rw)
 
         left_layout.addWidget(hsep())
@@ -294,21 +302,23 @@ class QZSApp(QMainWindow):
         # ── geometry W/H/D (font 11 in MATLAB) ───────────────────────────────
         ghdr = QWidget()
         gh = QHBoxLayout(ghdr)
-        gh.setContentsMargins(2, 0, 2, 0)
-        gh.setSpacing(0)
-        for txt, wd in [('', 46), ('W', 32), ('H', 40), ('D', 40)]:
+        gh.setContentsMargins(2, 1, 2, 1)  
+        gh.setSpacing(10)  
+        for txt, wd in [('', 46), ('W', 30), ('H', 38), ('D', 38)]: 
             l = QLabel(txt)
             l.setFont(SM_FONT)
             l.setFixedWidth(wd)
+            l.setAlignment(Qt.AlignCenter)  
             l.setStyleSheet('color:#1a6b2a;')
             gh.addWidget(l)
+        gh.addStretch()  # 添加 stretch
         left_layout.addWidget(ghdr)
 
         def geom_row(label, wv, hv, dv):
             rw = QWidget()
             rl = QHBoxLayout(rw)
             rl.setContentsMargins(2, 1, 2, 1)
-            rl.setSpacing(2)
+            rl.setSpacing(12)
             lb = QLabel(label)
             lb.setFont(SM_FONT)
             lb.setFixedWidth(46)
@@ -325,6 +335,7 @@ class QZSApp(QMainWindow):
                 s.valueChanged.connect(self._update_geometry_span)
                 rl.addWidget(s)
                 spins.append(s)
+            rl.addStretch()
             return rw, spins
 
         row, self.plat_spins = geom_row('Plat:', 20, self.h3, self.platform_d)
