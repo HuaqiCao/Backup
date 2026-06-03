@@ -611,18 +611,21 @@ class QZSApp(QMainWindow):
         # 2 * (119.2 - np.sqrt((d_vert - y_arr)**2 + a**2)) * (d_vert - y_arr) * k_lo / np.sqrt((d_vert - y_arr)**2 + a**2) +
         # (153.1 - 67 + y_arr) * k_bot)
 
-        term1 = -2 * (119.2 - np.sqrt((d_vert + y_arr)**2 + a**2)) * \
+        #实际弹簧的长度
+        l = 119.2; #mm
+        l2 = 153.1; #mm
+        term1 = -2 * (l - np.sqrt((d_vert + y_arr)**2 + a**2)) * \
             (d_vert + y_arr) * k_up / np.sqrt((d_vert + y_arr)**2 + a**2)
-        term2 = 2 * (119.2 - np.sqrt((-y_arr)**2 + d_vert**2)) * \
+        term2 = 2 * (l - np.sqrt((-y_arr)**2 + d_vert**2)) * \
             (-y_arr) * k_mid / np.sqrt((-y_arr)**2 + d_vert**2)
-        term3 = 2 * (119.2 - np.sqrt((d_vert - y_arr)**2 + a**2)) * \
+        term3 = 2 * (l - np.sqrt((d_vert - y_arr)**2 + a**2)) * \
             (d_vert - y_arr) * k_lo / np.sqrt((d_vert - y_arr)**2 + a**2)
         
         M = self.M_actual_edit.value()
         #平台底部距离基座的位置
-        h=153.1-M*9.81/k_bot
-        #print(f'h={h:.1f}mm')
-        term4 = (153.1 - h + y_arr) * k_bot
+        h=l2-M*9.81/k_bot
+        print(f'h={h:.1f}mm')
+        term4 = (l2 - h + y_arr) * k_bot
         f = term1 + term2 + term3 + term4
         return f, term1, term2, term3, term4
 
