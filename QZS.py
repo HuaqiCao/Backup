@@ -142,7 +142,7 @@ class QZSApp(QMainWindow):
         scroll.setStyleSheet('QScrollArea{border:none;}')
 
         left_widget = QWidget()
-        left_widget.setStyleSheet('background:#f5f5f5;')
+        left_widget.setStyleSheet('background:#f0f7ff;')
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(5, 4, 5, 4)
         left_layout.setSpacing(2)
@@ -151,7 +151,7 @@ class QZSApp(QMainWindow):
 
         # panel title — mirrors MATLAB uipanel 'Configuration'
         title_lbl = QLabel('Configuration')
-        title_lbl.setFont(QFont('Arial', 11, QFont.Bold))
+        title_lbl.setFont(QFont('Arial', 13, QFont.Bold))
         title_lbl.setAlignment(Qt.AlignCenter)
         title_lbl.setStyleSheet(
             'background:#dce6f2; color:#1a3a6b; padding:4px;'
@@ -228,9 +228,9 @@ class QZSApp(QMainWindow):
 
         # ── Design Springs button ─────────────────────────────────────────────
         design_btn = QPushButton('Design Springs')
-        design_btn.setFont(QFont('Arial', 12, QFont.Bold))
+        design_btn.setFont(QFont('Arial', 13, QFont.Bold))
         design_btn.setStyleSheet(
-            'background:#409A6B; color:white; border-radius:3px; padding:5px;')
+            'background:#409A6B; color:white; border-radius:3px; padding:5px;text-align: center;')
         design_btn.setFixedHeight(34)
         design_btn.setToolTip(
             'Compute spring candidates → Spring_Parameters.xlsx')
@@ -386,7 +386,7 @@ class QZSApp(QMainWindow):
 
         # ── Load & Get PSD button ─────────────────────────────────────────────
         load_btn = QPushButton('Load & Get PSD')
-        load_btn.setFont(QFont('Arial', 12, QFont.Bold))
+        load_btn.setFont(QFont('Arial', 13, QFont.Bold))
         load_btn.setStyleSheet(
             'background:#E07320; color:white; border-radius:3px; padding:5px;')
         load_btn.setFixedHeight(34)
@@ -721,32 +721,39 @@ class QZSApp(QMainWindow):
     # ════════════════════════════════════════════════════════════════════════
 
     def _transmissibility(self, mu1, mu3, Omega, Ze, zeta):
-
-        A = (9/16)*mu3**2*Ze**4
-        B = float(np.real(1.5*mu3*(mu1 - Omega**2)*Ze**2))
+        """位移传递率 - 与MATLAB完全一致"""
+        if Omega < 1e-6:
+            return 1.0
+        
+        # 30式 - 与MATLAB完全相同
+        A = (9/16) * mu3**2 * Ze**4
+        B = 1.5 * mu3 * (mu1 - Omega**2) * Ze**2
         C = (mu1 - Omega**2)**2 + (2*zeta*Omega)**2
         D = -Omega**4
-        roots = np.roots([A, B, C, D])
-        cands = [r.real for r in roots if abs(r.imag) < 1e-6 and r.real > 0]
-        if not cands:
-            Z2 = (Omega**2 / np.sqrt((mu1-Omega**2)**2 + (2*zeta*Omega)**2))**2
+        
+        coeff = [A, B, C, D]
+        roots = np.roots(coeff)
+        
+        # 筛选正实根
+        Z2_candidates = [r.real for r in roots if abs(r.imag) < 1e-6 and r.real > 0]
+        
+        if not Z2_candidates:
+            # 线性近似
+            Z_linear = Omega**2 / np.sqrt((mu1 - Omega**2)**2 + (2*zeta*Omega)**2)
+            Z2 = Z_linear**2
         else:
-            Z2 = min(cands)
-        Zh = np.sqrt(Z2)
-        cos_phi = np.clip(
-            (0.75*mu3*Ze**2*Zh**3 + (mu1-Omega**2)*Zh) / Omega**2, -1, 1)
-        return float(np.sqrt(max(0, 1 + 2*Zh*cos_phi + Zh**2)))
-
-    def _transmissibility_vec(self, mu1, mu3, f_arr, f0_sys, Ze, zeta):
-        """Vectorised transmissibility on a frequency array [Hz].
-        Computes Ta at N_grid points then interpolates — avoids per-sample roots().
-        """
-        N_grid = 2000
-        f_grid = np.linspace(0, max(f_arr[-1], 1e-6), N_grid)
-        Om_grid = f_grid / max(f0_sys, 1e-9)
-        Ta_grid = np.array([self._transmissibility(mu1, mu3, O, Ze, zeta)
-                            for O in Om_grid])
-        return np.interp(f_arr, f_grid, Ta_grid)
+            Z2 = min(Z2_candidates)
+        
+        Z_hat = np.sqrt(max(0, Z2))
+        
+        # 28式
+        cos_phi = (0.75 * mu3 * Ze**2 * Z_hat**3 + (mu1 - Omega**2) * Z_hat) / Omega**2
+        cos_phi = np.clip(cos_phi, -1, 1)
+        
+        # 位移传递率
+        Ta = np.sqrt(1 + 2*Z_hat*cos_phi + Z_hat**2)
+        
+        return float(Ta)
 
     # ════════════════════════════════════════════════════════════════════════
     # Plot refresh
@@ -844,10 +851,11 @@ class QZSApp(QMainWindow):
         self.zeta_ui = self.C_edit.value() * omega0 / (2 * k2_Nm)
 
         f_Hz = np.arange(0.1, 10.01, 0.01)
-        Om = f_Hz / self.f0_sys
-        Ta_th = np.array([self._transmissibility(
-            self.mu1, self.mu3, O, self.Ze_hat, self.zeta_ui) for O in Om])
-
+        Ta_th = np.zeros(len(f_Hz))
+        for i, f_val in enumerate(f_Hz):
+            Omega = f_val / max(self.f0_sys, 1e-9)
+            Ta_th[i] = self._transmissibility(self.mu1, self.mu3, Omega, 
+                                            self.Ze_hat, self.zeta_ui)
         ax = self.ax3
         ax.cla()
         ax.grid(True)
@@ -973,11 +981,6 @@ class QZSApp(QMainWindow):
             fc=[0.82, 0.91, 1.0], ec=[0.1, 0.3, 0.8], lw=2, zorder=3))
         ax.text(0, dy, 'Platform', ha='center', va='center',
                 fontsize=10, fontweight='bold', color=[0.5, 0.5, 0.5], zorder=4, rotation=90)
-        # displacement label on platform
-        if abs(dy) > 0.5:
-            ax.text(pw/2 + 3, -ph/2 + dy + ph/2,
-                    f'y={dy:+.1f} mm', color=[0.1, 0.3, 0.8],
-                    fontsize=6.5, va='center', fontweight='bold', zorder=5)
 
         # ── springs ───────────────────────────────────────────────────────────
         sc = [0.40, 0.42, 0.50]   # oblique spring colour
@@ -1143,6 +1146,34 @@ class QZSApp(QMainWindow):
         #    self, 'Select Reference CSV (cancel to skip)',
         #    os.path.expanduser('~'), 'CSV (*.csv)')
 
+        dh = self.delta_hat_edit.value()   # δ̂
+        ah = self.a_hat_edit.value()       # â
+        al = self.alpha_edit.value()       # α
+        al1 = self.alpha1_edit.value()     # α₁
+        gm = self.gamma_edit.value()       # γ
+    
+        rho = (1 - ah**2) / (gm - 1)**2
+        sq_rho = np.sqrt(rho)
+        sq1 = np.sqrt(1 - ah**2) # sqrt(1 - â²)
+        
+        try:
+            denom = np.sqrt(rho + ah**2)
+            
+            part1 = 2 * al * ah**2 / (denom**3)
+            part2 = al1 / ah
+            mu1 = 1 + 4*al + 2*al1 - 2 * (1 + dh) * (part1 + part2)
+
+            term_a = 2 * al * (12 * ah**2 * rho - 3 * ah**4) / (denom**7)
+            term_b = al1 * (-3) / (ah**3)
+            mu3 = (-2 * (1 + dh) * (term_a + term_b)) / 6
+
+            self.mu1 = mu1
+            self.mu3 = mu3
+            
+        except Exception as e:
+            print(f"参数计算错误: {e}")
+            return
+    
         try:
             def load_csv(p):
                 df = pd.read_csv(p, skiprows=4, header=None,
@@ -1183,6 +1214,7 @@ class QZSApp(QMainWindow):
             self.log_area.append(f'Error: {e}\n{traceback.format_exc()}')
 
     def _update_psd_plots(self):
+        """更新PSD图 - 与MATLAB compute_psd函数完全一致"""
         if self._sig_v_in is None:
             return
         try:
@@ -1191,76 +1223,122 @@ class QZSApp(QMainWindow):
             t_in = self._sig_t
             N = len(v_in)
 
+            # 更新传递率曲线
             self._plot_ax3()
 
-            win_s = int(min(N, max(256, fs)))
-            nfft = int(2**np.ceil(np.log2(win_s)))
-            f_psd, pxx_in = welch(v_in, fs=fs, window='hann',
-                                  nperseg=win_s, nfft=nfft)
-
-            Ta = self._transmissibility_vec(
-                self.mu1, self.mu3, f_psd, self.f0_sys, self.Ze_hat, self.zeta_ui)
-            asd_in = np.sqrt(pxx_in)
-            asd_out = asd_in * Ta
-
-            freq_rfft = np.fft.rfftfreq(N, d=1/fs)
-            Ta_full = self._transmissibility_vec(self.mu1, self.mu3, freq_rfft,
-                                                 self.f0_sys, self.Ze_hat, self.zeta_ui)
-            v_out = np.fft.irfft(np.fft.rfft(v_in) * Ta_full, n=N)
+            # 与MATLAB完全一致的PSD计算参数
+            # window_size = min(length(v_in), 1*fs)
+            window_size = min(N, int(fs))
+            nfft = 2 ** int(np.ceil(np.log2(window_size)))
+            overlap = window_size // 2
+            
+            # MATLAB: window = hann(window_size); window = window ./ sqrt(mean(window.^2));
+            window = np.hanning(window_size)
+            window = window / np.sqrt(np.mean(window**2))
+            
+            # MATLAB的compute_psd函数实现
+            def compute_psd(signal, window_size, overlap, nfft, fs, window):
+                signal = signal.flatten()
+                step = window_size - overlap
+                n_frames = (len(signal) - window_size) // step + 1
+                
+                psd_sum = np.zeros(nfft // 2)
+                for i in range(n_frames):
+                    start = i * step
+                    frame = signal[start:start + window_size] * window
+                    fft_data = np.fft.fft(frame, nfft)
+                    psd_frame = np.abs(fft_data[:nfft//2])**2 / (fs * nfft)
+                    psd_sum += psd_frame
+                
+                psd = psd_sum / n_frames
+                # 单边谱修正 (MATLAB的2倍修正)
+                psd[1:-1] = 2 * psd[1:-1]
+                return psd
+            
+            # 计算输入信号的PSD
+            v_in_psd = compute_psd(v_in, window_size, overlap, nfft, fs, window)
+            freq = np.arange(nfft // 2) * fs / nfft
+            
+            # 计算传递率 (每个频率点)
+            freq_valid = freq[freq > 0]
+            Ta = np.zeros_like(freq)
+            for i, f_val in enumerate(freq):
+                if f_val > 0:
+                    Omega = f_val / max(self.f0_sys, 1e-9)
+                    Ta[i] = self._transmissibility(self.mu1, self.mu3, Omega, 
+                                                    self.Ze_hat, self.zeta_ui)
+                else:
+                    Ta[i] = 1.0
+            
+            # 输出信号的PSD = 输入PSD * 传递率^2
+            v_out_psd = v_in_psd * (Ta ** 2)
+            
+            # 频域计算输出信号 (与MATLAB一致: V_out_fft = V_in_fft * H)
+            freq_full = np.fft.rfftfreq(N, d=1/fs)
+            Ta_full = np.zeros(len(freq_full))
+            for i, f_val in enumerate(freq_full):
+                if f_val > 0:
+                    Omega = f_val / max(self.f0_sys, 1e-9)
+                    Ta_full[i] = self._transmissibility(self.mu1, self.mu3, Omega,
+                                                        self.Ze_hat, self.zeta_ui)
+                else:
+                    Ta_full[i] = 1.0
+            
+            V_in_fft = np.fft.rfft(v_in)
+            V_out_fft = V_in_fft * Ta_full
+            v_out = np.fft.irfft(V_out_fft, n=N)
             self.v_out_data = v_out
 
-            asd_ref = None
-            if self._sig_v_ref is not None:
-                v_ref = self._sig_v_ref
-                fs_ref = self._sig_fs_ref
-                win_r = int(min(len(v_ref), max(256, fs_ref)))
-                nfft_r = int(2**np.ceil(np.log2(win_r)))
-                f_ref, pxx_ref = welch(v_ref, fs=fs_ref, window='hann',
-                                       nperseg=win_r, nfft=nfft_r)
-                asd_ref = np.interp(
-                    f_psd, f_ref, np.sqrt(pxx_ref), left=0, right=0)
-
+            # 绘制时域图
             T_SHOW = min(2.0, t_in[-1])
             idx = t_in <= T_SHOW
             ax4 = self.ax4
             ax4.cla()
             ax4.grid(True)
-            ax4.plot(t_in[idx], v_in[idx],  color=[0.5, 0.5, 0.5], lw=0.8,
-                     label='Input Signal')
-            ax4.plot(t_in[idx], v_out[idx], color=[0, 0.447, 0.741], lw=1.2,
-                     label='Group1 Output')
-            ax4.set_title('Time Domain Comparison',
-                          fontsize=self.TITLE_FS, fontweight='bold', pad=10)
+            ax4.plot(t_in[idx], v_in[idx], '--', color=[0.5, 0.5, 0.5], 
+                    linewidth=1.5, label='Input Signal')
+            ax4.plot(t_in[idx], v_out[idx], '-', color=[0, 0.447, 0.741], 
+                    linewidth=1.5, label='Isolated Output')
+            ax4.set_title('Time Domain Response', fontsize=self.TITLE_FS, 
+                        fontweight='bold', pad=10)
             ax4.set_xlabel('Time (s)', fontsize=self.LABEL_FS)
             ax4.set_ylabel('Voltage (V)', fontsize=self.LABEL_FS, labelpad=1)
             ax4.legend(loc='upper right', fontsize=self.LEGEND_FS)
             ax4.tick_params(labelsize=self.TICK_FS)
 
+            # 绘制PSD图 - 使用sqrt(PSD)即幅值谱密度，与MATLAB一致
             ax5 = self.ax5
             ax5.cla()
             ax5.grid(True, which='both', ls='--', alpha=0.45)
-            eps = np.finfo(float).tiny
-            f_pos = f_psd[f_psd > 0]
-            lbl2 = ('theory')
+            
+            eps = 1e-30
+            # 只显示正频率
+            pos_idx = freq > 0
+            freq_pos = freq[pos_idx]
+            asd_in = np.sqrt(np.maximum(v_in_psd[pos_idx], eps))
+            asd_out = np.sqrt(np.maximum(v_out_psd[pos_idx], eps))
+            
+            # 绘制输入信号PSD (sqrt)
+            ax5.loglog(freq_pos, asd_in, 
+                    '--', color=[0.5, 0.5, 0.5], linewidth=2.0, label='Input Signal')
+            # 绘制输出信号PSD (sqrt)
+            ax5.loglog(freq_pos, asd_out, 
+                    '-', color=[0, 0.447, 0.741], linewidth=2.0, label='Isolated Output')
 
-            ax5.loglog(f_pos, np.maximum(asd_in[f_psd > 0],  eps),
-                       '--', color=[0.5, 0.5, 0.5], lw=2.5, label='Input Signal')
-            ax5.loglog(f_pos, np.maximum(asd_out[f_psd > 0], eps),
-                       color=[0, 0.447, 0.741], lw=2.0, label=lbl2)
-
-            ax5.set_title('PSD Comparison',
-                          fontsize=self.TITLE_FS, fontweight='bold', pad=10)
+            ax5.set_title('Power Spectral Density', fontsize=self.TITLE_FS, 
+                        fontweight='bold', pad=10)
             ax5.set_xlabel('Frequency (Hz)', fontsize=self.LABEL_FS)
-            ax5.set_ylabel(r'PSD $[V/\sqrt{Hz}]$',
-                           fontsize=self.LABEL_FS, labelpad=0)
-            ax5.set_xlim(max(f_pos[0], 0.5), min(fs/2, 500))
+            ax5.set_ylabel(r'PSD $[V/\sqrt{Hz}]$', fontsize=self.LABEL_FS, labelpad=0)
+            ax5.set_xlim(max(freq_pos[0], 0.5), min(fs/2, 500))
             ax5.legend(loc='upper left', fontsize=self.LEGEND_FS)
             ax5.tick_params(labelsize=self.TICK_FS, which='both')
+            
+            # 可选：在log区域显示信息
+            self.log_area.append(f'PSD computed: window_size={window_size}, nfft={nfft}, freq_range={freq_pos[0]:.2f}-{freq_pos[-1]:.2f} Hz')
 
         except Exception as e:
             import traceback
-            self.log_area.append(
-                f'PSD update error: {e}\n{traceback.format_exc()}')
+            self.log_area.append(f'PSD update error: {e}\n{traceback.format_exc()}')
 
     # ════════════════════════════════════════════════════════════════════════
     # Spring design → Excel
