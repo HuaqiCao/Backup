@@ -399,7 +399,7 @@ class QZSApp(QMainWindow):
         self.Ze_edit = spin(3.0,  lo=0, hi=100,  dec=1, step=0.1)
         self.C_edit.valueChanged.connect(self._calc_full)
         self.Ze_edit.valueChanged.connect(self._calc_full)
-        # C 和 Ze 放在同一行
+        # C and Ze 
         row_widget = QWidget()
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(2, 1, 2, 1)
@@ -622,21 +622,38 @@ class QZSApp(QMainWindow):
         # 2 * (119.2 - np.sqrt((d_vert - y_arr)**2 + a**2)) * (d_vert - y_arr) * k_lo / np.sqrt((d_vert - y_arr)**2 + a**2) +
         # (153.1 - 67 + y_arr) * k_bot)
 
-        #实际弹簧的长度
-        l = 119.2; #mm
-        l2 = 153.1; #mm
-        term1 = -2 * (l - np.sqrt((d_vert + y_arr)**2 + a**2)) * \
-            (d_vert + y_arr) * k_up / np.sqrt((d_vert + y_arr)**2 + a**2)
-        term2 = 2 * (l - np.sqrt((-y_arr)**2 + d_vert**2)) * \
-            (-y_arr) * k_mid / np.sqrt((-y_arr)**2 + d_vert**2)
-        term3 = 2 * (l - np.sqrt((d_vert - y_arr)**2 + a**2)) * \
-            (d_vert - y_arr) * k_lo / np.sqrt((d_vert - y_arr)**2 + a**2)
+        L = 119.2; #mm upper/mid/lower spring free Length 
+        L2 = 153.1; #mm bottom spring free length
         
+        #Actual load mass
         M = self.M_actual_edit.value()
         #平台底部距离基座的位置
-        h=l2-M*9.81/k_bot
+        h=L2-(M*9.81)/k_bot
         print(f'h={h:.1f}mm')
-        term4 = (l2 - h + y_arr) * k_bot
+    
+        #term1 = -2 * (l - np.sqrt((d_vert + y_arr)**2 + a**2)) * \
+        #    (d_vert + y_arr) * k_up / (np.sqrt((d_vert + y_arr)**2 + a**2))
+        #term2 = 2 * (l - np.sqrt((-y_arr)**2 + d_vert**2)) * \
+        #    (-y_arr) * k_mid / (np.sqrt((-y_arr)**2 + d_vert**2))
+        #term3 = 2 * (l - np.sqrt((d_vert - y_arr)**2 + a**2)) * \
+        #    (d_vert - y_arr) * k_lo / (np.sqrt((d_vert - y_arr)**2 + a**2))
+        #term4 = (L2 - h + y_arr) * k_bot
+        
+        sqrt1 = L -np.sqrt((d_vert - y_arr)**2 + a**2)
+        sqrt2 = L -np.sqrt((y_arr)**2 + a**2)
+        sqrt3 = L -np.sqrt((d_vert + y_arr)**2 + a**2)
+        sqrt4 = L2 - h - y_arr
+        
+        delta1 = np.maximum(0, sqrt1)
+        delta2 = np.maximum(0, sqrt2)
+        delta3 = np.maximum(0, sqrt3)
+        delta4 = np.maximum(0, sqrt4)
+
+        term1 = -2 * delta1 * (d_vert - y_arr) * k_up / (L-delta1)
+        term2 = 2 * delta2 * (y_arr) * k_mid / (L-delta2)
+        term3 = 2 * delta3 * (d_vert + y_arr) * k_lo / (L-delta3)
+        term4 = delta4 * k_bot
+
         f = term1 + term2 + term3 + term4
         return f, term1, term2, term3, term4
 
@@ -725,7 +742,6 @@ class QZSApp(QMainWindow):
         if Omega < 1e-6:
             return 1.0
         
-        # 30式 - 与MATLAB完全相同
         A = (9/16) * mu3**2 * Ze**4
         B = 1.5 * mu3 * (mu1 - Omega**2) * Ze**2
         C = (mu1 - Omega**2)**2 + (2*zeta*Omega)**2
@@ -734,11 +750,9 @@ class QZSApp(QMainWindow):
         coeff = [A, B, C, D]
         roots = np.roots(coeff)
         
-        # 筛选正实根
         Z2_candidates = [r.real for r in roots if abs(r.imag) < 1e-6 and r.real > 0]
         
         if not Z2_candidates:
-            # 线性近似
             Z_linear = Omega**2 / np.sqrt((mu1 - Omega**2)**2 + (2*zeta*Omega)**2)
             Z2 = Z_linear**2
         else:
@@ -746,11 +760,8 @@ class QZSApp(QMainWindow):
         
         Z_hat = np.sqrt(max(0, Z2))
         
-        # 28式
         cos_phi = (0.75 * mu3 * Ze**2 * Z_hat**3 + (mu1 - Omega**2) * Z_hat) / Omega**2
-        cos_phi = np.clip(cos_phi, -1, 1)
-        
-        # 位移传递率
+        cos_phi = np.clip(cos_phi, -1, 1)     
         Ta = np.sqrt(1 + 2*Z_hat*cos_phi + Z_hat**2)
         
         return float(Ta)
@@ -1042,11 +1053,10 @@ class QZSApp(QMainWindow):
                 f'F = {f_cur:.2f} N', color='red',
                 fontsize=6.5, va='center', fontweight='bold', zorder=5)
 
-        # 获取当前位移下的各分力值
-        t1_cur = float(np.interp(dy, self.y_dim, self.term1_arr))  # 上弹簧（两侧之和）
-        t2_cur = float(np.interp(dy, self.y_dim, self.term2_arr))  # 中弹簧（两侧之和）
-        t3_cur = float(np.interp(dy, self.y_dim, self.term3_arr))  # 下弹簧（两侧之和）
-        t4_cur = float(np.interp(dy, self.y_dim, self.term4_arr))  # 底部弹簧
+        t1_cur = float(np.interp(dy, self.y_dim, self.term1_arr)) 
+        t2_cur = float(np.interp(dy, self.y_dim, self.term2_arr))  
+        t3_cur = float(np.interp(dy, self.y_dim, self.term3_arr))  
+        t4_cur = float(np.interp(dy, self.y_dim, self.term4_arr)) 
 
         t1_one_side = t1_cur / 2
         t2_one_side = t2_cur / 2
@@ -1223,20 +1233,15 @@ class QZSApp(QMainWindow):
             t_in = self._sig_t
             N = len(v_in)
 
-            # 更新传递率曲线
             self._plot_ax3()
 
-            # 与MATLAB完全一致的PSD计算参数
-            # window_size = min(length(v_in), 1*fs)
             window_size = min(N, int(fs))
             nfft = 2 ** int(np.ceil(np.log2(window_size)))
             overlap = window_size // 2
-            
-            # MATLAB: window = hann(window_size); window = window ./ sqrt(mean(window.^2));
+
             window = np.hanning(window_size)
             window = window / np.sqrt(np.mean(window**2))
-            
-            # MATLAB的compute_psd函数实现
+
             def compute_psd(signal, window_size, overlap, nfft, fs, window):
                 signal = signal.flatten()
                 step = window_size - overlap
@@ -1251,15 +1256,12 @@ class QZSApp(QMainWindow):
                     psd_sum += psd_frame
                 
                 psd = psd_sum / n_frames
-                # 单边谱修正 (MATLAB的2倍修正)
                 psd[1:-1] = 2 * psd[1:-1]
                 return psd
             
-            # 计算输入信号的PSD
             v_in_psd = compute_psd(v_in, window_size, overlap, nfft, fs, window)
             freq = np.arange(nfft // 2) * fs / nfft
             
-            # 计算传递率 (每个频率点)
             freq_valid = freq[freq > 0]
             Ta = np.zeros_like(freq)
             for i, f_val in enumerate(freq):
@@ -1270,10 +1272,7 @@ class QZSApp(QMainWindow):
                 else:
                     Ta[i] = 1.0
             
-            # 输出信号的PSD = 输入PSD * 传递率^2
             v_out_psd = v_in_psd * (Ta ** 2)
-            
-            # 频域计算输出信号 (与MATLAB一致: V_out_fft = V_in_fft * H)
             freq_full = np.fft.rfftfreq(N, d=1/fs)
             Ta_full = np.zeros(len(freq_full))
             for i, f_val in enumerate(freq_full):
@@ -1289,7 +1288,6 @@ class QZSApp(QMainWindow):
             v_out = np.fft.irfft(V_out_fft, n=N)
             self.v_out_data = v_out
 
-            # 绘制时域图
             T_SHOW = min(2.0, t_in[-1])
             idx = t_in <= T_SHOW
             ax4 = self.ax4
@@ -1306,22 +1304,18 @@ class QZSApp(QMainWindow):
             ax4.legend(loc='upper right', fontsize=self.LEGEND_FS)
             ax4.tick_params(labelsize=self.TICK_FS)
 
-            # 绘制PSD图 - 使用sqrt(PSD)即幅值谱密度，与MATLAB一致
             ax5 = self.ax5
             ax5.cla()
             ax5.grid(True, which='both', ls='--', alpha=0.45)
             
             eps = 1e-30
-            # 只显示正频率
             pos_idx = freq > 0
             freq_pos = freq[pos_idx]
             asd_in = np.sqrt(np.maximum(v_in_psd[pos_idx], eps))
             asd_out = np.sqrt(np.maximum(v_out_psd[pos_idx], eps))
-            
-            # 绘制输入信号PSD (sqrt)
+
             ax5.loglog(freq_pos, asd_in, 
                     '--', color=[0.5, 0.5, 0.5], linewidth=2.0, label='Input Signal')
-            # 绘制输出信号PSD (sqrt)
             ax5.loglog(freq_pos, asd_out, 
                     '-', color=[0, 0.447, 0.741], linewidth=2.0, label='Isolated Output')
 
@@ -1332,8 +1326,7 @@ class QZSApp(QMainWindow):
             ax5.set_xlim(max(freq_pos[0], 0.5), min(fs/2, 500))
             ax5.legend(loc='upper left', fontsize=self.LEGEND_FS)
             ax5.tick_params(labelsize=self.TICK_FS, which='both')
-            
-            # 可选：在log区域显示信息
+
             self.log_area.append(f'PSD computed: window_size={window_size}, nfft={nfft}, freq_range={freq_pos[0]:.2f}-{freq_pos[-1]:.2f} Hz')
 
         except Exception as e:
