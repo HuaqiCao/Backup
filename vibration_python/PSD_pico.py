@@ -47,7 +47,7 @@ def main():
             continue
         filename = os.path.basename(path)
         color = colors[idx % len(colors)]
-        ax.plot(freqs, psds, label=filename, color=color, linewidth=0.8, rasterized=True)
+        ax.plot(freqs, psds, label=filename, color=color, linewidth=0.8, rasterized=True, alpha=0.6)
 
     ax.set_xscale('log')
     ax.set_xlim(0.001, 2.5)
