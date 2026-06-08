@@ -1153,8 +1153,8 @@ class QZSApp(QMainWindow):
 
     def _process_vibration_signals(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, 'Select Vibration Input CSV',
-            os.path.expanduser('~'), 'CSV (*.csv)')
+            self, 'Select Vibration Input File',
+            os.path.expanduser('~'), 'Text Files (*.txt *.csv)')
         if not path:
             self.log_area.append('Cancelled.')
             return
@@ -1193,11 +1193,13 @@ class QZSApp(QMainWindow):
     
         try:
             def load_csv(p):
-                df = pd.read_csv(p, skiprows=4, header=None,
-                                 encoding='utf-8-sig', engine='python',
-                                 on_bad_lines='skip')
+                df = pd.read_csv(p, skiprows=2, header=None, delimiter='\t',
+                                encoding='utf-8-sig', engine='python',
+                                on_bad_lines='skip')
                 t = df.iloc[:, 0].to_numpy(dtype=float)
                 v = df.iloc[:, 1].to_numpy(dtype=float)
+                #convert unit
+                v = v / 1000.0  
                 v = v - v.mean()
                 return t, v, 1.0 / (t[1] - t[0])
 
@@ -1231,7 +1233,6 @@ class QZSApp(QMainWindow):
             self.log_area.append(f'Error: {e}\n{traceback.format_exc()}')
 
     def _update_psd_plots(self):
-        """更新PSD图 - 与MATLAB compute_psd函数完全一致"""
         if self._sig_v_in is None:
             return
         try:
@@ -1330,7 +1331,7 @@ class QZSApp(QMainWindow):
                         fontweight='bold', pad=10)
             ax5.set_xlabel('Frequency (Hz)', fontsize=self.LABEL_FS)
             ax5.set_ylabel(r'PSD $[V/\sqrt{Hz}]$', fontsize=self.LABEL_FS, labelpad=0)
-            ax5.set_xlim(max(freq_pos[0], 0.5), min(fs/2, 500))
+            ax5.set_xlim(max(freq_pos[0], 0.05), min(fs/2, 500))
             ax5.legend(loc='upper left', fontsize=self.LEGEND_FS)
             ax5.tick_params(labelsize=self.TICK_FS, which='both')
 
