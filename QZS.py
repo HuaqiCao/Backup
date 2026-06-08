@@ -611,19 +611,26 @@ class QZSApp(QMainWindow):
         def k_spring(d_w, D_c, n_t):
             n_eff = max(1, n_t - 2)
             return (G * d_w**4) / (8.0 * D_c**3 * n_eff)
+        
+        #理论计算
+        #k_up = k_spring(self.d_upper,  self.D_upper,  self.n_upper)
+        #k_mid = k_spring(self.d_mid,    self.D_mid,    self.n_mid)
+        #k_lo = k_spring(self.d_lower,  self.D_lower,  self.n_lower)
+        #k_bot = k_spring(self.d_bottom, self.D_bottom, self.n_bottom)
 
-        k_up = k_spring(self.d_upper,  self.D_upper,  self.n_upper)
-        k_mid = k_spring(self.d_mid,    self.D_mid,    self.n_mid)
-        k_lo = k_spring(self.d_lower,  self.D_lower,  self.n_lower)
-        k_bot = k_spring(self.d_bottom, self.D_bottom, self.n_bottom)
-
+        #实际测量
+        k_up = 0.490
+        k_mid = 0.251
+        k_lo = 0.490
+        k_bot = 0.460
+        
         # f = (-2 * (119.2 - np.sqrt((d_vert + y_arr)**2 + a**2)) * (d_vert + y_arr) * k_up / np.sqrt((d_vert + y_arr)**2 + a**2) +
         # 2 * (119.2 - np.sqrt((-y_arr)**2 + d_vert**2)) * (-y_arr) * k_mid / np.sqrt((-y_arr)**2 + d_vert**2) +
         # 2 * (119.2 - np.sqrt((d_vert - y_arr)**2 + a**2)) * (d_vert - y_arr) * k_lo / np.sqrt((d_vert - y_arr)**2 + a**2) +
         # (153.1 - 67 + y_arr) * k_bot)
 
         L = 119.2; #mm upper/mid/lower spring free Length 
-        L2 = 153.1; #mm bottom spring free length
+        L2 = 145.1; #mm bottom spring free length
         
         #Actual load mass
         M = self.M_actual_edit.value()
