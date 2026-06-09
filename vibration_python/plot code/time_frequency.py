@@ -38,7 +38,7 @@ def load_vibration_data(filepath):
     return t, v, fs, unit
 
 
-def compute_psd(signal, fs, nfft=100000, overlap_ratio=0.5):
+def compute_psd(signal, fs, nfft=131072, overlap_ratio=0.5):
     N = len(signal)
     nfft = min(nfft, N)
     nfft = nfft if nfft % 2 == 0 else nfft - 1

@@ -1243,8 +1243,8 @@ class QZSApp(QMainWindow):
 
             self._plot_ax3()
 
-            window_size = min(N, int(fs))
-            nfft = 2 ** int(np.ceil(np.log2(window_size)))
+            nfft = 131072
+            window_size = min(N, nfft)
             overlap = window_size // 2
 
             window = np.hanning(window_size)
@@ -1332,7 +1332,7 @@ class QZSApp(QMainWindow):
             ax5.set_xlabel('Frequency (Hz)', fontsize=self.LABEL_FS)
             ax5.set_ylabel(r'PSD $[V/\sqrt{Hz}]$', fontsize=self.LABEL_FS, labelpad=0)
             ax5.set_xlim(max(freq_pos[0], 0.05), min(fs/2, 500))
-            ax5.legend(loc='upper left', fontsize=self.LEGEND_FS)
+            ax5.legend(loc='lower left', fontsize=self.LEGEND_FS)
             ax5.tick_params(labelsize=self.TICK_FS, which='both')
 
             self.log_area.append(f'PSD computed: window_size={window_size}, nfft={nfft}, freq_range={freq_pos[0]:.2f}-{freq_pos[-1]:.2f} Hz')
