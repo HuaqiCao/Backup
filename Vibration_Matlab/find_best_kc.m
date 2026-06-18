@@ -2,18 +2,19 @@
 % Computes spring parameters, damping coefficient, and isolation performance
 
 % === BASE PARAMETERS ===
-M = 12.6;                % Load mass (kg)
+M = 90;                % Load mass (kg)
 g = 9.81;                % Gravitational acceleration (m/s^2)
 
 % Material Properties (304)
 G = 77.5e9;              % Shear modulus (Pa)
 rho = 7955;              % Density (kg/m^3)
 sigma_b = 630e6;         % Tensile yield strength (Pa)
+eta_loss_factor = 0.001;
 
 % Target Natural Frequency
-f0_vertical = 1.1;                  
+f0_vertical = 1.5;                  
 k_target = M * (2 * pi * f0_vertical)^2;
-L_Tower = 0.46;          % Tower height (m)
+L_Tower = 0.50;          % Tower height (m)
 
 % Search Ranges
 d_wire_range = 1e-3:1e-3:5e-3;      % Wire diameter (1-5mm)
