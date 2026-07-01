@@ -28,8 +28,8 @@ ratio2= 0.5; %中
 
 %% load mass
 M = 2;              % K2&kg
-M1 = 1;             % 上&下
-M2 = 1;             % 中
+M1 = 0.7;             % 上&下
+M2 = 0.5;             % 中
 g = 9.81;
 
 %% 由 â = a / sqrt(a^2 + h1^2) 反求 h1
@@ -70,7 +70,7 @@ k2 = (M*g)/(1.229*sqrt((a_target/1000)^2+(h1_target/1000)^2)); %N/m
 
 %% 由 α 和 α₁ 计算 k2, k3
 %% N*springs
-N=4;
+N=1.5;
 % k1 = k₂ · α_target
 k1 = (k2 * alpha_target)/N;
 % k₃ = α₁_target · k₂
