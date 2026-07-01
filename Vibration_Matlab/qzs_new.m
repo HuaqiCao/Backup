@@ -131,9 +131,10 @@ for C = C_range
     K = (4*C-1)/(4*C-4)+0.615/C; %K2
     n = (G*D)/(8*(C^4)*(k2/1000)); %K2 %antual turns
     %% 检验应力
-    tau = (K*8*M*g*D)/(pi*(d^3));
+    F2_max = (k2 / 1000) * (delta3_eq + delta3_target); 
+    tau = (K * 8 * F2_max * D) / (pi * (d^3));
     if tau < tau_p
-        fprintf('K2:tau =%0.1f\n',tau);
+        %fprintf('K2:tau =%0.1f\n',tau);
     %% 用于检验K
     k2_actual = (G*D)/(8*(C^4)*n); %N/mm
     p = ratio * D;
@@ -161,9 +162,10 @@ for C1 = C1_range
     K1 = (4*C1-1)/(4*C1-4)+0.615/C1; %上&下
     n1 = (G*D1)/(8*(C1^4)*(k1/1000)); %上&下（转换为N/mm）
     %% 检验应力
-    tau1 = (K1*8*(M1)*g*D1)/(pi*(d1^3));
+    F1_max = (k1 / 1000) * max(delta_target, delta_eq); 
+    tau1 = (K1 * 8 * F1_max * D1) / (pi * (d1^3));
     if tau1 < tau_p
-    fprintf('K1:tau1 =%0.1f\n',tau1);
+        %fprintf('K1:tau1 =%0.1f\n',tau1);
     %% 用于检验K
     k1_actual = (G*D1)/(8*(C1^4)*n1); %N/mm
     p1 = ratio1 * D1;
@@ -191,9 +193,10 @@ for C2 = C2_range
     K2 = (4*C2-1)/(4*C2-4)+0.615/C2; %中
     n2 = (G*D2)/(8*(C2^4)*(k3/1000)); %中 %pluse 2
     %% 检验应力
-    tau2 = (K2*8*(M2)*g*D2)/(pi*((d2)^3));
+    F3_max = (k3 / 1000) * max(delta1_target, delta1_eq); 
+    tau2 = (K2 * 8 * F3_max * D2) / (pi * ((d2)^3));
     if tau2 < tau_p
-    fprintf('K3:tau2 =%0.1f\n',tau2);
+        %fprintf('K3:tau2 =%0.1f\n',tau2);
     %% 用于检验K
     k3_actual = (G*D2)/(8*(C2^4)*n2); %N/mm
     p2 = ratio2 * D2;
