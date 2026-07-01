@@ -90,10 +90,10 @@ L = h2_target + delta3_target; %底部弹簧的长度
 fprintf('由预压缩计算底部弹簧的原长：L=%0.1fmm，上：L1=%0.1fmm，中：L2=%0.1fmm，下：L3=%0.1fmm\n\n',L,L1,L2,L3);
 fprintf('预压缩后弹簧的长度：底部：%.1fmm, 上：%.1fmm, 中：%.1fmm, 下：%.1fmm\n\n',L-delta3_target,L1-delta_target,L2-delta1_target,L3-delta2_target);
 
-%M_limit=((delta3_target/1000)*k2)/g; %k2
-%M1_limit=((delta2_target/1000)*k1)/g; %up and down
-%M2_limit=((delta1_target/1000)*k3)/g; %middle
-%fprintf('初始时：M_limit=%.1f,M1_limit=%.1f,M2_limit=%.1f\n',M_limit,M1_limit,M2_limit);
+M_limit=((delta3_eq/1000)*k2)/g; %k2
+M1_limit=((delta_eq/1000)*k1)/g; %up and down
+M2_limit=((delta1_target/1000)*k3)/g; %middle
+fprintf('平衡时：M_limit=%.1f,M1_limit=%.1f,M2_limit=%.1f\n',M_limit,M1_limit,M2_limit);
 
 %% 平衡时的压缩量（fig.(d)）
 delta_eq = L1 - sqrt(a_target^2 + d_target^2); %mm %上&下
