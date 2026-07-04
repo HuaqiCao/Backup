@@ -12,11 +12,11 @@ fprintf('  δ̂_target = %.3f, â_target = %.3f, α_target = %.3f, α₁_target 
     delta_hat_target, a_hat_target, alpha_target, alpha1_target, gamma_target);
 
 %% 侧边弹簧的水平投影距离（可调）
-a_target = 20;     %mm
+a_target = 15;     %mm
 
 %% 弹簧材料参数（可调）
-tau_p =529; %平均许用切应力Mpa
-G=80000; %Mpa
+tau_p =550; %平均许用切应力Mpa
+G=68500; %Mpa
 
 C_range = 5:0.1:12; %旋绕比 K2
 C1_range = 5:0.1:12; %旋绕比 上&下
@@ -28,8 +28,6 @@ ratio2= 0.5; %中
 
 %% load mass
 M = 2;              % K2 &kg
-M1 = 0.68;             % 上&下
-M2 = 0.36;             % 中
 g = 9.81;
 
 %% 由 â = a / sqrt(a^2 + h1^2) 反求 h1
@@ -115,11 +113,11 @@ y_hat = linspace(-10, 10, 1000);
 %% 存储弹簧参数到Excel
 %path = '/Users/caohuaqi/Desktop';
 path = 'C:\Users\Administrator\Desktop';
-excel_filename = fullfile(path, 'Spring_Parameters_0.5ratio_2kg_45mm_304.xlsx');
+excel_filename = fullfile(path, 'Spring_Parameters_0.5ratio_2kg_20mm_304.xlsx');
 
 %%如果K2变成拉簧
 %%162mm为MXC上方的距离
-L_k2 = 162-delta3_eq-30; %此时K2的原长+弹簧的伸长量 %30mm security length
+L_k2 = 162-delta3_eq-29.1; %此时K2的原长+弹簧的伸长量 %30mm security length
 fprintf('此时K2弹簧的原长+弹簧的原长（拉簧）：L_k2=%0.1fmm\n',L_k2);
 
 % 存储K2弹簧参数——拉簧
