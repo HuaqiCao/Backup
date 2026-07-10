@@ -1,6 +1,6 @@
 clear; clc;
 
-% 1. 定义已知参数（根据你的实际问题修改）
+% 1. 定义已知参数
 k1=0.3785;
 k2=0.2013;
 k3=0.6026;
@@ -11,14 +11,13 @@ l2=39.7;
 % x(1) 和 x(2) 是两个未知数
 fun = @(x) my_equations(x, k1,k2,k3,l1,l2);
 
-% 3. 设置初始猜测值（非常重要！）
+% 3. 设置初始猜测值
 x0 = [15.2, 20];
 
-% 4. 设置求解选项
-options = optimoptions('fsolve', ...
-    'Display', 'iter', ...          % 显示迭代过程
-    'MaxIterations', 1000, ...      % 最大迭代次数
-    'FunctionTolerance', 1e-10);    % 精度
+% 4. 设置求解选项（只改这里）
+options = optimset('Display', 'iter', ...
+    'MaxIter', 1000, ...
+    'TolFun', 1e-10);
 
 % 5. 调用 fsolve 求解
 [x, fval, exitflag] = fsolve(fun, x0, options);
@@ -27,13 +26,8 @@ options = optimoptions('fsolve', ...
 fprintf('========== 求解结果 ==========\n');
 fprintf('x1 = %.6f\n', x(1));
 fprintf('x2 = %.6f\n', x(2));
-%fprintf('方程残差 = %e\n', norm(fval));
-%fprintf('退出标志 = %d (1表示收敛)\n', exitflag);
-%end
-%end
-%end
-%end
-%end
+fprintf('方程残差 = %e\n', norm(fval));
+fprintf('退出标志 = %d (1表示收敛)\n', exitflag);
 
 function F=my_equations(x,k1,k2,k3,l1,l2)
 x1=x(1);

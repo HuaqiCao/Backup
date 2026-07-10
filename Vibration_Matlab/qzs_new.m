@@ -12,7 +12,7 @@ fprintf('  δ̂_target = %.3f, â_target = %.3f, α_target = %.3f, α₁_target 
     delta_hat_target, a_hat_target, alpha_target, alpha1_target, gamma_target);
 
 %% 侧边弹簧的水平投影距离（可调）
-a_target = 20;     %mm
+a_target = 30;     %mm
 
 %% 弹簧材料参数（可调）
 tau_p =550; %平均许用切应力Mpa
