@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 
 # ======================== 用户配置区 ========================
-DATA_ROOT = "./HQ_Noise_Test"
+DATA_ROOT = "C:\\Users\\Administrator\\Desktop\\HQ_Noise_Test"
 SAMPLING_RATE = 5000
 BIN_DTYPE = np.uint32
 NFFT = 131072  # ✅ 提高分辨率：增加FFT点数
