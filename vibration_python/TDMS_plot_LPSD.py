@@ -166,6 +166,96 @@ def plot_lpsd_g(ax, data_v_measured, fs, label, nfft=2**18):
     }
 
 
+def plot_lpsd_only(all_ch, folder, nfft=2**18):
+    """
+    【新增】单独绘制LPSD图像，不包含时域图
+    
+    参数:
+        all_ch: 通道数据列表
+        folder: 保存路径
+        nfft: FFT点数
+    """
+    fig, ax = plt.subplots(1, 1, figsize=(12, 7))  # 单独一个画布，横向更宽一些
+    
+    colors = plt.cm.tab10(np.linspace(0, 1, len(all_ch)))
+    plot_params = []
+    
+    for i, ch in enumerate(all_ch):
+        c = colors[i]
+        st = ch['stats']
+        legend_name = ch['legend']
+        
+        # 构建图例标签（包含统计信息）
+        label = (f"{legend_name}\n"
+                 f"  RMS={st['rms_g']:.6f}g, PK={st['pk_g']:.6f}g")
+        
+        # 使用已有的plot_lpsd_g函数，但传入当前ax
+        nperseg = min(nfft, len(ch['data_v_measured']) // 4)
+        nperseg = max(nperseg, 256)
+        
+        if len(ch['data_v_measured']) > 4 * nfft:
+            nperseg = nfft
+        
+        noverlap = nperseg * 3 // 4
+        
+        f, Pxx = signal.welch(ch['data_v_measured'], ch['fs'], nperseg=nperseg, 
+                              noverlap=noverlap, window='hann', scaling='density')
+        
+        # V/√Hz → g/√Hz
+        v_to_g = 1.0 / SENS_TOTAL_V_G
+        lpsd_v = np.sqrt(Pxx)
+        lpsd_g = lpsd_v * v_to_g
+        
+        mask = (f > 0.1) & (f <= ch['fs']/2)
+        ax.loglog(f[mask], lpsd_g[mask], label=label, alpha=0.8, 
+                  linewidth=1.2, color=c)
+        
+        plot_params.append({
+            'legend': legend_name,
+            'file': ch['fname'],
+            'nfft_requested': nfft,
+            'nfft_actual': nperseg,
+            'df': ch['fs'] / nperseg,
+            'duration': len(ch['data_v_measured']) / ch['fs']
+        })
+    
+    # 设置图表属性
+    ax.set_xlabel('Frequency [Hz]', fontsize=11)
+    ax.set_ylabel('LPSD [g/√Hz]', fontsize=11)
+    ax.set_title(f'Linear Power Spectral Density\n'
+                 f'Sensor={SENS_MV_G}mV/g, Gain={GAIN}, Fs={FS}Hz', 
+                 fontsize=12)
+    ax.legend(loc='upper right', fontsize=7, ncol=1)
+    ax.grid(True, alpha=0.3, which='both')
+    ax.set_xlim([0.5, FS/2])
+    
+    # 可以添加一些参考线（可选）
+    # ax.axhline(y=1e-6, color='r', linestyle='--', alpha=0.3, label='1μg/√Hz ref')
+    
+    plt.tight_layout()
+    
+    # 保存
+    save_path = os.path.join(folder, f"LPSD_Only_{SENS_MV_G}mVg_gain{GAIN}_gUnits.png")
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    print(f"\n【单独LPSD图已保存】: {save_path}")
+    
+    # 打印参数汇总
+    print("\n" + "=" * 60)
+    print("【单独LPSD图 - 频域分析参数汇总】")
+    print("=" * 60)
+    for p in plot_params:
+        print(f"\n文件: {p['file']}")
+        print(f"  图例名: {p['legend']}")
+        print(f"  数据时长: {p['duration']:.3f} s")
+        print(f"  请求nfft: {p['nfft_requested']:,}")
+        print(f"  实际nfft: {p['nfft_actual']:,}")
+        print(f"  频率分辨率: {p['df']:.4f} Hz")
+        print(f"  LPSD单位: g/√Hz")
+    
+    plt.show()
+    return fig, ax
+
+
 def main():
     folder = select_folder()
     if not folder:
@@ -205,7 +295,7 @@ def main():
         print("\n没有有效的通道数据可绘制")
         return
     
-    # ========== 绘图 ==========
+    # ========== 绘制组合图（时域+频域） ==========
     fig, axes = plt.subplots(2, 1, figsize=(14, 10))
     colors = plt.cm.tab10(np.linspace(0, 1, len(all_ch)))
     
@@ -252,14 +342,19 @@ def main():
     
     plt.tight_layout()
     
-    # 保存
+    # 保存组合图
     save_path = os.path.join(folder, f"LPSD_{SENS_MV_G}mVg_gain{GAIN}_gUnits_sensorV.png")
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    print(f"\n已保存: {save_path}")
+    print(f"\n已保存组合图: {save_path}")
     
-    # ========== 参数汇总 ==========
+    # ========== 【新增】绘制单独的LPSD图 ==========
     print("\n" + "=" * 60)
-    print("【频域分析参数汇总】")
+    print("正在生成单独的LPSD图...")
+    plot_lpsd_only(all_ch, folder)
+    
+    # ========== 参数汇总（组合图） ==========
+    print("\n" + "=" * 60)
+    print("【组合图 - 频域分析参数汇总】")
     print(f"注意: 时域显示为传感器原始电压（去掉增益{GAIN}后）")
     print("=" * 60)
     for p in plot_params:
