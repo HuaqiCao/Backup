@@ -1,0 +1,17 @@
+GAS CONSTANT-WIDTH VARIABLE-THICKNESS RESULT
+============================================
+
+Stress reduction relative to reference: -2.0649%
+Frequency change relative to reference: -15.4160%
+Payload change relative to reference: -9.9945%
+
+Constant width: 30.118402 mm
+Optimized minimum thickness: 0.337962 mm
+Optimized maximum thickness: 0.791448 mm
+Strict feasible: False
+Maximum normalized constraint violation: 8.00803293e-02
+
+IMPORTANT:
+This result demonstrates optimality only inside the declared 5-DOF constant-width / Bernstein-thickness design space.
+It is not a proof of universal mathematical global optimality.
+Final candidates require 3-D geometric-nonlinear FEA.

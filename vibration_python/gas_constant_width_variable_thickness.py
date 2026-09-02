@@ -196,6 +196,68 @@ class ModelConfig:
     de_popsize: int = 10
     de_maxiter: int = 20
 
+    # --------------------------------------------------------------
+    # V2: feasibility-first constant-width optimization
+    # --------------------------------------------------------------
+    # The original program fixed the constant width at the exact-EI
+    # mapping value.  V2 treats the (still spatially constant) width
+    # itself as an optimization variable.  This enlarges the legitimate
+    # constant-width / variable-thickness design space.
+    constant_width_min: float = 22.0e-3
+    constant_width_max: float = 34.0e-3
+
+    # Stage 1: search primarily for a strictly feasible design.
+    feasibility_popsize: int = 8
+    feasibility_maxiter: int = 20
+
+    # Stage 2: stress optimization (or further feasibility refinement
+    # if the strict safety target cannot be reached).
+    performance_popsize: int = 10
+    performance_maxiter: int = 30
+
+    # A slightly cheaper model is used only inside the evolutionary
+    # search.  Every final candidate is re-checked with the original
+    # accurate, bidirectional continuation settings.
+    optimization_fast_curve_points: int = 17
+    optimization_bvp_tol: float = 2.0e-6
+    optimization_bc_tol: float = 2.0e-7
+    optimization_initial_mesh_points: int = 101
+    optimization_max_nodes: int = 8000
+
+    # A design is considered close enough to the strict feasible set
+    # for Stage 2 to switch to stress minimization.
+    feasibility_switch_tolerance: float = 5.0e-3
+
+    # --------------------------------------------------------------
+    # V3: payload-first / stress-second search
+    # --------------------------------------------------------------
+    # Stage A first restores the NON-STRESS feasibility conditions,
+    # especially payload.  This deliberately avoids the V2 behavior
+    # where payload and stress violations were averaged into a compromise.
+    payload_stage_popsize: int = 10
+    payload_stage_maxiter: int = 28
+
+    # Stage B searches the low-stress frontier while payload, frequency,
+    # low-frequency window and stability are treated as hard constraints.
+    stress_stage_popsize: int = 12
+    stress_stage_maxiter: int = 42
+
+    # Stage C locally refines the best frontier candidate with a stronger
+    # hard-constraint penalty.
+    frontier_stage_popsize: int = 8
+    frontier_stage_maxiter: int = 20
+
+    # Numerical tolerances for deciding whether a non-stress constraint
+    # is practically satisfied during the fast search.
+    nonstress_feasible_tolerance: float = 2.0e-3
+
+    # Penalty weights.  Payload is intentionally much more expensive
+    # than stress during Stage A/B, because the design requirement is:
+    # keep rated payload first, then reduce stress as far as possible.
+    payload_hard_penalty: float = 8.0e7
+    nonstress_hard_penalty: float = 5.0e7
+    stress_soft_penalty: float = 2.0e5
+
     # Four logarithmic Bernstein ratios
     min_control_ratio: float = 0.35
     max_control_ratio: float = 3.00
@@ -205,7 +267,7 @@ class ModelConfig:
     # --------------------------------------------------------------
     # Output
     # --------------------------------------------------------------
-    output_directory: str = "gas_variable_thickness_results"
+    output_directory: str = "gas_variable_thickness_results_v3"
 
     @property
     def theta0(self):
@@ -295,7 +357,7 @@ class SectionProfile:
         s = np.linspace(0.0, cfg.L, n)
 
         return float(
-            np.trapz(
+            np.trapezoid(
                 self.area(s, cfg),
                 s
             )
@@ -613,12 +675,12 @@ def build_exact_equivalent(
 
     w = reference.width(s, cfg)
 
-    int_w = np.trapz(
+    int_w = np.trapezoid(
         w,
         s
     )
 
-    int_w13 = np.trapz(
+    int_w13 = np.trapezoid(
         w**(1.0 / 3.0),
         s
     )
@@ -1637,14 +1699,34 @@ def optimize_variable_thickness(
     reference_metrics: Metrics,
     cfg: ModelConfig
 ):
+    """
+    V3 optimizer: payload first, stress second.
 
-    target_volume = (
-        reference.volume(cfg)
-    )
+    Why V3?
+    -------
+    V2 minimized a combined normalized violation measure.  The result
+    therefore settled near a compromise where BOTH payload and stress
+    were violated by roughly similar percentages.
 
-    b0 = (
-        exact_profile.constant_width
-    )
+    V3 changes the logic:
+
+        Stage A:
+            Find a constant-width / variable-thickness design satisfying
+            all NON-STRESS requirements, especially rated payload.
+
+        Stage B:
+            With payload, frequency, working-window and stability treated
+            as hard constraints, minimize working-window stress.
+
+        Stage C:
+            Refine the best feasible-frontier candidate using an even
+            stronger hard-constraint penalty.
+
+    Equal material volume is still enforced analytically.  Constant width
+    remains spatially constant, but its value is optimized.
+    """
+
+    target_volume = reference.volume(cfg)
 
     reference_stress = max(
         reference_metrics.working_window_stress,
@@ -1661,23 +1743,187 @@ def optimize_variable_thickness(
         * reference_metrics.rated_frequency
     )
 
-    zmin = math.log(
-        cfg.min_control_ratio
+    fmax = (
+        reference_metrics.rated_frequency
+        * (1.0 + cfg.max_frequency_increase)
     )
 
-    zmax = math.log(
-        cfg.max_control_ratio
+    mmin = (
+        reference_metrics.rated_payload_kg
+        * (1.0 - cfg.max_payload_loss)
     )
+
+    minimum_window = (
+        reference_window
+        * (1.0 - cfg.max_window_loss)
+    )
+
+    fast_cfg = replace(
+        cfg,
+        fast_curve_points=cfg.optimization_fast_curve_points,
+        bvp_tol=cfg.optimization_bvp_tol,
+        bc_tol=cfg.optimization_bc_tol,
+        initial_mesh_points=cfg.optimization_initial_mesh_points,
+        max_nodes=cfg.optimization_max_nodes,
+    )
+
+    zmin = math.log(cfg.min_control_ratio)
+    zmax = math.log(cfg.max_control_ratio)
 
     bounds = [
+        (
+            math.log(cfg.constant_width_min),
+            math.log(cfg.constant_width_max)
+        )
+    ] + [
         (zmin, zmax)
     ] * 4
 
-    cache = {}
+    z0 = fit_initial_seed(
+        exact_profile,
+        cfg
+    )
 
+    x0 = np.r_[
+        math.log(exact_profile.constant_width),
+        np.clip(z0, zmin, zmax)
+    ]
+
+    print()
+    print(
+        "V3 initial optimization vector "
+        "[log(width_m), z1, z2, z3, z4]:"
+    )
+    print(x0)
+
+    print()
+    print("Strict design limits:")
+    print(
+        f"    constant width = "
+        f"{cfg.constant_width_min*1e3:.3f}"
+        f" ... "
+        f"{cfg.constant_width_max*1e3:.3f} mm"
+    )
+    print(
+        f"    payload >= {mmin:.6f} kg"
+    )
+    print(
+        f"    frequency <= {fmax:.6f} Hz"
+    )
+    print(
+        f"    low-frequency window >= "
+        f"{minimum_window:.6f} kg"
+    )
+    print(
+        f"    working stress <= "
+        f"{cfg.allowable_stress/1e6:.3f} MPa"
+    )
+    print(
+        "    stable fraction >= 0.950"
+    )
+
+    cache = {}
     evaluation_counter = 0
 
-    def objective(z):
+    def profile_from_x(x):
+
+        x = np.asarray(
+            x,
+            dtype=float
+        )
+
+        b = math.exp(
+            float(x[0])
+        )
+
+        controls = controls_from_z(
+            x[1:]
+        )
+
+        return ConstantWidthVariableThickness(
+            constant_width=b,
+            controls=controls,
+            target_volume=target_volume
+        )
+
+    def geometry_violations(profile):
+
+        ex = profile.extrema(
+            fast_cfg,
+            n=1001
+        )
+
+        vals = {
+            "h_min": max(
+                0.0,
+                (
+                    cfg.h_min
+                    - ex["h_min"]
+                ) / cfg.h_min
+            ),
+
+            "h_max": max(
+                0.0,
+                (
+                    ex["h_max"]
+                    - cfg.h_max
+                ) / cfg.h_max
+            ),
+
+            "slope": max(
+                0.0,
+                (
+                    ex["max_abs_dh_ds"]
+                    - cfg.max_dh_ds
+                ) / cfg.max_dh_ds
+            ),
+        }
+
+        return vals, ex
+
+    def performance_violations(metrics):
+
+        return {
+            "frequency": max(
+                0.0,
+                (
+                    metrics.rated_frequency
+                    - fmax
+                ) / fmax
+            ),
+
+            "payload": max(
+                0.0,
+                (
+                    mmin
+                    - metrics.rated_payload_kg
+                ) / mmin
+            ),
+
+            "window": max(
+                0.0,
+                (
+                    minimum_window
+                    - metrics.low_frequency_payload_window
+                ) / minimum_window
+            ),
+
+            "stress": max(
+                0.0,
+                (
+                    metrics.working_window_stress
+                    - cfg.allowable_stress
+                ) / cfg.allowable_stress
+            ),
+
+            "stability": max(
+                0.0,
+                0.95
+                - metrics.stable_fraction
+            ),
+        }
+
+    def evaluate_x(x):
 
         nonlocal evaluation_counter
 
@@ -1685,93 +1931,56 @@ def optimize_variable_thickness(
 
         key = tuple(
             np.round(
-                np.asarray(z),
-                6
+                np.asarray(x),
+                8
             )
         )
 
         if key in cache:
             return cache[key]
 
-        controls = controls_from_z(
-            z
+        profile = profile_from_x(
+            x
         )
 
-        profile = (
-            ConstantWidthVariableThickness(
-                constant_width=b0,
-                controls=controls,
-                target_volume=target_volume
-            )
+        gviol, ex = geometry_violations(
+            profile
         )
 
-        # ----------------------------------------------------------
-        # Manufacturing checks before expensive BVP solve
-        # ----------------------------------------------------------
-        ex = profile.extrema(
-            cfg,
-            n=1001
-        )
+        if max(gviol.values()) > 0.0:
 
-        violation = 0.0
+            result = {
+                "valid": False,
+                "profile": profile,
+                "metrics": None,
+                "extrema": ex,
+                "gviol": gviol,
+                "pviol": None,
+                "nonstress_max": max(gviol.values()),
+                "nonstress_sq": sum(
+                    v * v
+                    for v in gviol.values()
+                ),
+                "stress_violation": np.inf,
+            }
 
-        if ex["h_min"] < cfg.h_min:
+            cache[key] = result
+            return result
 
-            violation += (
-                cfg.h_min
-                - ex["h_min"]
-            ) / cfg.h_min
-
-        if ex["h_max"] > cfg.h_max:
-
-            violation += (
-                ex["h_max"]
-                - cfg.h_max
-            ) / cfg.h_max
-
-        if (
-            ex["max_abs_dh_ds"]
-            > cfg.max_dh_ds
-        ):
-
-            violation += (
-                ex["max_abs_dh_ds"]
-                - cfg.max_dh_ds
-            ) / cfg.max_dh_ds
-
-        if violation > 0.0:
-
-            J = (
-                1000.0
-                + cfg.penalty
-                * violation**2
-            )
-
-            cache[key] = J
-
-            return J
-
-        # ----------------------------------------------------------
-        # Fast BVP curve
-        # ----------------------------------------------------------
         curve = trace_curve(
             profile,
-            cfg,
+            fast_cfg,
             accurate=False,
             bidirectional=False
         )
 
         metrics = calculate_metrics(
             curve,
-            cfg,
-
+            fast_cfg,
             stability_sign=(
                 reference_metrics.stability_sign
             ),
-
-            frequency_limit=(
-                frequency_limit
-            )
+            frequency_limit=frequency_limit
         )
 
         if (
@@ -1781,189 +1990,336 @@ def optimize_variable_thickness(
             )
         ):
 
-            cache[key] = 1.0e6
-            return 1.0e6
+            result = {
+                "valid": False,
+                "profile": profile,
+                "metrics": metrics,
+                "extrema": ex,
+                "gviol": gviol,
+                "pviol": None,
+                "nonstress_max": 10.0,
+                "nonstress_sq": 100.0,
+                "stress_violation": np.inf,
+            }
 
-        # ==========================================================
-        # MAIN OBJECTIVE
-        #
-        # Minimize worst stress over useful low-frequency region.
-        # ==========================================================
-        J = (
-            metrics.working_window_stress
-            / reference_stress
+            cache[key] = result
+            return result
+
+        pviol = performance_violations(
+            metrics
         )
 
-        # ----------------------------------------------------------
-        # Constraint 1:
-        # frequency cannot become significantly worse
-        # ----------------------------------------------------------
-        fmax = (
-            reference_metrics.rated_frequency
-            * (
-                1.0
-                + cfg.max_frequency_increase
-            )
-        )
+        # Non-stress constraints are the hard operating requirements.
+        nonstress_values = [
+            gviol["h_min"],
+            gviol["h_max"],
+            gviol["slope"],
+            pviol["frequency"],
+            pviol["payload"],
+            pviol["window"],
+            pviol["stability"],
+        ]
 
-        if metrics.rated_frequency > fmax:
+        result = {
+            "valid": True,
+            "profile": profile,
+            "metrics": metrics,
+            "extrema": ex,
+            "gviol": gviol,
+            "pviol": pviol,
+            "nonstress_max": max(nonstress_values),
+            "nonstress_sq": sum(
+                v * v
+                for v in nonstress_values
+            ),
+            "stress_violation": pviol["stress"],
+        }
 
-            violation_f = (
-                metrics.rated_frequency
-                - fmax
-            ) / fmax
-
-            J += (
-                cfg.penalty
-                * violation_f**2
-            )
-
-        # ----------------------------------------------------------
-        # Constraint 2:
-        # payload cannot be sacrificed
-        # ----------------------------------------------------------
-        mmin = (
-            reference_metrics.rated_payload_kg
-            * (
-                1.0
-                - cfg.max_payload_loss
-            )
-        )
-
-        if metrics.rated_payload_kg < mmin:
-
-            violation_m = (
-                mmin
-                - metrics.rated_payload_kg
-            ) / mmin
-
-            J += (
-                cfg.penalty
-                * violation_m**2
-            )
-
-        # ----------------------------------------------------------
-        # Constraint 3:
-        # low-frequency payload range
-        # ----------------------------------------------------------
-        minimum_window = (
-            reference_window
-            * (
-                1.0
-                - cfg.max_window_loss
-            )
-        )
+        cache[key] = result
 
         if (
-            metrics.low_frequency_payload_window
-            < minimum_window
-        ):
-
-            violation_w = (
-                minimum_window
-                - metrics.low_frequency_payload_window
-            ) / reference_window
-
-            J += (
-                cfg.penalty
-                * violation_w**2
-            )
-
-        # ----------------------------------------------------------
-        # Constraint 4:
-        # stress safety
-        # ----------------------------------------------------------
-        if (
-            metrics.working_window_stress
-            > cfg.allowable_stress
-        ):
-
-            violation_s = (
-                metrics.working_window_stress
-                - cfg.allowable_stress
-            ) / cfg.allowable_stress
-
-            J += (
-                cfg.penalty
-                * violation_s**2
-            )
-
-        # ----------------------------------------------------------
-        # Constraint 5:
-        # stable branch fraction
-        # ----------------------------------------------------------
-        if metrics.stable_fraction < 0.95:
-
-            violation_stability = (
-                0.95
-                - metrics.stable_fraction
-            )
-
-            J += (
-                cfg.penalty
-                * violation_stability**2
-            )
-
-        J = float(J)
-
-        cache[key] = J
-
-        if (
-            evaluation_counter
-            % 25
+            evaluation_counter % 25
             == 0
         ):
 
             print(
                 f"eval={evaluation_counter:5d} | "
-                f"J={J:10.6f} | "
-                f"f={metrics.rated_frequency:8.4f} Hz | "
+                f"NSmax={result['nonstress_max']:8.5f} | "
+                f"Vs={result['stress_violation']:8.5f} | "
+                f"b={profile.constant_width*1e3:7.3f} mm | "
                 f"M={metrics.rated_payload_kg:8.3f} kg | "
-                f"sigma={metrics.working_window_stress/1e6:9.2f} MPa"
+                f"sigma="
+                f"{metrics.working_window_stress/1e6:9.2f} MPa | "
+                f"f={metrics.rated_frequency:7.4f} Hz | "
+                f"W="
+                f"{metrics.low_frequency_payload_window:7.3f} kg"
             )
 
-        return J
+        return result
 
-    # --------------------------------------------------------------
-    # Strong physically meaningful initial seed:
-    # fit Bernstein curve to exact-EI profile
-    # --------------------------------------------------------------
-    z0 = fit_initial_seed(
-        exact_profile,
-        cfg
-    )
+    def invalid_cost(q, scale=1.0):
 
-    z0 = np.clip(
-        z0,
-        zmin,
-        zmax
-    )
+        return (
+            1.0e8
+            + scale
+            * cfg.nonstress_hard_penalty
+            * q["nonstress_sq"]
+        )
+
+    # ==============================================================
+    # STAGE A: RESTORE PAYLOAD / NON-STRESS FEASIBILITY
+    # ==============================================================
 
     print()
     print(
-        "Initial optimization seed:",
-        z0
+        "Stage A/3: restore payload and all non-stress constraints..."
     )
 
-    result = differential_evolution(
+    def objective_payload(x):
 
-        objective,
+        q = evaluate_x(
+            x
+        )
+
+        if not q["valid"]:
+            return invalid_cost(
+                q,
+                scale=2.0
+            )
+
+        m = q["metrics"]
+
+        # Payload receives an additional dominant term.
+        payload_v = q["pviol"]["payload"]
+
+        return float(
+            cfg.nonstress_hard_penalty
+            * q["nonstress_sq"]
+            + cfg.payload_hard_penalty
+            * payload_v**2
+            + 2.0e5
+            * q["nonstress_max"]
+            # Stress is only a tie-breaker here.
+            + 0.10
+            * (
+                m.working_window_stress
+                / reference_stress
+            )
+        )
+
+    result_payload = differential_evolution(
+
+        objective_payload,
 
         bounds=bounds,
 
         strategy="best1bin",
 
-        popsize=cfg.de_popsize,
+        popsize=cfg.payload_stage_popsize,
 
-        maxiter=cfg.de_maxiter,
+        maxiter=cfg.payload_stage_maxiter,
 
         seed=cfg.random_seed,
 
-        tol=1.0e-3,
+        tol=3.0e-4,
 
-        mutation=(0.5, 1.0),
+        mutation=(0.45, 1.0),
 
-        recombination=0.8,
+        recombination=0.88,
+
+        polish=False,
+
+        updating="immediate",
+
+        workers=1,
+
+        x0=x0,
+
+        disp=True
+    )
+
+    q_payload = evaluate_x(
+        result_payload.x
+    )
+
+    print()
+    print(
+        "Stage-A best non-stress violation = "
+        f"{q_payload['nonstress_max']:.6e}"
+    )
+
+    if q_payload["valid"]:
+
+        mp = q_payload["metrics"]
+
+        print(
+            "Stage-A metrics: "
+            f"b={q_payload['profile'].constant_width*1e3:.6f} mm, "
+            f"M={mp.rated_payload_kg:.6f} kg, "
+            f"f={mp.rated_frequency:.6f} Hz, "
+            f"sigma={mp.working_window_stress/1e6:.3f} MPa, "
+            f"W={mp.low_frequency_payload_window:.6f} kg"
+        )
+
+    # ==============================================================
+    # STAGE B: MINIMIZE STRESS ON THE PAYLOAD-FEASIBLE FRONTIER
+    # ==============================================================
+
+    print()
+    print(
+        "Stage B/3: minimize stress with payload treated as a hard constraint..."
+    )
+
+    def objective_stress_frontier(x):
+
+        q = evaluate_x(
+            x
+        )
+
+        if not q["valid"]:
+            return invalid_cost(
+                q,
+                scale=4.0
+            )
+
+        m = q["metrics"]
+
+        payload_v = q["pviol"]["payload"]
+
+        # Hard barrier-like quadratic penalty for non-stress constraints.
+        hard = (
+            cfg.nonstress_hard_penalty
+            * q["nonstress_sq"]
+            + cfg.payload_hard_penalty
+            * payload_v**2
+            + 5.0e5
+            * q["nonstress_max"]
+        )
+
+        # Once constraints are satisfied, this dominates.
+        stress_term = (
+            m.working_window_stress
+            / reference_stress
+        )
+
+        # Very small frequency tie-breaker: frequency is NOT being chased.
+        freq_tie = (
+            0.002
+            * m.rated_frequency
+            / reference_metrics.rated_frequency
+        )
+
+        return float(
+            hard
+            + stress_term
+            + freq_tie
+        )
+
+    result_stress = differential_evolution(
+
+        objective_stress_frontier,
+
+        bounds=bounds,
+
+        strategy="best1bin",
+
+        popsize=cfg.stress_stage_popsize,
+
+        maxiter=cfg.stress_stage_maxiter,
+
+        seed=cfg.random_seed + 101,
+
+        tol=2.0e-4,
+
+        mutation=(0.40, 1.0),
+
+        recombination=0.90,
+
+        polish=False,
+
+        updating="immediate",
+
+        workers=1,
+
+        x0=result_payload.x,
+
+        disp=True
+    )
+
+    # ==============================================================
+    # STAGE C: FRONTIER REFINEMENT
+    # ==============================================================
+
+    print()
+    print(
+        "Stage C/3: refine the payload-safe low-stress frontier..."
+    )
+
+    def objective_frontier_refine(x):
+
+        q = evaluate_x(
+            x
+        )
+
+        if not q["valid"]:
+            return invalid_cost(
+                q,
+                scale=8.0
+            )
+
+        m = q["metrics"]
+
+        payload_v = q["pviol"]["payload"]
+
+        # Even stronger hard-constraint preservation.
+        hard = (
+            2.0
+            * cfg.nonstress_hard_penalty
+            * q["nonstress_sq"]
+            + 2.0
+            * cfg.payload_hard_penalty
+            * payload_v**2
+            + 1.0e6
+            * q["nonstress_max"]
+        )
+
+        # Primary performance metric after payload feasibility.
+        stress_ratio = (
+            m.working_window_stress
+            / reference_stress
+        )
+
+        # A soft extra reward for actually reaching the safety target.
+        stress_safety = (
+            cfg.stress_soft_penalty
+            * q["stress_violation"]**2
+        )
+
+        return float(
+            hard
+            + stress_ratio
+            + stress_safety
+        )
+
+    result_refine = differential_evolution(
+
+        objective_frontier_refine,
+
+        bounds=bounds,
+
+        strategy="best1bin",
+
+        popsize=cfg.frontier_stage_popsize,
+
+        maxiter=cfg.frontier_stage_maxiter,
+
+        seed=cfg.random_seed + 202,
+
+        tol=1.5e-4,
+
+        mutation=(0.35, 0.90),
+
+        recombination=0.92,
 
         polish=True,
 
@@ -1971,32 +2327,78 @@ def optimize_variable_thickness(
 
         workers=1,
 
-        x0=z0,
+        x0=result_stress.x,
 
         disp=True
     )
 
-    best_controls = controls_from_z(
+    # --------------------------------------------------------------
+    # Rank Stage A/B/C candidates lexicographically:
+    #   1) non-stress feasibility,
+    #   2) stress,
+    #   3) frequency.
+    # --------------------------------------------------------------
+    candidate_results = [
+        result_payload,
+        result_stress,
+        result_refine,
+    ]
+
+    candidate_q = [
+        evaluate_x(r.x)
+        for r in candidate_results
+    ]
+
+    def ranking_key(q):
+
+        if not q["valid"]:
+
+            return (
+                2,
+                q["nonstress_max"],
+                q["nonstress_sq"],
+                np.inf,
+                np.inf
+            )
+
+        ns_ok = (
+            q["nonstress_max"]
+            <= cfg.nonstress_feasible_tolerance
+        )
+
+        if ns_ok:
+
+            return (
+                0,
+                q["nonstress_max"],
+                q["metrics"].working_window_stress,
+                q["stress_violation"],
+                q["metrics"].rated_frequency
+            )
+
+        return (
+            1,
+            q["nonstress_max"],
+            q["nonstress_sq"],
+            q["metrics"].working_window_stress,
+            q["metrics"].rated_frequency
+        )
+
+    best_index = min(
+        range(len(candidate_q)),
+        key=lambda i: ranking_key(candidate_q[i])
+    )
+
+    result = candidate_results[
+        best_index
+    ]
+
+    best_profile = profile_from_x(
         result.x
     )
 
-    best_profile = (
-        ConstantWidthVariableThickness(
-
-            constant_width=b0,
-
-            controls=best_controls,
-
-            target_volume=target_volume
-        )
-    )
-
     # --------------------------------------------------------------
-    # IMPORTANT:
-    #
-    # Final result is NOT the fast optimization result.
-    #
-    # Recalculate with dense bidirectional continuation.
+    # FINAL ACCURATE, BIDIRECTIONAL RECALCULATION
     # --------------------------------------------------------------
     final_curve = trace_curve(
 
@@ -2019,9 +2421,97 @@ def optimize_variable_thickness(
             reference_metrics.stability_sign
         ),
 
-        frequency_limit=(
-            frequency_limit
+        frequency_limit=frequency_limit
+    )
+
+    # Final constraint diagnostics with the ACCURATE solution.
+    if final_metrics.valid:
+
+        final_pviol = performance_violations(
+            final_metrics
         )
+
+        final_ex = best_profile.extrema(
+            cfg,
+            n=2001
+        )
+
+        final_gviol = {
+            "h_min": max(
+                0.0,
+                (
+                    cfg.h_min
+                    - final_ex["h_min"]
+                ) / cfg.h_min
+            ),
+
+            "h_max": max(
+                0.0,
+                (
+                    final_ex["h_max"]
+                    - cfg.h_max
+                ) / cfg.h_max
+            ),
+
+            "slope": max(
+                0.0,
+                (
+                    final_ex["max_abs_dh_ds"]
+                    - cfg.max_dh_ds
+                ) / cfg.max_dh_ds
+            ),
+        }
+
+        final_all = {
+            **final_gviol,
+            **final_pviol
+        }
+
+        final_nonstress = {
+            k: v
+            for k, v in final_all.items()
+            if k != "stress"
+        }
+
+        result.final_constraint_violations = final_all
+
+        result.final_max_violation = float(
+            max(final_all.values())
+        )
+
+        result.final_nonstress_max_violation = float(
+            max(final_nonstress.values())
+        )
+
+        result.nonstress_feasible = bool(
+            result.final_nonstress_max_violation
+            <= cfg.nonstress_feasible_tolerance
+        )
+
+        result.strict_feasible = bool(
+            result.final_max_violation
+            <= 1.0e-6
+        )
+
+        result.safety_target_reached = bool(
+            final_pviol["stress"]
+            <= 1.0e-6
+        )
+
+        result.final_extrema = final_ex
+
+    else:
+
+        result.final_constraint_violations = {}
+        result.final_max_violation = np.inf
+        result.final_nonstress_max_violation = np.inf
+        result.nonstress_feasible = False
+        result.strict_feasible = False
+        result.safety_target_reached = False
+        result.final_extrema = {}
+
+    result.selected_stage = (
+        ["A", "B", "C"][best_index]
     )
 
     return (
@@ -2599,7 +3089,7 @@ def main():
     )
 
     print("=" * 78)
-    print("GAS CONSTANT-WIDTH VARIABLE-THICKNESS OPTIMIZATION")
+    print("GAS CONSTANT-WIDTH VARIABLE-THICKNESS OPTIMIZATION V3")
     print("=" * 78)
 
     print()
@@ -2828,6 +3318,7 @@ def main():
         f"{'Freq/Hz':>12s}"
         f"{'Stress/MPa':>14s}"
         f"{'Window/kg':>12s}"
+        f"{'b/mm':>10s}"
         f"{'hmin/mm':>11s}"
         f"{'hmax/mm':>11s}"
     )
@@ -2842,6 +3333,7 @@ def main():
             f"{row['rated_frequency_Hz']:12.5f}"
             f"{row['working_window_stress_MPa']:14.3f}"
             f"{row['low_frequency_payload_window_kg']:12.4f}"
+            f"{row['width_min_mm']:10.4f}"
             f"{row['thickness_min_mm']:11.4f}"
             f"{row['thickness_max_mm']:11.4f}"
         )
@@ -2902,8 +3394,62 @@ def main():
     )
 
     print()
+    print("V3 CONSTRAINT / FRONTIER CHECK")
+    print("------------------------------")
+
     print(
-        "Best logarithmic variables:"
+        "Selected optimization stage = "
+        f"{getattr(optimization_result, 'selected_stage', '?')}"
+    )
+
+    print(
+        "Non-stress feasible = "
+        f"{getattr(optimization_result, 'nonstress_feasible', False)}"
+    )
+
+    print(
+        "Safety stress target reached = "
+        f"{getattr(optimization_result, 'safety_target_reached', False)}"
+    )
+
+    strict_ok = bool(
+        getattr(
+            optimization_result,
+            "strict_feasible",
+            False
+        )
+    )
+
+    print(
+        "Strict feasible = "
+        f"{strict_ok}"
+    )
+
+    print(
+        "Final non-stress max violation = "
+        f"{getattr(optimization_result, 'final_nonstress_max_violation', np.nan):.6e}"
+    )
+
+    print(
+        "Final max normalized violation = "
+        f"{getattr(optimization_result, 'final_max_violation', np.nan):.6e}"
+    )
+
+    for key, value in getattr(
+        optimization_result,
+        "final_constraint_violations",
+        {}
+    ).items():
+
+        print(
+            f"    {key:12s}: "
+            f"{value:.6e}"
+        )
+
+    print()
+    print(
+        "Best V3 optimization variables "
+        "[log(width_m), z1, z2, z3, z4]:"
     )
 
     print(
@@ -2998,7 +3544,7 @@ def main():
     ) as f:
 
         f.write(
-            "GAS CONSTANT-WIDTH VARIABLE-THICKNESS RESULT\n"
+            "GAS CONSTANT-WIDTH VARIABLE-THICKNESS V3 RESULT\n"
         )
 
         f.write(
@@ -3022,7 +3568,7 @@ def main():
 
         f.write(
             f"\nConstant width: "
-            f"{exact_profile.constant_width*1e3:.6f} mm\n"
+            f"{optimized_profile.constant_width*1e3:.6f} mm\n"
         )
 
         ex = optimized_profile.extrema(
@@ -3040,12 +3586,42 @@ def main():
         )
 
         f.write(
+            f"Selected optimization stage: "
+            f"{getattr(optimization_result, 'selected_stage', '?')}\n"
+        )
+
+        f.write(
+            f"Non-stress feasible: "
+            f"{getattr(optimization_result, 'nonstress_feasible', False)}\n"
+        )
+
+        f.write(
+            f"Safety stress target reached: "
+            f"{getattr(optimization_result, 'safety_target_reached', False)}\n"
+        )
+
+        f.write(
+            f"Strict feasible: "
+            f"{getattr(optimization_result, 'strict_feasible', False)}\n"
+        )
+
+        f.write(
+            f"Maximum non-stress normalized violation: "
+            f"{getattr(optimization_result, 'final_nonstress_max_violation', np.nan):.8e}\n"
+        )
+
+        f.write(
+            f"Maximum normalized constraint violation: "
+            f"{getattr(optimization_result, 'final_max_violation', np.nan):.8e}\n"
+        )
+
+        f.write(
             "\nIMPORTANT:\n"
         )
 
         f.write(
             "This result demonstrates optimality only inside the "
-            "declared 4-DOF Bernstein variable-thickness design space.\n"
+            "declared 5-DOF constant-width / Bernstein-thickness design space.\n"
         )
 
         f.write(
